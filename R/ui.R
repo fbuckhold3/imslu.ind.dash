@@ -1,5 +1,5 @@
 # UI with customized theme
-ui <- fluidPageui <- page_fluidui <- page_fluid(
+ui <-  page_fluid(
   # Include custom CSS and JS for hover effects and custom message handling
   tags$head(
     tags$style(HTML("
@@ -137,7 +137,7 @@ ui <- fluidPageui <- page_fluidui <- page_fluid(
     h3("Explore Your Data", style = "margin-bottom: 10px;")
   ),
   
-  # Clickable module cards with hover effects
+  # Clickable module cards with hover effects - simplified to just be navigation cards
   layout_column_wrap(
     width = "230px",
     gap = "12px",
@@ -155,15 +155,15 @@ ui <- fluidPageui <- page_fluidui <- page_fluid(
       class = "module-card"
     ),
     
-    # Continuity Clinic card
+    # Continuity Clinic card - simplified to just be a navigation card
     card(
       id = "continuity_card",
-      card_header("Continuity Clinic", style = "color: #B71C1C; font-weight: bold;"),
+      card_header("Continuity Clinic Evaluations", style = "color: #004B87; font-weight: bold;"),
       card_body(
         style = "text-align: center;",
-        icon("stethoscope", "fa-4x", style = "color: #D32F2F; margin-bottom: 10px;")
+        icon("stethoscope", "fa-4x", style = "color: #0072B2; margin-bottom: 10px;")
       ),
-      style = "background: #FFEBEE; border-radius: 10px; box-shadow: 3px 3px 8px rgba(0,0,0,0.1); height: 180px; cursor: pointer;",
+      style = "background: #E3F2FD; border-radius: 10px; box-shadow: 3px 3px 8px rgba(0,0,0,0.1); height: 180px; cursor: pointer;",
       class = "module-card"
     ),
     
@@ -191,18 +191,6 @@ ui <- fluidPageui <- page_fluidui <- page_fluid(
       class = "module-card"
     ),
     
-    # Other Data card
-    card(
-      id = "other_card",
-      card_header("Other Data", style = "color: #1565C0; font-weight: bold;"),
-      card_body(
-        style = "text-align: center;",
-        icon("chart-bar", "fa-4x", style = "color: #1976D2; margin-bottom: 10px;")
-      ),
-      style = "background: #E3F2FD; border-radius: 10px; box-shadow: 3px 3px 8px rgba(0,0,0,0.1); height: 180px; cursor: pointer;",
-      class = "module-card"
-    ),
-    
     # Milestones card
     card(
       id = "milestone_card",
@@ -225,10 +213,22 @@ ui <- fluidPageui <- page_fluidui <- page_fluid(
       ),
       style = "background: #F3E5F5; border-radius: 10px; box-shadow: 3px 3px 8px rgba(0,0,0,0.1); height: 180px; cursor: pointer;",
       class = "module-card"
+    ),
+    
+    # Other Data card
+    card(
+      id = "other_card",
+      card_header("Other Data", style = "color: #1565C0; font-weight: bold;"),
+      card_body(
+        style = "text-align: center;",
+        icon("chart-bar", "fa-4x", style = "color: #1976D2; margin-bottom: 10px;")
+      ),
+      style = "background: #E3F2FD; border-radius: 10px; box-shadow: 3px 3px 8px rgba(0,0,0,0.1); height: 180px; cursor: pointer;",
+      class = "module-card"
     )
   ),
   
-  # Container for module content
+  # Container for module content - This will display below the cards when a card is clicked
   div(
     id = "module_content",
     style = "margin-top: 30px;",

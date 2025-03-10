@@ -1,3 +1,7 @@
+# Ignore configuration files with sensitive information
+config.yml
+
+# R Specific Files
 .Rproj.user
 .Rhistory
 .RData

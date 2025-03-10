@@ -63,7 +63,12 @@ server <- function(input, output, session) {
   # 🔹 Render Resident Progress UI
   output$resident_progress <- renderUI({
     req(resident_info())
-    progress_data <- compute_eval_progress(resident_data, resident_info(), count_res_assessments)
+    # Fix: Pass count_res_assessments as the count_function parameter explicitly
+    progress_data <- compute_eval_progress(
+      data = resident_data, 
+      resident_name = resident_info(), 
+      count_function = count_res_assessments
+    )
     display_progress(progress_data)
   })
   
@@ -98,120 +103,221 @@ server <- function(input, output, session) {
     )
   })
   
-  # Create a reactive for continuity clinic data
-  cc_data <- reactive({
-    req(resident_info())
-    
-    # In a real app, you would fetch this data from your database
-    # For demonstration, we'll create sample data for the current resident
-    set.seed(123)
-    levels <- c("Level 1", "Level 2", "Level 3")
-    eval_types <- c("Type A", "Type B", "Type C", "Type D")
-    evaluators <- c("John", "Jane", "Mark", "Sarah", NA)
-    
-    # Create sample data for the current resident
-    expand.grid(
-      name = resident_info(),
-      Level = levels,
-      cc_eval_type = eval_types
-    ) %>%
-      mutate(
-        # Randomly assign evaluators or NA for incomplete evaluations
-        Evaluator = sample(evaluators, n(), replace = TRUE),
-        is_complete = !is.na(Evaluator)
-      )
-  })
-  
-  # 🔹 Module Selection Handling - UPDATED for continuity clinic module
   output$selected_module_ui <- renderUI({
-    req(input$module_selected)
+    # Initialize with nothing displayed
+    if (is.null(input$module_selected)) {
+      return(NULL)
+    }
+    
+    # Show appropriate content based on which card was clicked
     switch(input$module_selected,
-           'plus_delta' = div(h3("Plus / Delta Feedback"), DT::DTOutput("p_d")),
-           "continuity" = div(
-             h3("Continuity Clinic Data", 
-                style = "background: linear-gradient(135deg, #B71C1C 20%, #EF5350 80%); color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px;"),
-             fluidRow(
-               column(width = 6,
-                      # Original plot 
-                      card(
-                        card_header("Visit Data", style = "background-color: #f1f3f5; color: #212529; font-weight: 600;"),
-                        card_body(
-                          plotOutput("continuity_plot")
-                        )
-                      )
-               ),
-               column(width = 6,
-                      # Add a new panel for CC evaluation summary
-                      card(
-                        card_header("Additional Metrics", style = "background-color: #f1f3f5; color: #212529; font-weight: 600;"),
-                        card_body(
-                          plotOutput("cc_summary_plot")
-                        )
-                      )
-               )
-             ),
-             # Add the evaluation completion table
-             card(
-               card_header(
-                 class = "bg-primary text-white",
-                 h3(icon("check-square"), "Evaluation Completion Status", class = "mb-0")
-               ),
-               card_body(
-                 reactableOutput("cc_completion_table")
+           "plus_delta" = {
+             div(
+               card(
+                 card_header("Plus / Delta Feedback"),
+                 card_body(
+                   DT::DTOutput("plus_delta_table")
+                 )
                )
              )
-           ),
-           "observational" = div(h3("Observational Data"), plotOutput("observational_plot")),
-           "inpatient" = div(h3("Inpatient Data"), plotOutput("inpatient_plot")),
-           "other" = div(h3("Other Data"), plotOutput("other_plot")),
-           "milestone" = div(
-             h3("Milestone Data"),
-             mod_miles_select_ui("period_select"),
-             plotOutput("self_milestone_plot", height = "400px"),
-             plotOutput("prog_milestone_plot", height = "400px")
-           ),
-           "assessment" = div(h3("Self-Assessment Data"), plotOutput("assessment_plot"))
+           },
+           "continuity" = {
+             div(
+               card(
+                 card_header("Continuity Clinic Evaluations"),
+                 card_body(
+                   div(
+                     uiOutput("cc_missing_evals_warning"),
+                     h4("Completion Status"),
+                     reactableOutput("cc_completion_status"),
+                     hr(),
+                     h4("Plus/Delta Feedback"),
+                     DT::DTOutput("cc_plusdelta_table"),
+                     hr(),
+                     h4("Inbasket Coverage"),
+                     DT::DTOutput("cc_inbasket_table"),
+                     hr(),
+                     h4("Documentation"),
+                     DT::DTOutput("cc_documentation_table"),
+                     hr(),
+                     h4("Summative Evaluations"),
+                     DT::DTOutput("cc_summative_intern_table"),
+                     DT::DTOutput("cc_summative_pgy2_table"),
+                     DT::DTOutput("cc_summative_pgy3_table")
+                   )
+                 )
+               )
+             )
+           },
+           "observational" = {
+             div(
+               card(
+                 card_header("Observational Data"),
+                 card_body(
+                   plotOutput("observational_plot")
+                 )
+               )
+             )
+           },
+           "inpatient" = {
+             div(
+               card(
+                 card_header("Inpatient Data"),
+                 card_body(
+                   plotOutput("inpatient_plot")
+                 )
+               )
+             )
+           },
+           "milestone" = {
+             div(
+               card(
+                 card_header("Milestones"),
+                 card_body(
+                   p("Milestone data will be displayed here")
+                   # Add your milestone outputs here
+                 )
+               )
+             )
+           },
+           "assessment" = {
+             div(
+               card(
+                 card_header("Self-Assessment"),
+                 card_body(
+                   p("Self-assessment data will be displayed here")
+                   # Add your self-assessment outputs here
+                 )
+               )
+             )
+           },
+           "other" = {
+             div(
+               card(
+                 card_header("Other Data"),
+                 card_body(
+                   p("Other metrics and data will be displayed here")
+                   # Add your other data outputs here
+                 )
+               )
+             )
+           }
     )
   })
   
-  # Render the CC completion table
-  output$cc_completion_table <- renderReactable({
+  # Card 1: Plus Delta Data
+  
+  output$plus_delta_table <- DT::renderDT({
     req(resident_info())
-    
-    # Get the CC data for this resident
-    cc_data_for_table <- cc_data()
-    
-    # Use your helper function to generate the table
-    create_cc_table(cc_data_for_table, resident_info())
+    plus_delta_data <- generate_p_d(resident_data, resident_info())
+    create_styled_dt(plus_delta_data, caption = "Plus/Delta Feedback")
   })
   
-  # Add a placeholder summary plot for CC
-  output$cc_summary_plot <- renderPlot({
+  # Keep your existing p_d output for backward compatibility if needed
+  output$p_d <- DT::renderDT({
     req(resident_info())
-    # Sample plot - replace with actual data visualization
-    barplot(table(cc_data()$is_complete), 
-            main = "Completion Status", 
-            col = c("#c5221f", "#137333"),
-            names.arg = c("Incomplete", "Complete"))
+    plus_delta_data <- generate_p_d(resident_data, resident_info())
+    create_styled_dt(plus_delta_data, caption = "Plus/Delta Feedback")
   })
   
-  # 🔹 Placeholder Plots for Modules
-  output$p_d <- DT::renderDT({generate_p_d(resident_data, resident_info()) 
+  # Card 2: Continuity Clinic:
+  # 
+  # In your server function:
+  output$cc_completion_status <- renderReactable({
+    req(resident_info())
+    create_cc_table(resident_data, resident_info())
   })
-  output$continuity_plot <- renderPlot({ 
-    plot(1:10, 1:10, type = "l", main = "Continuity Clinic Visits") 
+  
+  output$cc_missing_evals_warning <- renderUI({
+    req(resident_info())
+    
+    # Filter data for the selected resident
+    resident_evals <- resident_data %>%
+      filter(name == resident_info(), !is.na(cc_eval_type))
+    
+    # Count the unique evaluation types
+    unique_evals <- unique(resident_evals$cc_eval_type)
+    
+    # If less than 4 unique evaluation types, show warning
+    if (length(unique_evals) < 4) {
+      missing_count <- 4 - length(unique_evals)
+      div(
+        class = "alert alert-warning",
+        icon("exclamation-triangle"),
+        paste("You need to get", missing_count, "more type(s) of evaluations!")
+      )
+    }
   })
+  
+  output$cc_plusdelta_table <- renderDT({
+    req(resident_info())
+    pd_data <- process_cc_pd_data(resident_data, resident_info())
+    create_styled_dt(pd_data, caption = "Plus/Delta Feedback")
+  })
+  
+  output$cc_inbasket_table <- renderDT({
+    req(resident_info())
+    inbasket_data <- process_cc_inbasket_data(resident_data, resident_info())
+    create_styled_dt(inbasket_data, caption = "Inbasket Coverage Evaluations")
+  })
+  
+  output$cc_documentation_table <- renderDT({
+    req(resident_info())
+    doc_data <- process_cc_document_data(resident_data, resident_info())
+    create_styled_dt(doc_data, caption = "Documentation Evaluations")
+  })
+  
+  output$cc_summative_intern_table <- renderDT({
+    req(resident_info())
+    cat("Calling process_summative_data with resident:", resident_info(), "and level: Intern\n")
+    summative_intern_data <- process_summative_data(resident_data, resident_info(), "Intern")
+    cat("Result from process_summative_data: class:", class(summative_intern_data), 
+        "rows:", ifelse(is.null(summative_intern_data), "NULL", nrow(summative_intern_data)), "\n")
+    create_styled_dt(summative_intern_data, caption = "Intern Summative Evaluations")
+  })
+  
+  output$cc_summative_pgy2_table <- renderDT({
+    req(resident_info())
+    summative_pgy2_data <- process_summative_data(resident_data, resident_info(), "PGY2")
+    create_styled_dt(summative_pgy2_data, caption = "PGY2 Summative Evaluations")
+  })
+  
+  output$cc_summative_pgy3_table <- renderDT({
+    req(resident_info())
+    summative_pgy3_data <- process_summative_data(resident_data, resident_info(), "PGY3")
+    create_styled_dt(summative_pgy3_data, caption = "PGY3 Summative Evaluations")
+  })
+  
+  observe({
+    req(resident_info())
+    # Check for NAs in key fields
+    print(sum(is.na(resident_data$name)))
+    print(sum(is.na(resident_data$cc_eval_type)))
+    print(sum(is.na(resident_data$Level)))
+    
+    # Check unique values
+    print(unique(resident_data$cc_eval_type))
+    print(unique(resident_data$Level))
+  })
+  
+  #Card 3: Observational Data
+
   output$observational_plot <- renderPlot({ 
     plot(1:10, 10:1, type = "l", main = "Observational Data") 
   })
+  
+  #Card 4: Inpatient
+  
   output$inpatient_plot <- renderPlot({ 
     plot(1:10, sample(1:10), type = "l", main = "Inpatient Data") 
   })
-  output$other_plot <- renderPlot({ 
-    plot(1:10, cumsum(rnorm(10)), type = "l", main = "Other Data") 
-  })
-  output$assessment_plot <- renderPlot({ 
-    plot(1:10, sin(1:10), type = "l", main = "Self-Assessment Data") 
-  })
+  
+  # Card 5: Milestones
+  
+ 
+  # Card 6: Self-assessment
+  
+  
+  # Card 7: Other data
+  # 
 }
-
