@@ -31,7 +31,7 @@ server <- function(input, output, session) {
   })
   
   #' Background data setup:
-  obs_labels <- imres::parse_ip_obs_labels(ass_dict)
+  obs_labels <- parse_ip_obs_labels(ass_dict)
   
   # 🔹 Show Resident Name
   output$resident_name <- renderText({
