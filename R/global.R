@@ -37,6 +37,17 @@ if (is_hosted) {
   new_ass_token <- conf$new_ass_token
 }
 
+cat("=== DEBUG: Dumping environment variable NAMES only ===\n")
+all_env_vars <- names(Sys.getenv())
+print(all_env_vars)
+
+# If you just need to confirm that EVAL_TOKEN, RDM_TOKEN are set at all:
+cat("=== Checking the tokens exist in Sys.getenv() ===\n")
+cat("EVAL_TOKEN is set? ", "EVAL_TOKEN" %in% all_env_vars, "\n")
+cat("RDM_TOKEN is set?  ", "RDM_TOKEN"  %in% all_env_vars, "\n")
+cat("FAC_TOKEN is set?  ", "FAC_TOKEN"  %in% all_env_vars, "\n")
+
+
 url <- "https://redcapsurvey.slu.edu/api/"
 
 # Function to safely pull resident data from REDCap API
