@@ -1187,7 +1187,14 @@
         "Maintainer": "Jennifer Bryan <jenny@rstudio.com>",
         "Repository": "CRAN",
         "Date/Publication": "2022-10-11 17:12:36 UTC",
-        "Built": "R 4.3.0; ; 2023-04-07 12:54:54 UTC; unix"
+        "Built": "R 4.3.0; ; 2023-04-07 12:54:54 UTC; unix",
+        "RemoteType": "standard",
+        "RemotePkgRef": "devtools",
+        "RemoteRef": "devtools",
+        "RemoteRepos": "https://cloud.r-project.org",
+        "RemoteReposName": "CRAN",
+        "RemotePkgPlatform": "aarch64-apple-darwin20",
+        "RemoteSha": "2.4.5"
       }
     },
     "diffobj": {
@@ -5134,7 +5141,7 @@
       "checksum": "a7f0e396297f7eef3654f60b60d4146c"
     },
     ".Rprofile": {
-      "checksum": "c608d24030b3a707de8de3cc89ebd4cf"
+      "checksum": "7a98519460dc7ca09bd42b03a87bb40f"
     },
     "app.R": {
       "checksum": "6958f396f58ad68f1da357a1fb2a30bb"
@@ -5152,19 +5159,19 @@
       "checksum": "51fb5b84c29e54e8f01c8fe815f27c08"
     },
     "R/global.R": {
-      "checksum": "4bc5fee8387c0f58dc2532b543a4acb1"
+      "checksum": "89596af98cea03f37342ca951203c9da"
     },
     "R/helpers.R": {
-      "checksum": "43d328adfe22c98380b703a96b669e79"
+      "checksum": "e1c06d85ae7b8b032bef47e42e4c08f9"
     },
     "R/server.R": {
-      "checksum": "61cbd62b3e7049775f9a9ef8884b5008"
+      "checksum": "b3b3f7655837fc38912fc1fdae7957ae"
     },
     "R/ui.R": {
       "checksum": "0caf02c63ba48eae932f2bc899365388"
     },
     "renv.lock": {
-      "checksum": "732328053f7b90dded6b59c4dc500bcd"
+      "checksum": "60e73e60621e5c180b5828681bf84fa4"
     },
     "requirements.txt": {
       "checksum": "82771257fc09cbf6f52f6d418e546d27"
