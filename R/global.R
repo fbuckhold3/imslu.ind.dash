@@ -58,7 +58,7 @@ res <- httr::POST(
     token   = rdm_token,
     content = "record",
     format  = "json",
-    forms   = c("resident_data","faculty_evaluation")
+    forms   = "resident_data"
   ),
   encode = "form"
 )
