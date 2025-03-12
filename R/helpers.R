@@ -297,7 +297,7 @@ prep_obs_table <- function(data,
   # 1) Filter rows for the chosen resident & label
   filtered_data <- data %>%
     dplyr::filter(name == resident,
-                  ip_obs_type_label == selected_label)
+                  ip_obs_type == selected_label)
   
   # If there's no matching data, return the empty styled DT
   if (nrow(filtered_data) == 0) {
@@ -316,7 +316,7 @@ prep_obs_table <- function(data,
     "assess_a_resident_timestamp", "ass_date", "clin_context", 
     "slu_gim_att", "att_sign", "assess_a_resident_complete", 
     "week", "year", "name", "eval_type", "weekyr", 
-    "start_year", "academic_year_start", "record_id"
+    "start_year", "academic_year_start", "record_id", "ip_obs_type"
   )
   final_data <- final_data[, setdiff(names(final_data), unwanted_cols), drop = FALSE]
   
