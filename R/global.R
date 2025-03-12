@@ -18,18 +18,20 @@ library(data.table)
 library(purrr)
 
 
-
-# Simple approach: if EVAL_TOKEN is defined, we assume "hosted"
+# 1) Identify whether we are hosted
 is_hosted <- Sys.getenv("EVAL_TOKEN") != ""
 
+# 2) Load tokens from environment or config
 if (is_hosted) {
-  # Use environment variables from the hosting service
   eval_token <- Sys.getenv("EVAL_TOKEN")
   rdm_token  <- Sys.getenv("RDM_TOKEN")
   fac_token  <- Sys.getenv("FAC_TOKEN")
   new_ass_token <- Sys.getenv("NEW_ASS_TOKEN")
+  
+  # Disable SSL verification in the hosted environment (NOT recommended for production)
+  httr::set_config(httr::config(ssl_verifypeer = FALSE))
+  
 } else {
-  # Use local config.yml
   conf <- config::get(file = "config.yml")
   eval_token <- conf$eval_token
   rdm_token  <- conf$rdm_token
@@ -37,19 +39,18 @@ if (is_hosted) {
   new_ass_token <- conf$new_ass_token
 }
 
-cat("=== DEBUG: Dumping environment variable NAMES only ===\n")
-all_env_vars <- names(Sys.getenv())
-print(all_env_vars)
-
-# If you just need to confirm that EVAL_TOKEN, RDM_TOKEN are set at all:
+# Debug prints
 cat("=== Checking the tokens exist in Sys.getenv() ===\n")
-cat("EVAL_TOKEN is set? ", "EVAL_TOKEN" %in% all_env_vars, "\n")
-cat("RDM_TOKEN is set?  ", "RDM_TOKEN"  %in% all_env_vars, "\n")
-cat("FAC_TOKEN is set?  ", "FAC_TOKEN"  %in% all_env_vars, "\n")
+cat("EVAL_TOKEN is set? ", "EVAL_TOKEN" %in% names(Sys.getenv()), "\n")
+cat("RDM_TOKEN is set?  ", "RDM_TOKEN"  %in% names(Sys.getenv()), "\n")
+cat("FAC_TOKEN is set?  ", "FAC_TOKEN"  %in% names(Sys.getenv()), "\n")
 
+# The RedCap URL
 url <- "https://redcapsurvey.slu.edu/api/"
 
-httr::GET("https://redcapsurvey.slu.edu/api/")
+# Possibly a test call:
+resp <- httr::GET(url)
+cat("Initial GET() status:", httr::status_code(resp), "\n")
 
 tryCatch({
   # your API function, e.g. redcapAPI::redcap_read(...)
@@ -61,6 +62,9 @@ tryCatch({
   cat("Error message: ", e$message, "\n")
 })
 
+ass_dat <- full_api_pull(eval_token, url)
+ass_dat <- wrangle_assessment_data(ass_dat)
+rdm_dat <- forms_api_pull(rdm_token, url, 'resident_data', 'faculty_evaluation')
 
 
 # Function to safely pull resident data from REDCap API
