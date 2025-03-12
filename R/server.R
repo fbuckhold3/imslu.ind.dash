@@ -1,5 +1,13 @@
 server <- function(input, output, session) {
   
+  observe({
+    cat("Data availability check:\n")
+    cat("- ass_dict exists:", exists("ass_dict"), "\n")
+    cat("- ass_dat exists:", exists("ass_dat"), "\n")
+    cat("- ass_dict is reactive:", is.reactive(ass_dict), "\n")
+    cat("- ass_dat is reactive:", is.reactive(ass_dat), "\n")
+  })
+  
   # 🔹 Determine Access Code:
   access_code <- reactive({
     query <- parseQueryString(session$clientData$url_search)
@@ -28,6 +36,9 @@ server <- function(input, output, session) {
     # Return the resident's name from the first matching row.
     filtered_res$name[1]
   })
+  
+  #' Background data setup:
+  obs_labels <- parse_ip_obs_labels(ass_dict)
   
   # 🔹 Show Resident Name
   output$resident_name <- renderText({
@@ -153,11 +164,31 @@ server <- function(input, output, session) {
              div(
                card(
                  card_header("Observational Data"),
-                 card_body(
-                   plotOutput("observational_plot")
+                 fluidRow(
+                   h3("Observational Data"),
+                   column(
+                     width = 4,
+                     # Left side: your progress bars, debug info, etc.
+                     h4("Observation Progress"),
+                     uiOutput("obsProgressBars"),
+                   ),
+                   column(
+                     width = 8,
+                     h4("Observation Data"),
+                     # Right side: pick an observation type and show a data table
+                     selectInput(
+                       inputId  = "obs_label_choice", 
+                       label    = "Select an Observation Type:",
+                       choices  = obs_labels,   # or sort(labels) if you want alphabetical
+                       selected = NULL
+                     ),
+                     
+                     DT::DTOutput("obs_table")
+                   
                  )
                )
              )
+            )
            },
            "inpatient" = {
              div(
@@ -302,8 +333,23 @@ server <- function(input, output, session) {
   
   #Card 3: Observational Data
 
-  output$observational_plot <- renderPlot({ 
-    plot(1:10, 10:1, type = "l", main = "Observational Data") 
+  output$obsProgressBars <- renderUI({
+ 
+    req(resident_info())
+    
+    summarized_df <- summarize_observations(ass_dat, resident_info(), obs_labels)
+    progress_data <- prepare_progress_data(summarized_df, target = 5)
+    display_progress(progress_data)
+  })
+  
+  output$obs_table <- DT::renderDT({
+    req(resident_info(), input$obs_label_choice)
+    prep_obs_table(
+      data          = ass_dat,
+      dict          = ass_dict,
+      resident      = resident_info(),
+      selected_label= input$obs_label_choice
+    )
   })
   
   #Card 4: Inpatient

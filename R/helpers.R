@@ -80,16 +80,9 @@ generate_tot_eval_plot <- function(data, resident_name) {
     facet_wrap(~Level, ncol = 1)  # Only facets if Level exists
 }
 
-#' Progress bar for total completed:
-compute_eval_progress <- function(data, resident_name) {
-  data %>%
-    filter(name == resident_name) %>%
-    group_by(Level) %>%
-    summarize(Total = sum(Count, na.rm = TRUE), .groups = 'drop') %>%
-    mutate(Progress = pmin((Total / 25) * 100, 100))  # Cap at 100%
-}
 
-### Display of 
+
+### Display functions:
 
 # Helper function to display progress (with fallback message if no data)
 display_progress <- function(progress_data) {
@@ -124,218 +117,7 @@ display_progress <- function(progress_data) {
   )
 }
 
-
-#' Code form imres but not uploaded yet. DELETE when done:
-#'-------------------------------------------------------------------------
-#'
-# Plus delta function for plus delta mod:
-#' @export
-#' @title plus delta function
-#' @description Get data of plus-delta
-#' @param id eval data, resident is resident nam
-#' @return datatable of plus-delta
-generate_p_d <- function(data, resident) {
-  data %>%
-    filter(name == resident) %>%
-    select(Date, Rotation, Level, cc_res_does_well, res_to_improve, min_giv_feedback, Evaluator) %>%
-    dplyr::rename(Plus = cc_res_does_well, Delta = res_to_improve, Feedback = min_giv_feedback) %>%
-    filter(!(is.na(Rotation) & is.na(Plus) & is.na(Delta))) 
-}
-
-
-#' Create Continuity Clinic (CC) Evaluation Completion Table
-#'
-#' Creates a reactable table displaying the completion status of evaluations 
-#' organized by level and evaluation type, filtered by a specific name.
-#' Always includes the four standard evaluation types across all quarters.
-#'
-#' @param data A dataframe containing columns: name, Level, cc_eval_type, and Evaluator
-#' @param name The name to filter the data by
-#'
-#' @return A reactable table object
-#' @export
-#'
-#' @importFrom reactable reactable colDef colGroup reactableTheme
-#' @importFrom htmltools div
-#' @importFrom dplyr filter arrange
-create_cc_table <- function(data, name) {
-  # Ensure required packages are available
-  if (!requireNamespace("reactable", quietly = TRUE)) {
-    stop("Package 'reactable' is needed for this function to work. Please install it.",
-         call. = FALSE)
-  }
-  if (!requireNamespace("htmltools", quietly = TRUE)) {
-    stop("Package 'htmltools' is needed for this function to work. Please install it.",
-         call. = FALSE)
-  }
-  if (!requireNamespace("dplyr", quietly = TRUE)) {
-    stop("Package 'dplyr' is needed for this function to work. Please install it.",
-         call. = FALSE)
-  }
-  
-  # Define the standard evaluation types exactly as they appear in the data
-  standard_eval_types <- c(
-    "1st quarter - inbasket coverage",
-    "2nd quarter - summative evaluation",
-    "3rd quarter - documentation",
-    "4th quarter - summative evaluation"
-  )
-  
-  # Define display names for the columns
-  display_names <- c(
-    "Q1 - Inbasket", 
-    "Q2 - Summative", 
-    "Q3 - Documentation", 
-    "Q4 - Summative"
-  )
-  
-  # Filter data by name and remove NAs in cc_eval_type
-  filtered_data <- data %>% 
-    dplyr::filter(name == !!name, !is.na(cc_eval_type)) %>%
-    dplyr::arrange(Level)
-  
-  # Create table data with all levels
-  result_df <- data.frame(Level = unique(filtered_data$Level), stringsAsFactors = FALSE)
-  
-  # If no levels found, create a placeholder row
-  if (nrow(result_df) == 0) {
-    result_df <- data.frame(Level = "No data available", stringsAsFactors = FALSE)
-  }
-  
-  # Add columns for each standard evaluation type
-  for (i in 1:length(standard_eval_types)) {
-    et <- standard_eval_types[i]
-    display_name <- display_names[i]
-    
-    # Initialize with FALSE (incomplete) for all levels
-    result_df[[paste0(display_name, " Status")]] <- FALSE
-    result_df[[paste0(display_name, " Evaluator")]] <- NA
-    
-    # Fill in data for each level if available
-    for (j in 1:nrow(result_df)) {
-      level_val <- result_df$Level[j]
-      
-      # Skip if placeholder row
-      if (level_val == "No data available") next
-      
-      # Find matching records
-      matching_rows <- filtered_data %>% 
-        dplyr::filter(Level == level_val, cc_eval_type == et)
-      
-      if (nrow(matching_rows) > 0) {
-        # Mark as complete and add evaluator name
-        result_df[[paste0(display_name, " Status")]][j] <- TRUE
-        result_df[[paste0(display_name, " Evaluator")]][j] <- matching_rows$Evaluator[1]
-      }
-    }
-  }
-  
-  # Theme for the table
-  custom_theme <- reactable::reactableTheme(
-    borderColor = "#dfe2e5",
-    stripedColor = "#f6f8fa",
-    highlightColor = "#f0f5ff",
-    cellPadding = "10px 12px",
-    style = list(
-      fontFamily = "-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif",
-      fontSize = "14px"
-    ),
-    headerStyle = list(
-      backgroundColor = "#f1f3f5",
-      color = "#212529",
-      fontWeight = 600,
-      borderBottom = "2px solid #dee2e6"
-    )
-  )
-  
-  # Define columns for reactable
-  cols <- list(
-    Level = reactable::colDef(
-      name = "Level",
-      minWidth = 120,
-      cell = function(value) {
-        htmltools::div(
-          style = "font-weight: 600; color: #1a73e8;",
-          value
-        )
-      }
-    )
-  )
-  
-  # Add status and evaluator columns for each evaluation type
-  column_groups <- list()
-  for (i in 1:length(display_names)) {
-    display_name <- display_names[i]
-    
-    # Create column names
-    status_col <- paste0(display_name, " Status")
-    eval_col <- paste0(display_name, " Evaluator")
-    
-    # Status column with checkmark or O
-    cols[[status_col]] <- reactable::colDef(
-      name = display_name,
-      cell = function(value) {
-        if (isTRUE(value)) {
-          htmltools::div(
-            style = "display: flex; justify-content: center; align-items: center;",
-            htmltools::div(
-              style = "background-color: #e6f4ea; color: #137333; border-radius: 50%; width: 30px; height: 30px; display: flex; justify-content: center; align-items: center; font-size: 18px;",
-              "✓"
-            )
-          )
-        } else {
-          htmltools::div(
-            style = "display: flex; justify-content: center; align-items: center;",
-            htmltools::div(
-              style = "background-color: #fce8e6; color: #c5221f; border-radius: 50%; width: 30px; height: 30px; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 18px;",
-              "O"
-            )
-          )
-        }
-      },
-      width = 120,
-      align = "center"
-    )
-    
-    # Evaluator column
-    cols[[eval_col]] <- reactable::colDef(
-      name = "Evaluator",
-      cell = function(value) {
-        if (is.na(value)) {
-          htmltools::div(style = "color: #999; font-style: italic;", "Not assigned")
-        } else {
-          htmltools::div(style = "font-weight: 500;", value)
-        }
-      },
-      width = 130
-    )
-    
-    # Add to column groups
-    column_groups[[length(column_groups) + 1]] <- reactable::colGroup(
-      name = display_name,
-      columns = c(status_col, eval_col)
-    )
-  }
-  
-  # Create the reactable with improved styling
-  reactable::reactable(
-    result_df,
-    columns = cols,
-    bordered = TRUE,
-    highlight = TRUE,
-    striped = TRUE,
-    theme = custom_theme,
-    columnGroups = column_groups
-  )
-}
-
-
-
-#' Create a styled DataTable for CC evaluation data
-#' @param data The processed data to display
-#' @param caption Table caption/title
-#' @return A styled DT::datatable
-#' @export
+#' Stylized DT:
 create_styled_dt <- function(data, caption = NULL) {
   if (nrow(data) == 0) {
     return(DT::datatable(
@@ -376,126 +158,189 @@ create_styled_dt <- function(data, caption = NULL) {
 }
 
 
+#'------
+#Observation data:
 
-
-
-
-
-process_summative_data <- function(data, resident_name, level) {
-  cat("Function called with resident:", resident_name, "and level:", level, "\n")
+#' @export
+#' @title Parse Labels for ip_obs_type
+#' @description Extracts only the textual labels for all possible choices
+#'              from the REDCap dictionary's `select_choices_or_calculations`
+#'              for a given field (default "ip_obs_type").
+#'
+#' @param dict A data frame or tibble of your REDCap dictionary, must have
+#'             `field_name` and `select_choices_or_calculations`
+#' @param ip_obs_field Character name of the field (default: "ip_obs_type")
+#'
+#' @return A character vector of labels (e.g., "Written H&P", "Verbal presentation", "Other").
+parse_ip_obs_labels <- function(dict, ip_obs_field = "ip_obs_type") {
+  dict_row <- dict %>%
+    dplyr::filter(field_name == ip_obs_field)
   
-  cc_names <- cc_names <- c(
-    `Intern Presentation` = 'cc_intern_pc1_1', 
-    Differential = 'cc_intern_pc3_1', 
-    `Health Promotion` = 'cc_intern_pc5_1', 
-    `Chronic Management` = 'cc_intern_pc5_2', 
-    `Minimize unfamiliar terms (I)` = 'cc_intern_ics1_2', 
-    `Shared Decision-Making (I)` = 'cc_intern_ics1_1', 
-    Respect = 'cc_intern_prof1', 
-    `Takes feedback (I)` = 'cc_intern_pbl2_1', 
-    `Acknowledge errors` = 'cc_intern_pbl2_2', 
-    `Presentation PGY2` = 'cc_pgy2_pc1_1', 
-    Documentation = 'cc_pgy2_ics3_1', 
-    `Reflection on practice` = 'cc_pgy2_pbl2_2', 
-    `Care coordination (2)` = 'cc_pgy2_sbp2_1', 
-    `Use Evidence (2)` = 'cc_pgy2_pbl1', 
-    `Shared Decision-Making (2)` = 'cc_pgy2_ics1_1', 
-    `Teamwork (2)` = 'cc_pgy2_ics2_2', 
-    `Takes feedback (2)` = 'cc_pgy_pbl2_1', 
-    `Minimize unfamiliar terms (2)` = 'cc_pgy2_ics_1_2', 
-    `Presentation PGY3` = 'cc_pgy3_pc1_1', 
-    `Teamwork (3)` = 'cc_pgy3_ics2_2', 
-    `Shared Decision-Making (3)` = 'cc_pgy3_ics1_1', 
-    `Minimize unfamiliar terms (3)` = 'cc_pgy3_ics1_2', 
-    `Care coordination (3)` = 'cc_pgy3_sbp2_1', 
-    `Use Evidence (3)` = 'cc_pgy3_pbl1', 
-    `Takes feedback (3)` = 'cc_pgy3_pbl2_1', 
-    `Acknowledge errors (3)` = 'cc_pgy3_pbl2_2'
+  # e.g. "1, Written H&P | 2, Verbal presentation of H&P | 3, Physical Exam | ..."
+  dict_string <- dict_row %>%
+    dplyr::pull(select_choices_or_calculations) %>%
+    .[1]
+  
+  # Split on '|'
+  choice_list <- str_split(dict_string, "\\|")[[1]]
+  
+  # 1) Trim each piece
+  # 2) Discard empty lines
+  choice_list <- choice_list %>%
+    map_chr(str_trim) %>%
+    discard(~ .x == "")
+  
+  # Now parse out the label portion. If it's "1, Written H&P", we do:
+  labels_only <- map_chr(choice_list, ~ {
+    # Your existing regex or code to parse out the text
+    # If you have "1, Written H&P"
+    # match[1] is full text, match[2] is "1", match[3] is "Written H&P"
+    match <- str_match(.x, "^(\\d+)\\s*,\\s*(.*)$")
+    match[, 3]  # The label part
+  })
+  
+  labels_only <- labels_only[!is.na(labels_only)]
+  labels_only
+}
+
+#' @export
+#' @title Summarize Observations
+#' @description 
+#'   Given a data frame of observations (with a text column for ip_obs_type),
+#'   filter for one resident, count how many times each type appears,
+#'   and include zero-count labels for any unused types.
+#'
+#' @param data A data frame with columns:
+#'   - `name`: Resident name
+#'   - `ip_obs_type` (by default) or a custom column specified by `ip_obs_field`
+#' @param resident The resident's name (character)
+#' @param labels A character vector of all possible labels (from parse_ip_obs_labels)
+#' @param ip_obs_field The column name in `data` storing the text labels (default "ip_obs_type")
+#'
+#' @return A tibble with columns `ip_obs_type_label` and `Count`.
+#'         If a label doesn't appear in the data, Count is 0.
+summarize_observations <- function(data,
+                                   resident,
+                                   labels,
+                                   ip_obs_field = "ip_obs_type") {
+  
+  # 1) Filter data for the resident, removing NA ip_obs_type
+  plot_data <- data %>%
+    dplyr::filter(
+      .data[["name"]] == resident,
+      !is.na(.data[[ip_obs_field]])
+    ) %>%
+    # <--- NEW: Trim or standardize the strings in your data so they match dictionary labels
+    dplyr::mutate(
+      # For case-insensitive matching, you could do stringr::str_to_lower(...). 
+      # For now, let's just trim whitespace:
+      temp_label = stringr::str_trim(.data[[ip_obs_field]])
+    ) %>%
+    # 2) Count how many times each label appears
+    dplyr::group_by(temp_label) %>%
+    dplyr::summarize(Count = dplyr::n(), .groups = "drop") %>%
+    dplyr::rename(ip_obs_type_label = temp_label)
+  
+  # 3) Convert 'labels' to a tibble so we can right-join 
+  all_labels <- tibble::tibble(ip_obs_type_label = labels)
+  
+  # 4) Right-join -> keep ALL labels
+  final_df <- dplyr::left_join(all_labels, plot_data, by = "ip_obs_type_label") %>%
+    dplyr::mutate(Count = tidyr::replace_na(Count, 0))
+  
+  # 5) Sort them in the same order as `labels`
+  final_df <- final_df %>%
+    dplyr::arrange(factor(ip_obs_type_label, levels = labels))
+  
+  final_df
+}
+
+#' @export
+#' @title Compute Observation Progress
+#' @description 
+#'   Given a data frame with columns `ip_obs_type_label` and `Count`, 
+#'   add a `Progress` column (0–100).
+#'
+#' @param summarized_df A data frame with columns `ip_obs_type_label` and `Count`.
+#' @param target Numeric, how many of each type do we consider 100% (default 5).
+#'
+#' @return A modified data frame with `Progress` (integer 0–100),
+#'         plus the original columns.
+compute_obs_progress <- function(summarized_df, target = 5) {
+  if (nrow(summarized_df) == 0) {
+    return(summarized_df)
+  }
+  
+  summarized_df %>%
+    dplyr::mutate(
+      # Round to nearest whole number and cap at 100
+      Progress = pmin(round((Count / target) * 100), 100)
+    )
+}
+
+
+prepare_progress_data <- function(summarized_df, target = 5) {
+  summarized_df %>%
+    compute_obs_progress(target = target) %>%
+    dplyr::rename(
+      Level = ip_obs_type_label,
+      Total = Count
+    )  # Keep `Progress` as is
+}
+
+
+prep_obs_table <- function(data,
+                           dict,
+                           resident,
+                           selected_label,
+                           caption = NULL) {
+  # 1) Filter rows for the chosen resident & label
+  filtered_data <- data %>%
+    dplyr::filter(name == resident,
+                  ip_obs_type_label == selected_label)
+  
+  # If there's no matching data, return the empty styled DT
+  if (nrow(filtered_data) == 0) {
+    return(create_styled_dt(data.frame(), 
+                            caption = paste("No data for:", selected_label)))
+  }
+  
+  # 2) Keep columns that are not all NA, plus columns we always include
+  always_include_cols <- c("Date", "ip_obs_type", "Level", "Evaluator")
+  non_empty <- colSums(!is.na(filtered_data)) > 0
+  non_empty[intersect(always_include_cols, names(filtered_data))] <- TRUE
+  final_data <- filtered_data[, non_empty, drop = FALSE]
+  
+  # 3) Remove columns we never want to display
+  unwanted_cols <- c(
+    "assess_a_resident_timestamp", "ass_date", "clin_context", 
+    "slu_gim_att", "att_sign", "assess_a_resident_complete", 
+    "week", "year", "name", "eval_type", "weekyr", 
+    "start_year", "academic_year_start", "record_id"
+  )
+  final_data <- final_data[, setdiff(names(final_data), unwanted_cols), drop = FALSE]
+  
+  # 4) Rename columns from field_name -> field_label if they match your dict
+  rename_map <- setNames(dict$field_label, dict$field_name)
+  final_data <- dplyr::rename_with(
+    final_data,
+    .cols = dplyr::everything(),
+    .fn = ~ ifelse(.x %in% names(rename_map), rename_map[.x], .x)
   )
   
-  tryCatch({
-    # Get all summative evaluations for this resident
-    summative_evals <- data %>%
-      filter(name == resident_name,
-             !is.na(cc_eval_type),
-             cc_eval_type %in% c("2nd quarter - summative evaluation", "4th quarter - summative evaluation"))
-    
-    cat("Found", nrow(summative_evals), "summative evaluations\n")
-    
-    # Instead of filtering by Level, which isn't working correctly,
-    # let's try to determine the level based on the variable names in each record
-    if (level == "Intern") {
-      # Check for Intern-specific variables being non-NA
-      filtered_data <- summative_evals %>%
-        filter(!is.na(cc_intern_pc1_1) | !is.na(cc_intern_pc3_1) | !is.na(cc_intern_pc5_1) |
-                 !is.na(cc_intern_ics1_2) | !is.na(cc_intern_ics1_1) | !is.na(cc_intern_prof1))
-    } else if (level == "PGY2") {
-      # Check for PGY2-specific variables being non-NA
-      filtered_data <- summative_evals %>%
-        filter(!is.na(cc_pgy2_pc1_1) | !is.na(cc_pgy2_ics3_1) | !is.na(cc_pgy2_pbl2_2) |
-                 !is.na(cc_pgy2_ics1_1) | !is.na(cc_pgy2_ics2_2))
-    } else if (level == "PGY3") {
-      # Check for PGY3-specific variables being non-NA
-      filtered_data <- summative_evals %>%
-        filter(!is.na(cc_pgy3_pc1_1) | !is.na(cc_pgy3_ics2_2) | !is.na(cc_pgy3_ics1_1) |
-                 !is.na(cc_pgy3_pbl2_1) | !is.na(cc_pgy3_pbl2_2))
-    } else {
-      # If no specific level filtering, just use all summative evals
-      filtered_data <- summative_evals
-    }
-    
-    cat("After level-specific variable filtering, row count:", nrow(filtered_data), "\n")
-    
-    if (nrow(filtered_data) > 0) {
-      filtered_data <- filtered_data %>%
-        rename(any_of(cc_names)) %>%
-        select(-any_of(c("Resident", "ID", "assess_a_resident_timestamp", 
-                         "clin_context", "res_to_improve", "cc_res_does_well", 
-                         "min_giv_feedback", "assess_a_resident_complete", 
-                         "Rotation", "eval_type", "Year", "Level", "cc_csm_att",
-                         "att_sign", "week", "year", "name", "start_year", 
-                         "academic_year_start", "record_id"))) %>%
-        select_if(~ any(!is.na(.)) & any(. != ""))
-      
-      cat("Final filtered data row count:", nrow(filtered_data), "\n")
-      return(filtered_data)
-    } else {
-      return(data.frame(Message = paste("No summative data available for", level)))
-    }
-  }, error = function(e) {
-    cat("Error caught:", e$message, "\n")
-    return(data.frame(Message = paste("Error processing summative data:", e$message)))
-  })
-}
-
-### Plus/delta:
-#' @export
-process_cc_pd_data <- function(data, resident_name) {
-  data %>%
-    filter(name == resident_name, (Rotation == "VA Continuity clinic") | (Rotation == "CSM Continuity clinic (including metabolism clinic)")) %>%
-    select(Date, Level, cc_eval_type, cc_res_does_well, res_to_improve, min_giv_feedback, Evaluator) %>%
-    rename(Quarter = cc_eval_type, Plus = cc_res_does_well, Delta = res_to_improve, Feedback = min_giv_feedback)
-}
-
-#inbasket:
-#' @export
-process_cc_inbasket_data <- function(data, resident_name) {
-  bask <- c("cc_inb_resp", "cc_inb_resu", "cc_inb_mych", "cc_inb_comm", "cc_inb_comp", "Level", "Evaluator")
-  data %>%
-    filter(name == resident_name, cc_eval_type == "1st quarter - inbasket coverage") %>%
-    select(starts_with('cc_'), Level, Evaluator) %>%
-    select(any_of(bask)) %>%
-    relocate('Level') %>%
-    rename(Responsible = cc_inb_resp, `Result Response` = cc_inb_resu, MyChart = cc_inb_mych, Paperwork = cc_inb_comm, `Comms with preceptor` = cc_inb_comp)
-}
-
-# documentation
-#' @export
-process_cc_document_data <- function(data, resident_name) {
-  data %>%
-    filter(name == resident_name, cc_eval_type == "3rd quarter - documentation") %>%
-    select(Level, cc_doc_update, cc_doc_review, cc_doc_medall, cc_doc_remind, cc_doc_diag, cc_doc_notes, cc_doc_comp, Evaluator) %>%
-    rename(`Update EMR` = cc_doc_update, `Review EMR` = cc_doc_review, `Update meds` = cc_doc_medall, `Does reminders` = cc_doc_remind, `Accurate Diagnoses` = cc_doc_diag, `Notes clear` = cc_doc_notes, `Notes complete` = cc_doc_comp)
+  # 5) Reorder columns so "Date", "Rotation", and "Level" go first
+  front_cols <- c("Date", "Rotation", "Level")
+  front_cols <- intersect(front_cols, names(final_data))
+  other_cols <- setdiff(names(final_data), front_cols)
+  final_data <- final_data[, c(front_cols, other_cols), drop = FALSE]
+  
+  # 6) Finally, return your **styled** DT
+  create_styled_dt(final_data,
+                   caption = if (is.null(caption)) {
+                     paste("Details for:", selected_label)
+                   } else {
+                     caption
+                   })
 }
 
 

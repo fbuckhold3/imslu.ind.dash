@@ -7,6 +7,15 @@ library(config)
 library(imres)
 library(bslib)
 library(httr)
+library(gganimate)
+library(stringr)
+library(xml2)
+library(fontawesome)
+library(tidyr)
+library(reactable)
+library(htmltools)
+library(data.table)
+library(purrr)
 
 # Load environment variables and configuration
 is_connect <- Sys.getenv("R_CONFIG_ACTIVE") == "posit_connect" || 
@@ -62,3 +71,7 @@ milestone_data <- get_milestone_data()
 
 p_miles <- milestone_data$p_miles
 s_miles <- milestone_data$s_miles
+
+
+rdm_dict <- get_data_dict(rdm_token, url)
+ass_dict <- get_data_dict(eval_token, url)
