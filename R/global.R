@@ -49,8 +49,25 @@ cat("FAC_TOKEN is set?  ", "FAC_TOKEN"  %in% names(Sys.getenv()), "\n")
 url <- "https://redcapsurvey.slu.edu/api/"
 
 # Possibly a test call:
-resp <- httr::GET(url)
-cat("Initial GET() status:", httr::status_code(resp), "\n")
+resp <- httr::POST(url)
+cat("Initial POST() status:", httr::status_code(resp), "\n")
+
+res <- httr::POST(
+  url = "https://redcapsurvey.slu.edu/api/",
+  body = list(
+    token   = rdm_token,
+    content = "record",
+    format  = "json",
+    forms   = c("resident_data","faculty_evaluation")
+  ),
+  encode = "form"
+)
+
+if (httr::status_code(res) != 200) {
+  stop("REDCap API call failed! Status: ", httr::status_code(res))
+}
+jsonlite::fromJSON(httr::content(res, "text"))
+
 
 tryCatch({
   # your API function, e.g. redcapAPI::redcap_read(...)
