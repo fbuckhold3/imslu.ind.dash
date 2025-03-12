@@ -1,13 +1,42 @@
 server <- function(input, output, session) {
   
-  observe({
-    cat("Data availability check:\n")
-    cat("- ass_dict exists:", exists("ass_dict"), "\n")
-    cat("- ass_dat exists:", exists("ass_dat"), "\n")
-    cat("- ass_dict is reactive:", is.reactive(ass_dict), "\n")
-    cat("- ass_dat is reactive:", is.reactive(ass_dat), "\n")
-  })
+  # Function to safely pull resident data from REDCap API
+  get_resident_data <- function() {
+    tryCatch({
+      ass_dat <- full_api_pull(eval_token, url)
+      ass_dat <- wrangle_assessment_data(ass_dat)
+      rdm_dat <- forms_api_pull(rdm_token, url, 'resident_data', 'faculty_evaluation')
+      return(create_res_data(ass_dat, rdm_dat))
+    }, error = function(e) {
+      cat("Error in API pull:", e$message, "\n")
+      return(NULL)
+    })
+  }
   
+  # Function to pull and process milestone data
+  get_milestone_data <- function() {
+    tryCatch({
+      miles <- get_all_milestones(rdm_token, url)
+      miles <- fill_missing_resident_data(miles)
+      p_miles <- process_milestones(miles, type = "program")
+      s_miles <- process_milestones(miles, type = "self")
+      return(list(p_miles = p_miles, s_miles = s_miles))
+    }, error = function(e) {
+      cat("Error in milestone API pull:", e$message, "\n")
+      return(NULL)
+    })
+  }
+  
+  # Load resident and milestone data
+  resident_data <- get_resident_data()
+  milestone_data <- get_milestone_data()
+  
+  p_miles <- milestone_data$p_miles
+  s_miles <- milestone_data$s_miles
+  
+  
+  rdm_dict <- get_data_dict(rdm_token, url)
+  ass_dict <- get_data_dict(eval_token, url)
   # 🔹 Determine Access Code:
   access_code <- reactive({
     query <- parseQueryString(session$clientData$url_search)
