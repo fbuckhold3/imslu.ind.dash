@@ -17,22 +17,23 @@ library(htmltools)
 library(data.table)
 library(purrr)
 
-# Load environment variables and configuration
-is_connect <- Sys.getenv("R_CONFIG_ACTIVE") == "posit_connect" || 
-  !identical(Sys.getenv("CONNECT_APP"), "") || 
-  !identical(Sys.getenv("CONNECT_SERVER"), "")
 
-# Set API tokens based on environment
-if (is_connect) {
+
+# Simple approach: if EVAL_TOKEN is defined, we assume "hosted"
+is_hosted <- Sys.getenv("EVAL_TOKEN") != ""
+
+if (is_hosted) {
+  # Use environment variables from the hosting service
   eval_token <- Sys.getenv("EVAL_TOKEN")
-  rdm_token <- Sys.getenv("RDM_TOKEN")
-  fac_token <- Sys.getenv("FAC_TOKEN")
+  rdm_token  <- Sys.getenv("RDM_TOKEN")
+  fac_token  <- Sys.getenv("FAC_TOKEN")
   new_ass_token <- Sys.getenv("NEW_ASS_TOKEN")
 } else {
+  # Use local config.yml
   conf <- config::get(file = "config.yml")
   eval_token <- conf$eval_token
-  rdm_token <- conf$rdm_token
-  fac_token <- conf$fac_token
+  rdm_token  <- conf$rdm_token
+  fac_token  <- conf$fac_token
   new_ass_token <- conf$new_ass_token
 }
 
