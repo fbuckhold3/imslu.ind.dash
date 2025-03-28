@@ -99,7 +99,7 @@ ui <- page_fluid(
     # Access Code input for manual testing
     div(
       style = "text-align: center; margin-bottom: 20px;",
-      textInput("access_code_input", "Your Unique Access Code:", value = "WdyPEh")
+      textInput("access_code_input", "Enter your access code to view your data:", value = "")
     ),
     
     # Resident Assessments Section
