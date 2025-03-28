@@ -1579,6 +1579,36 @@
         "RemoteSha": "0.5.3"
       }
     },
+    "forcats": {
+      "Source": "CRAN",
+      "Repository": "https://cloud.r-project.org",
+      "description": {
+        "Package": "forcats",
+        "Title": "Tools for Working with Categorical Variables (Factors)",
+        "Version": "1.0.0",
+        "Authors@R": "c(\n    person(\"Hadley\", \"Wickham\", , \"hadley@rstudio.com\", role = c(\"aut\", \"cre\")),\n    person(\"RStudio\", role = c(\"cph\", \"fnd\"))\n  )",
+        "Description": "Helpers for reordering factor levels (including moving\n    specified levels to front, ordering by first appearance, reversing,\n    and randomly shuffling), and tools for modifying factor levels\n    (including collapsing rare levels into other, 'anonymising', and\n    manually 'recoding').",
+        "License": "MIT + file LICENSE",
+        "URL": "https://forcats.tidyverse.org/,\nhttps://github.com/tidyverse/forcats",
+        "BugReports": "https://github.com/tidyverse/forcats/issues",
+        "Depends": "R (>= 3.4)",
+        "Imports": "cli (>= 3.4.0), glue, lifecycle, magrittr, rlang (>= 1.0.0),\ntibble",
+        "Suggests": "covr, dplyr, ggplot2, knitr, readr, rmarkdown, testthat (>=\n3.0.0), withr",
+        "VignetteBuilder": "knitr",
+        "Config/Needs/website": "tidyverse/tidytemplate",
+        "Config/testthat/edition": "3",
+        "Encoding": "UTF-8",
+        "LazyData": "true",
+        "RoxygenNote": "7.2.3",
+        "NeedsCompilation": "no",
+        "Packaged": "2023-01-27 14:11:11 UTC; hadleywickham",
+        "Author": "Hadley Wickham [aut, cre],\n  RStudio [cph, fnd]",
+        "Maintainer": "Hadley Wickham <hadley@rstudio.com>",
+        "Repository": "CRAN",
+        "Date/Publication": "2023-01-29 22:20:02 UTC",
+        "Built": "R 4.3.0; ; 2023-04-11 04:44:59 UTC; unix"
+      }
+    },
     "fs": {
       "Source": "CRAN",
       "Repository": "https://cloud.r-project.org",
@@ -1785,6 +1815,37 @@
         "RemoteReposName": "CRAN",
         "RemotePkgPlatform": "aarch64-apple-darwin20",
         "RemoteSha": "3.5.1"
+      }
+    },
+    "ggradar": {
+      "Source": "github",
+      "Repository": null,
+      "description": {
+        "Package": "ggradar",
+        "Title": "Create radar charts using ggplot2",
+        "Version": "0.2",
+        "Authors@R": "\n    person(given = \"Ricardo\",\n           family = \"Bion\",\n           role = c(\"aut\", \"cre\"),\n           email = \"ricardo.bion@airbnb.com\")",
+        "Description": "This package exports the functionality of ggplot2 to create radar charts.",
+        "License": "GPL",
+        "Imports": "forcats, ggplot2",
+        "Suggests": "testthat (>= 2.1.0)",
+        "Encoding": "UTF-8",
+        "RoxygenNote": "7.1.1",
+        "RemoteType": "github",
+        "RemoteHost": "api.github.com",
+        "RemoteRepo": "ggradar",
+        "RemoteUsername": "ricardo-bion",
+        "RemoteRef": "HEAD",
+        "RemoteSha": "f99517ae4df2903d3dbd4116af91b24009a5ac93",
+        "GithubRepo": "ggradar",
+        "GithubUsername": "ricardo-bion",
+        "GithubRef": "HEAD",
+        "GithubSHA1": "f99517ae4df2903d3dbd4116af91b24009a5ac93",
+        "NeedsCompilation": "no",
+        "Packaged": "2025-03-28 03:04:37 UTC; fredbuckhold",
+        "Author": "Ricardo Bion [aut, cre]",
+        "Maintainer": "Ricardo Bion <ricardo.bion@airbnb.com>",
+        "Built": "R 4.3.3; ; 2025-03-28 03:04:37 UTC; unix"
       }
     },
     "gh": {
@@ -5138,10 +5199,10 @@
   },
   "files": {
     ".RData": {
-      "checksum": "a7f0e396297f7eef3654f60b60d4146c"
+      "checksum": "b512b9e6f5774fe51f0daab3499cf2e3"
     },
     ".Rprofile": {
-      "checksum": "58f0c4abe956d70468883fe9953138ad"
+      "checksum": "8b0b032be29d04c7c84a50c4b6ba28c5"
     },
     "app.R": {
       "checksum": "6958f396f58ad68f1da357a1fb2a30bb"
@@ -5159,25 +5220,25 @@
       "checksum": "51fb5b84c29e54e8f01c8fe815f27c08"
     },
     "R/global.R": {
-      "checksum": "89596af98cea03f37342ca951203c9da"
+      "checksum": "63d32a273c0bf9954ec9a35f1ebbd8c0"
     },
     "R/helpers.R": {
-      "checksum": "e1c06d85ae7b8b032bef47e42e4c08f9"
+      "checksum": "2d5585aaf6411a1c21bf984fdc71d85e"
     },
     "R/server.R": {
-      "checksum": "61cbd62b3e7049775f9a9ef8884b5008"
+      "checksum": "659da494c021968b6afa0cc91e1660d7"
     },
     "R/ui.R": {
       "checksum": "0caf02c63ba48eae932f2bc899365388"
     },
     "renv.lock": {
-      "checksum": "60e73e60621e5c180b5828681bf84fa4"
+      "checksum": "50768bc2e4c31f43ad86aa99f610d6ba"
     },
     "requirements.txt": {
       "checksum": "82771257fc09cbf6f52f6d418e546d27"
     },
     "scrap_draft.R": {
-      "checksum": "a2b2b21a3f1fa5549a031bc2431fc6d0"
+      "checksum": "848d5b900912d67281e9cc4eac43466e"
     },
     "www/ssm_slucare.png": {
       "checksum": "21837d5f0acec6e2271035b719e17724"

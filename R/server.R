@@ -188,7 +188,21 @@ server <- function(input, output, session) {
                card(
                  card_header("Inpatient Data"),
                  card_body(
-                   plotOutput("inpatient_plot")
+                   # Use a fluidRow so columns can be arranged easily
+                   fluidRow(
+                     # First "block": Intern table
+                     column(
+                       width = 12,
+                       h4("Inpatient Intern Evaluations"),
+                       DT::dataTableOutput("inpatient_intern_table")
+                     ),
+                     # Second "block": Resident table
+                     column(
+                       width = 12,
+                       h4("Inpatient Resident Evaluations"),
+                       DT::dataTableOutput("inpatient_resident_table")
+                     )
+                   )
                  )
                )
              )
@@ -198,8 +212,23 @@ server <- function(input, output, session) {
                card(
                  card_header("Milestones"),
                  card_body(
-                   p("Milestone data will be displayed here")
-                   # Add your milestone outputs here
+                   # 1) Period Selection (above the plots)
+                   h4("Select Period"),
+                   mod_miles_select_ui("miles_period_select"),
+                   
+                   # 2) A row with two side-by-side columns for the radar plots
+                   fluidRow(
+                     column(
+                       width = 6,
+                       h4("s_miles Radar Plot"),
+                       plotOutput("s_miles_plot", height = "400px")
+                     ),
+                     column(
+                       width = 6,
+                       h4("p_miles Radar Plot"),
+                       plotOutput("p_miles_plot", height = "400px")
+                     )
+                   )
                  )
                )
              )
@@ -347,12 +376,37 @@ server <- function(input, output, session) {
   
   #Card 4: Inpatient
   
-  output$inpatient_plot <- renderPlot({ 
-    plot(1:10, sample(1:10), type = "l", main = "Inpatient Data") 
+  output$inpatient_intern_table <- DT::renderDataTable({
+    ip_data <- pull_inpatient_eval_split(data          = ass_dat,
+                                         dict          = ass_dict,
+                                         resident      = resident_info())
+    create_styled_dt(ip_data$intern_df, caption = "Inpatient Intern Evaluations")
+  })
+  
+  output$inpatient_resident_table <- DT::renderDataTable({
+    ip_data <- pull_inpatient_eval_split(data          = ass_dat,
+                                         dict          = ass_dict,
+                                         resident      = resident_info())
+    create_styled_dt(ip_data$resident_df, caption = "Inpatient Resident Evaluations")
   })
   
   # Card 5: Milestones
+  # 1) Call the milestone period selection module
+  period_selection <- mod_miles_select_server("miles_period_select")
+  # This returns a reactive that holds whatever the user chooses
   
+  # 2) Build the two side-by-side plots
+  output$s_miles_plot <- renderPlot({
+  req(period_selection())
+  miles_plot(s_miles, resident_info(), period_selection())
+  })
+
+  output$p_miles_plot <- renderPlot({
+    req(period_selection())            # Ensure it’s not NULL
+    miles_plot(p_miles, resident_info(), period_selection())
+  })
+  
+ 
  
   # Card 6: Self-assessment
   

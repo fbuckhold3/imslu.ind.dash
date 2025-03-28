@@ -635,6 +635,22 @@
       ],
       "Hash": "bd1297f9b5b1fc1372d19e2c4cd82215"
     },
+    "forcats": {
+      "Package": "forcats",
+      "Version": "1.0.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "cli",
+        "glue",
+        "lifecycle",
+        "magrittr",
+        "rlang",
+        "tibble"
+      ],
+      "Hash": "1a0a9a3d5083d0d573c4214576f1e690"
+    },
     "fs": {
       "Package": "fs",
       "Version": "1.6.5",
@@ -731,6 +747,21 @@
         "withr"
       ],
       "Hash": "44c6a2f8202d5b7e878ea274b1092426"
+    },
+    "ggradar": {
+      "Package": "ggradar",
+      "Version": "0.2",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteRepo": "ggradar",
+      "RemoteUsername": "ricardo-bion",
+      "RemoteSha": "f99517ae4df2903d3dbd4116af91b24009a5ac93",
+      "Requirements": [
+        "forcats",
+        "ggplot2"
+      ],
+      "Hash": "5c884fdb98bed4d1b765c9debc92ac9e"
     },
     "gh": {
       "Package": "gh",
@@ -903,7 +934,7 @@
       "RemoteUsername": "fbuckhold3",
       "RemoteRepo": "imres",
       "RemoteRef": "main",
-      "RemoteSha": "ac8193420483b12a24b1cc989997d7e94ecb924b",
+      "RemoteSha": "03cc554c2c802fa31d31adf55e0b819ab73e1c33",
       "Requirements": [
         "DT",
         "REDCapR",
@@ -921,7 +952,7 @@
         "tidyr",
         "usethis"
       ],
-      "Hash": "f0e503039cc783e388f550483d54d45f"
+      "Hash": "69f9ac96e6f741a008d41e4ea526436b"
     },
     "ini": {
       "Package": "ini",

@@ -16,7 +16,7 @@ library(reactable)
 library(htmltools)
 library(data.table)
 library(purrr)
-
+library(ggradar)
 
 # 1) Identify whether we are hosted
 is_hosted <- Sys.getenv("EVAL_TOKEN") != ""
@@ -97,27 +97,27 @@ get_resident_data <- function() {
   })
 }
 
-# Function to pull and process milestone data
-get_milestone_data <- function() {
-  tryCatch({
-    miles <- get_all_milestones(rdm_token, url)
-    miles <- fill_missing_resident_data(miles)
-    p_miles <- process_milestones(miles, type = "program")
-    s_miles <- process_milestones(miles, type = "self")
-    return(list(p_miles = p_miles, s_miles = s_miles))
-  }, error = function(e) {
-    cat("Error in milestone API pull:", e$message, "\n")
-    return(NULL)
-  })
-}
-
 # Load resident and milestone data
 resident_data <- get_resident_data()
-milestone_data <- get_milestone_data()
-
-p_miles <- milestone_data$p_miles
-s_miles <- milestone_data$s_miles
 
 
 rdm_dict <- get_data_dict(rdm_token, url)
 ass_dict <- get_data_dict(eval_token, url)
+
+### Process Milestone Data:
+# Step 1: Pull all milestone data
+miles <- get_all_milestones(rdm_token, url)
+
+# Step 2: Fill in resident data (name, record_id)
+miles <- fill_missing_resident_data(miles)
+
+# Step 3: Process program milestones
+p_miles <- process_milestones(miles, type = "program")
+
+# Step 4: Process self milestones
+s_miles <- process_milestones(miles, type = "self")
+
+
+
+
+

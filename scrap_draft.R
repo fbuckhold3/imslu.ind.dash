@@ -4,83 +4,45 @@ resident_data %>%
   select(access_code) %>%
   na.omit() 
 
+NYqoWH 
 
-progress_data <- compute_eval_progress(resident_data, 'Cale Martin', count_res_assessments)
+devtools::document()
 
-display_progress(progress_data)
-
-
-y<- resident_data %>%
-  filter(name == "beta test", redcap_repeat_instrument == "Faculty Evaluation")
-
-ggplot(plot_data, aes(x = reorder(Level, -Count), y = Count, fill = rotation)) +
-  geom_bar(stat = "identity", position = position_dodge(width = 0.8)) +
-  coord_flip() +
-  scale_fill_brewer(palette = "Set2") +
-  theme_minimal() +
-  labs(title = "Faculty Evaluations Completed by Level", x = "Level", y = "Count") +
-  theme(axis.text.x = element_text(size = 12),
-        axis.text.y = element_text(size = 12),
-        plot.title = element_text(size = 16, face = "bold"),
-        legend.position = "none")
+#workign through observation data:
+labels <- parse_ip_obs_labels(ass_dict)
 
 
-generate_survey_link <- function(record_id, instrument, url, token) {
-  formData <- list(
-    "token" = token,
-    "content" = 'surveyLink',
-    "record" = record_id,
-    "instrument" = instrument
-  )
-  
-  response <- httr::POST(url, body = formData, encode = "form")
-  link <- httr::content(response)
-  return(link)
-}
+always_include_cols <- c("Date", "ip_obs_type", "Level", "Evaluator")
+unwanted_cols <- c(
+  "assess_a_resident_timestamp", "ass_date", "clin_context", "ip_obs_type",
+  "slu_gim_att", "att_sign", "assess_a_resident_complete", "week", 
+  "year", "name", "eval_type", "weekyr", "start_year", 
+  "academic_year_start", "record_id"
+)
+filtered_data <- resident_data %>%
+  filter(name == "Adam Streicher", ip_obs_type == "Written H&P")
 
-create_ccc_table(resident_data, "Adam Streicher")
+non_empty_cols <- colSums(!is.na(filtered_data)) > 0
 
+cols_in_data <- intersect(always_include_cols, names(filtered_data))
+non_empty_cols[cols_in_data] <- TRUE
+final_data <- filtered_data[, non_empty_cols, drop = FALSE]
+final_data <- final_data[, setdiff(names(final_data), unwanted_cols), drop = FALSE]
 
+rename_map <- setNames(ass_dict$field_label, ass_dict$field_name)
 
-# Suppose these are the four possible evaluation types:
-cc_types <- c("1st quarter - inbasket coverage", "2nd quarter - summative evaluation", "3rd quarter - documentation", "4th quarter - summative evaluation")
+# Now rename columns in final_data *only* if they exist in rename_map.
+final_data <- dplyr::rename_with(
+  final_data,
+  ~ ifelse(.x %in% names(rename_map), rename_map[.x], .x)
+)
 
-# 'df' should be your data filtered by name. For example:
-df <- resident_data %>% filter(name == "Adam Streicher")  
-# (In your app, you'd use resident_info() to filter)
+colnames(final_data)
 
-# Create a summary table ensuring all Level and cc_eval_type combinations exist.
-eval_summary <- df %>%
-  # Select the fields of interest.
-  select(Level, cc_eval_type, Evaluator) %>%
-  # Complete the grid of all Levels and evaluation types.
-  complete(Level, cc_eval_type = cc_types, fill = list(evaluator = NA)) %>%
-  group_by(Level, cc_eval_type)
-
-%>%
-  summarize(
-    # If every evaluator is NA for this combo, then it's "Not Done"; else "Done"
-    status = ifelse(all(is.na(cc_eval_type)), "Not Done", "Done"),
-    # If done, collapse the unique evaluator names into a single string; otherwise blank.
-    evaluator = ifelse(status == "Done", paste(unique(evaluator[!is.na(evaluator)]), collapse = ", "), ""),
-    .groups = "drop"
-  )
-
-# Now create the tile plot:
-ggplot(eval_summary, aes(x = cc_eval_type, y = Level, fill = status)) +
-  geom_tile(color = "white", size = 0.5) +
-  geom_text(aes(label = evaluator), size = 4, color = "black") +
-  scale_fill_manual(values = c("Done" = "lightgreen", "Not Done" = "lightcoral")) +
-  labs(title = "Evaluation Status by Type and Level",
-       x = "Evaluation Type", y = "Level") +
-  theme_minimal() +
-  theme(plot.title = element_text(size = 16, face = "bold"),
-        axis.text = element_text(size = 12))
-
-
-
-
-
-
-
+prep_obs_table(
+  data          = ass_dat,
+  dict          = ass_dict,
+  resident      = "Adam Streicher", 
+  selected_label= "Written H&P"
+)
 
