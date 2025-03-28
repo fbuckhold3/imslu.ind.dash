@@ -5,9 +5,9 @@ server <- function(input, output, session) {
   access_code <- reactive({
     query <- parseQueryString(session$clientData$url_search)
     if (!is.null(query$code)) {
-      return(query$code)
+      return(trimws(query$code))  # Trim whitespace from URL parameter
     } else {
-      return(input$access_code_input)
+      return(trimws(input$access_code_input))  # Trim whitespace from input field
     }
   })
   
@@ -30,14 +30,33 @@ server <- function(input, output, session) {
     filtered_res$name[1]
   })
   
-  #' Background data setup:
-  obs_labels <- parse_ip_obs_labels(ass_dict)
-  
   # 🔹 Show Resident Name
   output$resident_name <- renderText({
     req(resident_info())
-    paste("Resident:", resident_info())
+    paste("Dashboard for:", resident_info())
   })
+  
+  coach_info <- reactive({
+    req(access_code())
+    filtered_res <- resident_data %>% filter(access_code == access_code())
+    
+    # If no matching resident is found, return NULL.
+    if (nrow(filtered_res) == 0) {
+      return(NULL)
+    }
+    
+    # Return the coach name from the first matching row.
+    filtered_res$coach[1]
+  })
+  
+  # 🔹 Show Coach Name
+  output$coach_name <- renderText({
+    req(coach_info())
+    paste("Coach is Dr:", coach_info())
+  })
+  
+  #' Background data setup:
+  obs_labels <- parse_ip_obs_labels(ass_dict)
   
   # Faculty Evaluation Link:
   observeEvent(input$faculty_eval_link, {
@@ -103,8 +122,26 @@ server <- function(input, output, session) {
     total_fac_evals <- sum(fac_eval_data$Count, na.rm = TRUE)
     div(
       style = "text-align: center; font-size: 16px; font-weight: bold;",
-      paste("You have done", total_fac_evals, "faculty evaluations")
+      paste("You have completed", total_fac_evals, "faculty evaluations")
     )
+  })
+  
+  output$selected_module_ui <- renderUI({
+    module <- input$module_selected
+    
+    title <- switch(module,
+                    "plus_delta" = "Plus / Delta Feedback",
+                    "continuity" = "Continuity Clinic Evaluations",
+                    "observational" = "Observational Data",
+                    "inpatient" = "Inpatient Data", 
+                    "milestone" = "Milestones",
+                    "assessment" = "Self-Assessment",
+                    "peer" = "Peer Evaluations",
+                    "other" = "Other Data",
+                    "Select a module" # Default
+    )
+    
+    h4(title, style = "margin: 0;")
   })
   
   output$selected_module_ui <- renderUI({
@@ -112,123 +149,143 @@ server <- function(input, output, session) {
     if (is.null(input$module_selected)) {
       return(NULL)
     }
-    
     # Show appropriate content based on which card was clicked
     switch(input$module_selected,
            "plus_delta" = {
              div(
-               card(
-                 card_header("Plus / Delta Feedback"),
-                 card_body(
-                   DT::DTOutput("plus_delta_table")
-                 )
-               )
+               # Add a description section at the top
+               div(
+                 class = "module-description",
+                 style = "background: #f8f9fa; padding: 15px; border-left: 4px solid #0072B2; margin-bottom: 20px; border-radius: 4px;",
+                 h4("About Plus/Delta Feedback", style = "color: #0072B2; margin-top: 0;"),
+                 p("This section displays all of the writtent feedback highlighting your strengths (Plus) and areas for improvement (Delta). This qualitative feedback helps you understand specific behaviors that are effective and identifies opportunities for growth.", 
+                   style = "margin-bottom: 5px;"),
+                 p("Use this feedback to recognize patterns and track improvements over time.",
+                   style = "font-style: italic; color: #666;")
+               ),
+               # Original content
+               DT::DTOutput("plus_delta_table")
              )
            },
            "continuity" = {
              div(
-               card(
-                 card_header("Continuity Clinic Evaluations"),
-                 card_body(
-                   div(
-                     uiOutput("cc_missing_evals_warning"),
-                     h4("Completion Status"),
-                     reactableOutput("cc_completion_status"),
-                     hr(),
-                     h4("Plus/Delta Feedback"),
-                     DT::DTOutput("cc_plusdelta_table"),
-                     hr(),
-                     h4("Inbasket Coverage"),
-                     DT::DTOutput("cc_inbasket_table"),
-                     hr(),
-                     h4("Documentation"),
-                     DT::DTOutput("cc_documentation_table"),
-                     hr(),
-                     h4("Summative Evaluations"),
-                     DT::DTOutput("cc_summative_intern_table"),
-                     DT::DTOutput("cc_summative_pgy2_table"),
-                     DT::DTOutput("cc_summative_pgy3_table")
-                   )
-                 )
+               # Add a description section at the top
+               div(
+                 class = "module-description",
+                 style = "background: #f8f9fa; padding: 15px; border-left: 4px solid #0072B2; margin-bottom: 20px; border-radius: 4px;",
+                 h4("About Continuity Clinic Evaluations", style = "color: #0072B2; margin-top: 0;"),
+                 p("This section contains evaluations from your continuity clinic experiences, including performance metrics on patient care, documentation quality, and inbox management. You should be getting an evaluation every quarter; the table at tops provides a summary whether an evaluation was completed each quarter.", 
+                   style = "margin-bottom: 5px;"),
+                 p("Regular review of this data will help you track growth in your ambulatory care skills.",
+                   style = "font-style: italic; color: #666;")
+               ),
+               # Original content
+               div(
+                 uiOutput("cc_missing_evals_warning"),
+                 h4("Completion Status"),
+                 reactableOutput("cc_completion_status"),
+                 hr(),
+                 h4("Plus/Delta Feedback"),
+                 DT::DTOutput("cc_plusdelta_table"),
+                 hr(),
+                 h4("Inbasket Coverage"),
+                 DT::DTOutput("cc_inbasket_table"),
+                 hr(),
+                 h4("Documentation"),
+                 DT::DTOutput("cc_documentation_table"),
+                 hr(),
+                 h4("Summative Evaluations"),
+                 DT::DTOutput("cc_summative_intern_table"),
+                 DT::DTOutput("cc_summative_pgy2_table"),
+                 DT::DTOutput("cc_summative_pgy3_table")
                )
              )
            },
            "observational" = {
              div(
-               card(
-                 card_header("Observational Data"),
-                 fluidRow(
-                   h3("Observational Data"),
-                   column(
-                     width = 4,
-                     # Left side: your progress bars, debug info, etc.
-                     h4("Observation Progress"),
-                     uiOutput("obsProgressBars"),
+               # Add a description section at the top
+               div(
+                 class = "module-description",
+                 style = "background: #f8f9fa; padding: 15px; border-left: 4px solid #F57C00; margin-bottom: 20px; border-radius: 4px;",
+                 h4("About Observational Data", style = "color: #F57C00; margin-top: 0;"),
+                 p("This section presents data from direct observations of your clinical performance.  These observations capture specific clinical skills like history-taking, physical examination, clinical reasoning, and communication. Ideally, during your 3 year training, you will complete 5 of each evaluation - a progress tracker is on the left.", 
+                   style = "margin-bottom: 5px;"),
+                 p("Select different observation types to review detailed feedback on specific clinical competencies.",
+                   style = "font-style: italic; color: #666;")
+               ),
+               # Original content
+               fluidRow(
+                 column(
+                   width = 4,
+                   h4("Observation Progress"),
+                   uiOutput("obsProgressBars"),
+                 ),
+                 column(
+                   width = 8,
+                   h4("Observation Data"),
+                   selectInput(
+                     inputId  = "obs_label_choice", 
+                     label    = "Select an Observation Type:",
+                     choices  = obs_labels,
+                     selected = NULL
                    ),
-                   column(
-                     width = 8,
-                     h4("Observation Data"),
-                     # Right side: pick an observation type and show a data table
-                     selectInput(
-                       inputId  = "obs_label_choice", 
-                       label    = "Select an Observation Type:",
-                       choices  = obs_labels,   # or sort(labels) if you want alphabetical
-                       selected = NULL
-                     ),
-                     
-                     DT::DTOutput("obs_table")
-                   
+                   DT::DTOutput("obs_table")
                  )
                )
              )
-            )
            },
            "inpatient" = {
              div(
-               card(
-                 card_header("Inpatient Data"),
-                 card_body(
-                   # Use a fluidRow so columns can be arranged easily
-                   fluidRow(
-                     # First "block": Intern table
-                     column(
-                       width = 12,
-                       h4("Inpatient Intern Evaluations"),
-                       DT::dataTableOutput("inpatient_intern_table")
-                     ),
-                     # Second "block": Resident table
-                     column(
-                       width = 12,
-                       h4("Inpatient Resident Evaluations"),
-                       DT::dataTableOutput("inpatient_resident_table")
-                     )
-                   )
+               # Add a description section at the top
+               div(
+                 class = "module-description",
+                 style = "background: #f8f9fa; padding: 15px; border-left: 4px solid #2E7D32; margin-bottom: 20px; border-radius: 4px;",
+                 h4("About Inpatient Data", style = "color: #2E7D32; margin-top: 0;"),
+                 p("This section contains evaluations from your hospital rotations, including feedback on your performance as both an intern and a supervising resident. The data reflects your clinical decision-making, team leadership, and patient management in the inpatient setting.", 
+                   style = "margin-bottom: 5px;"),
+                 p("Compare your performance across different rotations and throughout your training to identify growth.",
+                   style = "font-style: italic; color: #666;")
+               ),
+               # Original content
+               fluidRow(
+                 column(
+                   width = 12,
+                   h4("Inpatient Intern Evaluations"),
+                   DT::dataTableOutput("inpatient_intern_table")
+                 ),
+                 column(
+                   width = 12,
+                   h4("Inpatient Resident Evaluations"),
+                   DT::dataTableOutput("inpatient_resident_table")
                  )
                )
              )
            },
            "milestone" = {
              div(
-               card(
-                 card_header("Milestones"),
-                 card_body(
-                   # 1) Period Selection (above the plots)
-                   h4("Select Period"),
-                   mod_miles_select_ui("miles_period_select"),
-                   
-                   # 2) A row with two side-by-side columns for the radar plots
-                   fluidRow(
-                     column(
-                       width = 6,
-                       h4("s_miles Radar Plot"),
-                       plotOutput("s_miles_plot", height = "400px")
-                     ),
-                     column(
-                       width = 6,
-                       h4("p_miles Radar Plot"),
-                       plotOutput("p_miles_plot", height = "400px")
-                     )
-                   )
+               # Add a description section at the top
+               div(
+                 class = "module-description",
+                 style = "background: #f8f9fa; padding: 15px; border-left: 4px solid #FBC02D; margin-bottom: 20px; border-radius: 4px;",
+                 h4("About Milestones", style = "color: #FBC02D; margin-top: 0;"),
+                 p("This section displays your progress toward achieving specialty-specific competency milestones. The radar plots provide a visual representation comparing your rating to the average of the program over time.", 
+                   style = "margin-bottom: 5px;"),
+                 p("Use the period selector to track your milestone progression over time.",
+                   style = "font-style: italic; color: #666;")
+               ),
+               # Original content
+               h4("Select Period"),
+               mod_miles_select_ui("miles_period_select"),
+               fluidRow(
+                 column(
+                   width = 6,
+                   h4("Your own rating on self-reflection"),
+                   plotOutput("s_miles_plot", height = "400px")
+                 ),
+                 column(
+                   width = 6,
+                   h4("Rating from the Program (Clinical Comptency Committee)"),
+                   plotOutput("p_miles_plot", height = "400px")
                  )
                )
              )
@@ -238,18 +295,34 @@ server <- function(input, output, session) {
                card(
                  card_header("Self-Assessment"),
                  card_body(
-                   p("Self-assessment data will be displayed here")
+                   p("Self-assessment data and entry will be displayed here")
                    # Add your self-assessment outputs here
                  )
                )
              )
+           },
+           "peer" = {
+             div(
+               # Add a description section at the top
+               div(
+                 class = "module-description",
+                 style = "background: #f8f9fa; padding: 15px; border-left: 4px solid #6200EA; margin-bottom: 20px; border-radius: 4px;",
+                 h4("About Peer Evaluations", style = "color: #6200EA; margin-top: 0;"),
+                 p("This section displays evaluations and feedback provided by your peers and co-residents. Peer evaluations offer unique insights into your teamwork, interpersonal skills, and collaborative abilities from the perspective of colleagues at your level of training.", 
+                   style = "margin-bottom: 5px;"),
+                 p("Coming soon",
+                   style = "font-style: italic; color: #666;")
+               ),
+               # Content for peer evaluations
+             )
+ 
            },
            "other" = {
              div(
                card(
                  card_header("Other Data"),
                  card_body(
-                   p("Other metrics and data will be displayed here")
+                   p("Placeholder for future")
                    # Add your other data outputs here
                  )
                )
