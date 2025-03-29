@@ -2220,18 +2220,18 @@
         "Encoding": "UTF-8",
         "LazyData": "true",
         "RoxygenNote": "7.3.2",
-        "Built": "R 4.3.3; ; 2025-03-28 13:40:22 UTC; unix",
+        "Built": "R 4.3.3; ; 2025-03-29 00:18:22 UTC; unix",
         "RemoteType": "github",
         "RemoteHost": "api.github.com",
         "RemoteUsername": "fbuckhold3",
         "RemoteRepo": "imres",
         "RemoteRef": "main",
-        "RemoteSha": "fc1ff71656cbac61b0e93f3669103903229e7edd",
+        "RemoteSha": "a189cab49fb9bfe5130f4e489d535374fe2f0599",
         "GithubHost": "api.github.com",
         "GithubRepo": "imres",
         "GithubUsername": "fbuckhold3",
         "GithubRef": "main",
-        "GithubSHA1": "fc1ff71656cbac61b0e93f3669103903229e7edd"
+        "GithubSHA1": "a189cab49fb9bfe5130f4e489d535374fe2f0599"
       }
     },
     "ini": {
@@ -5155,16 +5155,22 @@
       "checksum": "b512b9e6f5774fe51f0daab3499cf2e3"
     },
     ".Rprofile": {
-      "checksum": "e50a2afb4a78808db5d409a331791282"
+      "checksum": "6d7fc52461bd1ed42b7d014832d1ef8e"
     },
     "app.R": {
       "checksum": "6958f396f58ad68f1da357a1fb2a30bb"
+    },
+    "blastula_creds": {
+      "checksum": "7afa3244ea0a8b788b16accec8803e42"
     },
     "config_template.yml": {
       "checksum": "eda0a5d3d2f2909fccb24d743fe5b1af"
     },
     "config.yml": {
       "checksum": "dddda72ec2304017a5b32e40d56bf8ac"
+    },
+    "email.R": {
+      "checksum": "1206e0def6d1ee003c8451b6c1f5528e"
     },
     "helpers.R": {
       "checksum": "d41d8cd98f00b204e9800998ecf8427e"
@@ -5179,13 +5185,13 @@
       "checksum": "d41d8cd98f00b204e9800998ecf8427e"
     },
     "R/server.R": {
-      "checksum": "659da494c021968b6afa0cc91e1660d7"
+      "checksum": "931ec000d459871c4ccff4b420d2c475"
     },
     "R/ui.R": {
-      "checksum": "0caf02c63ba48eae932f2bc899365388"
+      "checksum": "d8f45c6c209d799ecb3195075475f27e"
     },
     "renv.lock": {
-      "checksum": "53b133716d5229eb10d3458c456e0a27"
+      "checksum": "9684d59e66521e823d6921d362d2ba79"
     },
     "requirements.txt": {
       "checksum": "82771257fc09cbf6f52f6d418e546d27"
