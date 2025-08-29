@@ -21,33 +21,28 @@ if (!requireNamespace("remotes", quietly = TRUE)) {
 remotes::install_github("fbuckhold3/gmed")
 library(gmed)
 
+
+# Fix for Posit Connect graphics rendering
+options(shiny.plot.res = 96)
+options(repr.plot.width = 8, repr.plot.height = 6)
+
+# Ensure graphics device settings work in server environment
+if (!interactive()) {
+  options(bitmapType = "cairo")
+}
+
 # ============================================================================
 # CONFIGURATION - Secure for GitHub and Posit Connect
 # ============================================================================
 
 # Configuration that works in both environments without exposing tokens
+# Replace config loading with simple environment variable approach
 app_config <- list(
-  rdm_token = Sys.getenv("RDM_TOKEN", ""),  # Posit Connect sets this
+  rdm_token = Sys.getenv("RDM_TOKEN"),
   redcap_url = "https://redcapsurvey.slu.edu/api/"
 )
 
-# Local development: use config.yml (gitignored)
-if (app_config$rdm_token == "" && file.exists("config.yml")) {
-  tryCatch({
-    config_data <- config::get()
-    app_config$rdm_token <- config_data$rdm_token
-    message("Using token from config.yml (local development)")
-  }, error = function(e) {
-    message("Config file error: ", e$message)
-  })
-}
-
-# Validate token exists
-if (app_config$rdm_token == "") {
-  stop("RDM_TOKEN not configured. Set environment variable (Posit Connect) or config.yml (local)")
-}
-
-message("Token configured securely")
+# Don't load config package - just use Sys.getenv() directly
 
 # ============================================================================
 # DATA LOADING - Your exact working pattern
