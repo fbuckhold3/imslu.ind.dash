@@ -1,3 +1,0 @@
-default:
-  redcap_api_url: "YOUR_REDCAP_URL_HERE"
-  redcap_token: "YOUR_TOKEN_HERE"
