@@ -27,9 +27,10 @@ ui <- if (gmed_available) {
 ui <- tagAppendChildren(
   ui,
   
-  # Custom CSS for module cards and hover effects
+  # Custom CSS for module cards and hover effects - CLEANED VERSION
   tags$head(
     tags$style(HTML("
+    /* Module Cards */
     .module-card {
       cursor: pointer;
       transition: transform 0.3s ease, box-shadow 0.3s ease;
@@ -38,11 +39,14 @@ ui <- tagAppendChildren(
       transform: translateY(-5px);
       box-shadow: 0 10px 20px rgba(0,0,0,0.15);
     }
+    
+    /* Button Hover Effects */
     .btn:hover {
       opacity: 0.9;
       transition: opacity 0.3s ease-in-out;
     }
-    /* Modal styling with gmed colors */
+    
+    /* Modal Styling */
     .modal-content {
       border-radius: 15px;
       box-shadow: 0 5px 20px rgba(0,61,92,0.2);
@@ -61,18 +65,94 @@ ui <- tagAppendChildren(
       background: var(--ssm-light-gray);
       border-radius: 0 0 15px 15px;
     }
+    
+    /* Assessment Visualization */
     .assessment-viz-container {
-  max-width: 100%;
-  overflow: hidden;
-}
-
-.viz-card {
-  max-height: 400px;
-}
-
-.plotly {
-  max-height: 300px !important;
-}")),
+      max-width: 100%;
+      overflow: hidden;
+    }
+    .viz-card {
+      max-height: 400px;
+    }
+    
+    /* Milestone Module Container - CONSOLIDATED RULES */
+    .milestone-module-container {
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      border-radius: 8px;
+      padding: 15px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s ease;
+      height: 100%;
+      min-height: 600px; /* INCREASED from 520px */
+    }
+    .milestone-module-container:hover {
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+      transform: translateY(-1px);
+    }
+    .milestone-module-container h5 {
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+      border-bottom: 2px solid currentColor;
+      padding-bottom: 8px;
+      margin-bottom: 15px;
+      font-weight: 600;
+    }
+    
+    /* Milestone Dashboard Container - CONSOLIDATED */
+    .milestone-dashboard-container {
+      min-height: 550px !important; /* INCREASED */
+      height: auto !important;
+    }
+    
+    /* Plotly Charts - CONSOLIDATED RULES */
+    .milestone-dashboard-container .plotly,
+    .plotly {
+      min-height: 350px !important; /* INCREASED from 300px */
+      height: 350px !important;
+      max-height: none !important; /* REMOVED conflicting max-height */
+    }
+    
+    /* Milestone Controls */
+    .milestone-dashboard-container .controls-section {
+      padding: 15px;
+      margin-bottom: 15px;
+      background: rgba(255,255,255,0.8);
+      border-radius: 6px;
+    }
+    .milestone-dashboard-container select {
+      font-size: 14px;
+      padding: 8px 12px; /* INCREASED padding */
+      min-width: 200px; /* ADDED minimum width */
+    }
+    
+    /* Modal Dialog Sizing */
+    .modal-dialog {
+      max-width: 95%;
+      width: 95%;
+    }
+    
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      .milestone-module-container {
+        min-height: 500px;
+        margin-bottom: 20px;
+      }
+      
+      .milestone-module-container h5 {
+        font-size: 1.1rem;
+      }
+      
+      .modal-dialog {
+        max-width: 98%;
+        width: 98%;
+      }
+      
+      .milestone-dashboard-container .plotly,
+      .plotly {
+        min-height: 250px !important;
+        height: 250px !important;
+      }
+    }
+  ")),
     tags$script(HTML("
     // JavaScript for card click handlers
     $(document).on('click', '#plus_delta_card', function() {
@@ -103,7 +183,7 @@ ui <- tagAppendChildren(
       Shiny.setInputValue('module_selected', 'peer_evaluations');
       $('#moduleModal').modal('show');
     });
-    "))
+  "))
   ),
   
   # Header with logo and title (always visible)

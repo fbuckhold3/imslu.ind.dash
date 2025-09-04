@@ -71,10 +71,7 @@ server <- function(input, output, session) {
   # ============================================================================
   
 
-  # Assessment module - call server only when resident is valid
-  # Assessment module - call server once at startup (always)
-  # Assessment module - pass ALL forms data, not just assessment
-  # Assessment module - pass combined data with all required columns
+
   assessment_viz_server(
     "main_assessment",
     data = reactive({
@@ -82,28 +79,16 @@ server <- function(input, output, session) {
         # Combine all forms with source_form column
         all_data <- bind_rows(app_data()$all_forms, .id = "source_form")
         
-        # Ensure all required level columns exist for the visualization functions
+        # ONLY ensure columns exist - DON'T override them!
         if (!"ass_level" %in% names(all_data)) {
-          all_data$ass_level <- NA
+          all_data$ass_level <- NA_integer_
         }
         if (!"fac_eval_level" %in% names(all_data)) {
-          all_data$fac_eval_level <- NA
+          all_data$fac_eval_level <- NA_integer_
         }
         
-        # For assessment records, use the level column we created
-        all_data <- all_data %>%
-          mutate(
-            ass_level = case_when(
-              source_form == "assessment" & !is.na(level) ~ level,
-              source_form == "assessment" & is.na(level) ~ "Unknown",
-              TRUE ~ ass_level
-            ),
-            fac_eval_level = case_when(
-              source_form == "faculty_evaluation" & !is.na(level) ~ level,
-              source_form == "faculty_evaluation" & is.na(level) ~ "Unknown", 
-              TRUE ~ fac_eval_level
-            )
-          )
+        # REMOVE the mutate() block that was overriding the levels!
+        # The ass_level and fac_eval_level are already correctly calculated
         
         all_data
       } else {
@@ -149,8 +134,9 @@ server <- function(input, output, session) {
            "Unknown Module"
     )
   })
+
   
-  # Modal content - mostly just the gmed module calls
+  # Modal content - replace the milestone_plots case
   output$selected_module_ui <- renderUI({
     req(input$module_selected)
     
@@ -176,14 +162,73 @@ server <- function(input, output, session) {
            
            "milestone_plots" = {
              div(
-               h4("Milestone Plots", class = "text-warning mb-3"), 
+               h4("Milestone Assessment", class = "text-warning mb-3"),
+               # Period display
+               div(class = "alert alert-info mb-3",
+                   icon("calendar"), " Current Period: ", textOutput("current_period_display", inline = TRUE)),
+               p("Complete your milestone self-assessment and compare with ACGME format.", 
+                 class = "text-muted mb-4"),
+               
+               # Side-by-side milestone modules - FIXED SIZING
+               fluidRow(
+                 column(
+                   width = 6,
+                   div(
+                     class = "milestone-module-container",
+                     style = "min-height: 600px; height: 600px;", # ADDED: Fixed height
+                     h5("Self-Assessment Milestones", class = "text-primary mb-3"),
+                     milestone_dashboard_ui("modal_self_milestone", 
+                                            milestone_type = "self", 
+                                            height = "550px") # INCREASED height
+                   )
+                 ),
+                 column(
+                   width = 6,
+                   div(
+                     class = "milestone-module-container",
+                     style = "min-height: 600px; height: 600px;", # ADDED: Fixed height
+                     h5("ACGME Milestones", class = "text-success mb-3"),
+                     milestone_dashboard_ui("modal_acgme_milestone", 
+                                            milestone_type = "acgme", 
+                                            height = "550px") # INCREASED height
+                   )
+                 )
+               )
+             )
+           },
+          
+           
+           "learning_plan" = {
+             div(
+               h4("Learning Plan", class = "text-success mb-3"), 
                div(class = "alert alert-secondary", "Coming Soon"),
-               p("Will use: gmed::milestone_viz_ui() when implemented")
+               p("Will use: gmed::learning_plan_ui() when implemented")
              )
            },
            
-           # Future modules will follow same simple pattern:
-           # "module_name" = gmed::module_ui("namespace")
+           "scholarship" = {
+             div(
+               h4("Scholarship", class = "text-warning mb-3"),
+               div(class = "alert alert-secondary", "Coming Soon"), 
+               p("Will use: gmed::scholarship_ui() when implemented")
+             )
+           },
+           
+           "schedule_data" = {
+             div(
+               h4("Schedule Data", class = "text-info mb-3"),
+               div(class = "alert alert-secondary", "Coming Soon"),
+               p("Will use: gmed::schedule_ui() when implemented")
+             )
+           },
+           
+           "peer_evaluations" = {
+             div(
+               h4("Peer Evaluations", class = "text-secondary mb-3"),
+               div(class = "alert alert-secondary", "Coming Soon"),
+               p("Will use: gmed::peer_eval_ui() when implemented")
+             )
+           },
            
            # Default case
            {
@@ -191,4 +236,131 @@ server <- function(input, output, session) {
            }
     )
   })
+  
+  # ============================================================================
+  # MILESTONE MODULES FOR MODAL (FIXED)
+  # ============================================================================
+  
+  # Create milestone workflow results using clean data
+  milestone_workflow_results <- reactive({
+    req(app_data())
+    
+    tryCatch({
+      message("Creating milestone workflow with clean data structure...")
+      
+      # Use the clean load_rdm_complete data structure
+      workflow_results <- create_milestone_workflow_from_dict(
+        all_forms = app_data()$all_forms,      
+        data_dict = app_data()$data_dict,      
+        resident_data = app_data()$residents,  
+        verbose = TRUE  # Enable verbose for debugging
+      )
+      
+      message("Milestone workflow created successfully")
+      return(workflow_results)
+      
+    }, error = function(e) {
+      message("Error creating milestone workflow: ", e$message)
+      return(NULL)
+    })
+  })
+  
+  # FIXED: Better period selection and module initialization
+  observe({
+    req(resident_info(), milestone_workflow_results())
+    
+    message("=== MILESTONE MODULE INITIALIZATION ===")
+    
+    # Get resident info
+    resident_id <- resident_info()$record_id
+    resident_level <- resident_info()$Level %||% "Unknown"
+    
+    message("Initializing for resident: ", resident_id, " (", resident_level, ")")
+    
+    # FIXED: Better period selection with more debugging
+    tryCatch({
+      # Use the gmed function but with error handling
+      most_recent_period <- gmed::get_most_recent_period_for_resident(
+        resident_info(), 
+        app_data(),
+        verbose = TRUE
+      )
+      
+      message("Selected period: ", most_recent_period)
+      
+    }, error = function(e) {
+      message("Error getting most recent period: ", e$message)
+      # Better fallback period selection
+      most_recent_period <- switch(resident_level,
+                                   "Intern" = "End Intern",
+                                   "PGY2" = "End PGY2", 
+                                   "PGY3" = "End PGY2",  # Use End PGY2 as fallback
+                                   "End Intern")  # Default fallback
+      
+      message("Using fallback period: ", most_recent_period)
+    })
+    
+    # FIXED: Initialize modules with better reactive handling
+    tryCatch({
+      message("Initializing self milestone module...")
+      gmed::milestone_dashboard_server(
+        "modal_self_milestone", 
+        milestone_results = milestone_workflow_results,
+        record_id = reactive({
+          message("Self module record_id: ", resident_id)
+          resident_id
+        }),
+        period = reactive({
+          message("Self module period: ", most_recent_period)
+          most_recent_period
+        }),
+        milestone_type = "self",
+        resident_data = reactive({
+          residents_data <- app_data()$residents
+          message("Self module residents data: ", nrow(residents_data), " residents")
+          residents_data
+        })
+      )
+      message("Self milestone module initialized")
+      
+    }, error = function(e) {
+      message("Error initializing self milestone module: ", e$message)
+      message("Traceback: ", paste(traceback(), collapse = "\n"))
+    })
+    
+    tryCatch({
+      message("Initializing ACGME milestone module...")
+      gmed::milestone_dashboard_server(
+        "modal_acgme_milestone",
+        milestone_results = milestone_workflow_results,
+        record_id = reactive({
+          message("ACGME module record_id: ", resident_id)
+          resident_id
+        }),
+        period = reactive({
+          message("ACGME module period: ", most_recent_period)
+          most_recent_period
+        }),
+        milestone_type = "acgme", 
+        resident_data = reactive({
+          residents_data <- app_data()$residents
+          message("ACGME module residents data: ", nrow(residents_data), " residents")
+          residents_data
+        })
+      )
+      message("ACGME milestone module initialized")
+      
+    }, error = function(e) {
+      message("Error initializing ACGME milestone module: ", e$message)
+      message("Traceback: ", paste(traceback(), collapse = "\n"))
+    })
+    
+    # Display which period is being shown
+    output$current_period_display <- renderText({
+      paste("Displaying milestone data for:", most_recent_period)
+    })
+    
+    message("=== MILESTONE MODULE INITIALIZATION COMPLETE ===")
+  })
+  
 }
