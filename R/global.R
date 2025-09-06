@@ -13,12 +13,32 @@ library(purrr)       # Required for gmed assessment modules
 library(tidyr)       # Required for gmed assessment modules
 library(lubridate)   # Required for gmed assessment modules
 
-# Install gmed from GitHub for Posit Connect deployment
+# Force clean installation on deployment
+if (!interactive()) {  # Running on server
+  # Unload gmed if it's loaded
+  if ("gmed" %in% loadedNamespaces()) {
+    try({
+      detach("package:gmed", unload = TRUE, force = TRUE)
+    }, silent = TRUE)
+  }
+  
+  # Remove old installation
+  if ("gmed" %in% rownames(installed.packages())) {
+    try(remove.packages("gmed"), silent = TRUE)
+  }
+}
+
+# Install from GitHub
 if (!requireNamespace("remotes", quietly = TRUE)) {
   install.packages("remotes")
 }
 
-remotes::install_github("fbuckhold3/gmed")
+# Install with force to overwrite any existing installation
+remotes::install_github("fbuckhold3/gmed", 
+                        force = TRUE, 
+                        dependencies = TRUE,
+                        upgrade = "never")
+
 library(gmed)
 
 # Fix for Posit Connect graphics rendering
@@ -78,7 +98,7 @@ load_app_data <- function() {
    
     message("Data loaded successfully!")
     message("Residents: ", nrow(complete_data$residents))
-    message("Assessment records: ", nrow(complete_data$assessment_data))
+    message("Assessment records: ", nrow(complete_data$all_forms$assessment))
     message("Data dictionary fields: ", nrow(complete_data$data_dict))
   }
   
