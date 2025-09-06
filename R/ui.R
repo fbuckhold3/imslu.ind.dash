@@ -1,4 +1,4 @@
-# ui.R - IMSLU Individual Resident Dashboard with GMED Theming
+# ui.R - IMSLU Individual Resident Dashboard with Debug Integration
 # Updated for RDM 2.0 and gmed package integration
 
 # Try to load gmed, but provide fallback if not available
@@ -9,6 +9,9 @@ gmed_available <- tryCatch({
   message("gmed package not available, using fallback styling")
   FALSE
 })
+
+# Debug mode control - set to FALSE for production
+DEBUG_MODE <- Sys.getenv("DEBUG_MODE", "true") == "true"
 
 ui <- if (gmed_available) {
   gmed_page(
@@ -27,8 +30,11 @@ ui <- if (gmed_available) {
 ui <- tagAppendChildren(
   ui,
   
-  # Custom CSS for module cards and hover effects - CLEANED VERSION
   tags$head(
+    # Link to your custom CSS file (loaded AFTER gmed CSS)
+    tags$link(rel = "stylesheet", type = "text/css", href = "milestone_dashboard.css"),
+    
+    # Keep only the essential CSS that doesn't conflict
     tags$style(HTML("
     /* Module Cards */
     .module-card {
@@ -40,150 +46,110 @@ ui <- tagAppendChildren(
       box-shadow: 0 10px 20px rgba(0,0,0,0.15);
     }
     
-    /* Button Hover Effects */
-    .btn:hover {
-      opacity: 0.9;
-      transition: opacity 0.3s ease-in-out;
-    }
-    
     /* Modal Styling */
-    .modal-content {
-      border-radius: 15px;
-      box-shadow: 0 5px 20px rgba(0,61,92,0.2);
-    }
-    .modal-header {
-      border-bottom: 1px solid #eee;
-      background: linear-gradient(90deg, var(--ssm-primary-blue), var(--ssm-secondary-blue));
-      color: white;
-      border-radius: 15px 15px 0 0;
-    }
-    .modal-title {
-      font-weight: bold;
-    }
-    .modal-footer {
-      border-top: 1px solid #eee;
-      background: var(--ssm-light-gray);
-      border-radius: 0 0 15px 15px;
-    }
-    
-    /* Assessment Visualization */
-    .assessment-viz-container {
-      max-width: 100%;
-      overflow: hidden;
-    }
-    .viz-card {
-      max-height: 400px;
-    }
-    
-    /* Milestone Module Container - CONSOLIDATED RULES */
-    .milestone-module-container {
-      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-      border-radius: 8px;
-      padding: 15px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      transition: all 0.3s ease;
-      height: 100%;
-      min-height: 600px; /* INCREASED from 520px */
-    }
-    .milestone-module-container:hover {
-      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-      transform: translateY(-1px);
-    }
-    .milestone-module-container h5 {
-      text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
-      border-bottom: 2px solid currentColor;
-      padding-bottom: 8px;
-      margin-bottom: 15px;
-      font-weight: 600;
-    }
-    
-    /* Milestone Dashboard Container - CONSOLIDATED */
-    .milestone-dashboard-container {
-      min-height: 550px !important; /* INCREASED */
-      height: auto !important;
-    }
-    
-    /* Plotly Charts - CONSOLIDATED RULES */
-    .milestone-dashboard-container .plotly,
-    .plotly {
-      min-height: 350px !important; /* INCREASED from 300px */
-      height: 350px !important;
-      max-height: none !important; /* REMOVED conflicting max-height */
-    }
-    
-    /* Milestone Controls */
-    .milestone-dashboard-container .controls-section {
-      padding: 15px;
-      margin-bottom: 15px;
-      background: rgba(255,255,255,0.8);
-      border-radius: 6px;
-    }
-    .milestone-dashboard-container select {
-      font-size: 14px;
-      padding: 8px 12px; /* INCREASED padding */
-      min-width: 200px; /* ADDED minimum width */
-    }
-    
-    /* Modal Dialog Sizing */
     .modal-dialog {
       max-width: 95%;
       width: 95%;
     }
+  ")), # <- Added closing parenthesis here
     
-    /* Responsive Design */
-    @media (max-width: 768px) {
-      .milestone-module-container {
-        min-height: 500px;
-        margin-bottom: 20px;
-      }
-      
-      .milestone-module-container h5 {
-        font-size: 1.1rem;
-      }
-      
-      .modal-dialog {
-        max-width: 98%;
-        width: 98%;
-      }
-      
-      .milestone-dashboard-container .plotly,
-      .plotly {
-        min-height: 250px !important;
-        height: 250px !important;
-      }
-    }
-  ")),
     tags$script(HTML("
-    // JavaScript for card click handlers
-    $(document).on('click', '#plus_delta_card', function() {
-      Shiny.setInputValue('module_selected', 'plus_delta');
-      $('#moduleModal').modal('show');
-    });
-    $(document).on('click', '#evaluation_data_card', function() {
-      Shiny.setInputValue('module_selected', 'evaluation_data');
-      $('#moduleModal').modal('show');
-    });
-    $(document).on('click', '#milestone_plots_card', function() {
-      Shiny.setInputValue('module_selected', 'milestone_plots');
-      $('#moduleModal').modal('show');
-    });
-    $(document).on('click', '#learning_plan_card', function() {
-      Shiny.setInputValue('module_selected', 'learning_plan');
-      $('#moduleModal').modal('show');
-    });
-    $(document).on('click', '#scholarship_card', function() {
-      Shiny.setInputValue('module_selected', 'scholarship');
-      $('#moduleModal').modal('show');
-    });
-    $(document).on('click', '#schedule_data_card', function() {
-      Shiny.setInputValue('module_selected', 'schedule_data');
-      $('#moduleModal').modal('show');
-    });
-    $(document).on('click', '#peer_evaluations_card', function() {
-      Shiny.setInputValue('module_selected', 'peer_evaluations');
-      $('#moduleModal').modal('show');
-    });
-  "))
+// JavaScript for card click handlers and modal management
+$(document).ready(function() {
+  console.log('Modal JavaScript loaded');
+  
+  // Function to show modal with better error handling
+  function showModal() {
+    try {
+      // Try Bootstrap 5 method first
+      if (typeof bootstrap !== 'undefined') {
+        var modalElement = document.getElementById('moduleModal');
+        if (modalElement) {
+          var modal = new bootstrap.Modal(modalElement);
+          modal.show();
+          console.log('Modal shown using Bootstrap 5');
+          return;
+        }
+      }
+      
+      // Fallback to jQuery/Bootstrap 4 method
+      if (typeof $ !== 'undefined' && $.fn.modal) {
+        $('#moduleModal').modal('show');
+        console.log('Modal shown using jQuery');
+        return;
+      }
+      
+      console.error('No modal method available');
+    } catch (error) {
+      console.error('Error showing modal:', error);
+    }
+  }
+  
+  // Card click handlers
+  $(document).on('click', '#plus_delta_card', function() {
+    console.log('Plus/Delta card clicked');
+    Shiny.setInputValue('module_selected', 'plus_delta', {priority: 'event'});
+    showModal();
+  });
+  
+  $(document).on('click', '#evaluation_data_card', function() {
+    console.log('Evaluation Data card clicked');
+    Shiny.setInputValue('module_selected', 'evaluation_data', {priority: 'event'});
+    showModal();
+  });
+  
+  $(document).on('click', '#milestone_plots_card', function() {
+    console.log('Milestone Plots card clicked');
+    Shiny.setInputValue('module_selected', 'milestone_plots', {priority: 'event'});
+    showModal();
+  });
+  
+  $(document).on('click', '#learning_plan_card', function() {
+    console.log('Learning Plan card clicked');
+    Shiny.setInputValue('module_selected', 'learning_plan', {priority: 'event'});
+    showModal();
+  });
+  
+  $(document).on('click', '#scholarship_card', function() {
+    console.log('Scholarship card clicked');
+    Shiny.setInputValue('module_selected', 'scholarship', {priority: 'event'});
+    showModal();
+  });
+  
+  $(document).on('click', '#schedule_data_card', function() {
+    console.log('Schedule Data card clicked');
+    Shiny.setInputValue('module_selected', 'schedule_data', {priority: 'event'});
+    showModal();
+  });
+  
+  $(document).on('click', '#peer_evaluations_card', function() {
+    console.log('Peer Evaluations card clicked');
+    Shiny.setInputValue('module_selected', 'peer_evaluations', {priority: 'event'});
+    showModal();
+  });
+  
+  // Modal close handlers
+  $(document).on('click', '[data-dismiss=modal]', function() {
+    console.log('Modal close button clicked');
+    try {
+      if (typeof bootstrap !== 'undefined') {
+        var modalElement = document.getElementById('moduleModal');
+        if (modalElement) {
+          var modal = bootstrap.Modal.getInstance(modalElement);
+          if (modal) {
+            modal.hide();
+          }
+        }
+      } else if (typeof $ !== 'undefined' && $.fn.modal) {
+        $('#moduleModal').modal('hide');
+      }
+    } catch (error) {
+      console.error('Error hiding modal:', error);
+    }
+  });
+  
+}); // <- This closing was missing!
+"))
   ),
   
   # Header with logo and title (always visible)
@@ -243,10 +209,9 @@ ui <- tagAppendChildren(
     ),
     
     # Assessment Section (shows when code is valid)
-    # Assessment Section (always present, but conditionally visible)
     div(
       id = "assessment_section",
-      style = "display: none;",  # Hidden by default, shown by shinyjs::toggle()
+      style = "display: none;",
       class = "mb-4",
       div(
         class = "card",
@@ -299,7 +264,7 @@ ui <- tagAppendChildren(
           )
         ),
         
-        # Evaluation Data (was Continuity Clinic)
+        # Evaluation Data
         div(
           id = "evaluation_data_card",
           class = "module-card card",
@@ -315,7 +280,7 @@ ui <- tagAppendChildren(
           )
         ),
         
-        # Milestone Plots (was Observational Data)
+        # Milestone Plots
         div(
           id = "milestone_plots_card",
           class = "module-card card",
@@ -331,7 +296,7 @@ ui <- tagAppendChildren(
           )
         ),
         
-        # Learning Plan (was Inpatient Data)
+        # Learning Plan
         div(
           id = "learning_plan_card",
           class = "module-card card",
@@ -347,7 +312,7 @@ ui <- tagAppendChildren(
           )
         ),
         
-        # Scholarship (was Milestones)
+        # Scholarship
         div(
           id = "scholarship_card",
           class = "module-card card",
@@ -363,7 +328,7 @@ ui <- tagAppendChildren(
           )
         ),
         
-        # Schedule Data (was Self-Assessment)
+        # Schedule Data
         div(
           id = "schedule_data_card",
           class = "module-card card",
@@ -379,7 +344,7 @@ ui <- tagAppendChildren(
           )
         ),
         
-        # Peer Evaluations - keep
+        # Peer Evaluations
         div(
           id = "peer_evaluations_card",
           class = "module-card card",
@@ -394,7 +359,92 @@ ui <- tagAppendChildren(
             icon("users", "fa-4x", style = "color: #6200EA;")
           )
         )
-        # Note: "Other Data" card removed as requested
+      )
+    ),
+    
+    # ============================================================================
+    # DEBUG PANEL - COLLAPSIBLE (only shows if DEBUG_MODE is TRUE)
+    # ============================================================================
+    
+    conditionalPanel(
+      condition = paste0("'", DEBUG_MODE, "' == 'true'"),
+      
+      div(
+        class = "debug-panel",
+        
+        # Collapsible debug panel
+        div(
+          class = "card",
+          
+          div(
+            class = "card-header",
+            `data-bs-toggle` = "collapse",
+            `data-bs-target` = "#debugCollapse",
+            
+            h6(
+              icon("bug"), " Development Debug Panel ",
+              tags$small("(click to toggle)", style = "color: rgba(255,255,255,0.8);"),
+              style = "margin: 0; cursor: pointer;"
+            )
+          ),
+          
+          div(
+            id = "debugCollapse",
+            class = "collapse",  # Start collapsed
+            
+            div(
+              class = "card-body",
+              
+              # Debug warning
+              div(
+                class = "debug-warning",
+                icon("exclamation-triangle"), 
+                strong(" Development Mode Active"), 
+                " - This panel will be hidden in production. Set DEBUG_MODE=false to disable."
+              ),
+              
+              # Debug tabs for better organization
+              tabsetPanel(
+                type = "pills",
+                
+                tabPanel(
+                  "App Status",
+                  br(),
+                  p("Current application state and authentication status:"),
+                  verbatimTextOutput("debug_info")
+                ),
+                
+                tabPanel(
+                  "Data Structure", 
+                  br(),
+                  p("Data structure and component breakdown:"),
+                  verbatimTextOutput("data_structure_debug")
+                ),
+                
+                tabPanel(
+                  "Usage Guide",
+                  br(),
+                  div(
+                    h6("Debug Panel Usage:"),
+                    tags$ul(
+                      tags$li("App Status: Shows authentication, resident info, and milestone data availability"),
+                      tags$li("Data Structure: Shows loaded data components and their sizes"),
+                      tags$li("Console output appears in your R console/server logs"),
+                      tags$li("Set DEBUG_MODE=false environment variable for production")
+                    ),
+                    
+                    h6("Common Issues:"),
+                    tags$ul(
+                      tags$li("If milestone data shows 0 rows, check data filtering"),
+                      tags$li("If authentication fails, verify access codes in resident data"),
+                      tags$li("If no configurations found, check form data availability")
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
       )
     )
   ),

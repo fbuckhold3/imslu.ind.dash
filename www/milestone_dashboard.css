@@ -1,0 +1,159 @@
+/* ============================================================================
+   MILESTONE DASHBOARD CSS FIXES - Replace conflicting rules in your ui.R
+   ============================================================================ */
+
+/* Remove conflicting milestone-dashboard-container rules and replace with: */
+
+.milestone-dashboard-container {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 8px;
+  padding: 15px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  
+  /* FIXED: Allow content to determine height, don't force fixed heights */
+  height: auto !important;
+  min-height: 650px !important;
+  max-height: none !important;
+  
+  /* Ensure proper display */
+  display: block !important;
+  visibility: visible !important;
+}
+
+.milestone-dashboard-container:hover {
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+.milestone-dashboard-container h4 {
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+  border-bottom: 2px solid currentColor;
+  padding-bottom: 8px;
+  margin-bottom: 15px;
+  font-weight: 600;
+}
+
+/* FIXED: Section heights - use auto instead of percentages in modal */
+.milestone-dashboard-container .spider-section {
+  height: auto !important;
+  min-height: 350px !important;
+  margin-bottom: 15px !important;
+  background: white;
+  border-radius: 6px;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+  padding: 15px;
+  display: block !important;
+}
+
+.milestone-dashboard-container .controls-section {
+  height: auto !important;
+  min-height: 80px !important;
+  margin-bottom: 15px !important;
+  padding: 15px !important;
+  background: rgba(255,255,255,0.9) !important;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  display: block !important;
+}
+
+.milestone-dashboard-container .progression-section {
+  height: auto !important;
+  min-height: 350px !important;
+  background: white;
+  border-radius: 6px;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+  padding: 15px;
+  display: block !important;
+}
+
+/* FIXED: Plotly sizing - ensure plots are visible */
+.milestone-dashboard-container .plotly,
+.milestone-dashboard-container div[id*="plotly"] {
+  min-height: 300px !important;
+  height: 350px !important;
+  width: 100% !important;
+  display: block !important;
+  visibility: visible !important;
+}
+
+/* FIXED: Ensure selectInput is visible and properly styled */
+.milestone-dashboard-container select,
+.milestone-dashboard-container .selectize-input {
+  font-size: 14px !important;
+  padding: 10px 15px !important;
+  min-width: 200px !important;
+  width: 100% !important;
+  border: 2px solid #dee2e6 !important;
+  border-radius: 6px !important;
+  background-color: white !important;
+  display: block !important;
+  visibility: visible !important;
+}
+
+.milestone-dashboard-container .selectize-control {
+  width: 100% !important;
+  display: block !important;
+}
+
+/* FIXED: Ensure main content is visible */
+.milestone-dashboard-container #main_content,
+.milestone-dashboard-container div[id*="main_content"] {
+  display: block !important;
+  visibility: visible !important;
+  height: auto !important;
+}
+
+/* FIXED: Remove height restrictions that might hide content */
+.milestone-dashboard-container * {
+  max-height: none !important;
+}
+
+/* Modal specific fixes */
+.modal-body .milestone-dashboard-container {
+  height: auto !important;
+  min-height: 600px !important;
+}
+
+.modal-body .milestone-module-container {
+  height: auto !important;
+  min-height: 600px !important;
+}
+
+/* Debug: Temporarily add borders to see what's happening */
+/* Remove these after testing */
+.milestone-dashboard-container {
+  border: 2px solid red !important;
+}
+
+.milestone-dashboard-container .spider-section {
+  border: 1px solid blue !important;
+}
+
+.milestone-dashboard-container .controls-section {
+  border: 1px solid green !important;
+}
+
+.milestone-dashboard-container .progression-section {
+  border: 1px solid orange !important;
+}
+
+/* Force plotly plots to use full container space */
+.milestone-dashboard-container .plotly {
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Remove any default plotly margins */
+.milestone-dashboard-container .plotly .main-svg {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* DEBUG BORDERS - Remove after testing */
+.milestone-dashboard-container { border: 2px solid red !important; }
+.milestone-dashboard-container .controls-section { border: 1px solid green !important; }
+.milestone-dashboard-container .spider-section { border: 1px solid blue !important; }
+.milestone-dashboard-container .progression-section { border: 1px solid orange !important; }
