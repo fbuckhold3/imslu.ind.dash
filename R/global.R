@@ -13,38 +13,12 @@ library(purrr)       # Required for gmed assessment modules
 library(tidyr)       # Required for gmed assessment modules
 library(lubridate)   # Required for gmed assessment modules
 
-# More aggressive package management for Posit Connect
-if (!interactive()) {
-  # Clear the entire namespace
-  try({
-    unloadNamespace("gmed")
-  }, silent = TRUE)
-  
-  # Wait a moment for cleanup
-  Sys.sleep(1)
-  
-  # Force removal with different approach
-  lib_paths <- .libPaths()
-  gmed_path <- file.path(lib_paths[1], "gmed")
-  if (dir.exists(gmed_path)) {
-    try({
-      unlink(gmed_path, recursive = TRUE, force = TRUE)
-    }, silent = TRUE)
-  }
+# Alternative: Use pak for more robust installation
+if (!requireNamespace("pak", quietly = TRUE)) {
+  install.packages("pak")
 }
 
-# Install from GitHub with additional flags
-if (!requireNamespace("remotes", quietly = TRUE)) {
-  install.packages("remotes")
-}
-
-# Try installation with INSTALL_opts
-remotes::install_github("fbuckhold3/gmed", 
-                        force = TRUE, 
-                        dependencies = TRUE,
-                        upgrade = "never",
-                        INSTALL_opts = "--no-lock")  # Avoid file locking
-
+pak::pkg_install("fbuckhold3/gmed", dependencies = TRUE)
 library(gmed)
 
 # Fix for Posit Connect graphics rendering
