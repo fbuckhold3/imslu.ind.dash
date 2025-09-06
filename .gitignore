@@ -6,3 +6,4 @@ config.yml
 .Rhistory
 .RData
 .Ruserdata
+.Renviron

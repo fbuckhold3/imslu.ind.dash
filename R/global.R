@@ -13,12 +13,7 @@ library(purrr)       # Required for gmed assessment modules
 library(tidyr)       # Required for gmed assessment modules
 library(lubridate)   # Required for gmed assessment modules
 
-# Alternative: Use pak for more robust installation
-if (!requireNamespace("pak", quietly = TRUE)) {
-  install.packages("pak")
-}
 
-pak::pkg_install("fbuckhold3/gmed", dependencies = TRUE)
 library(gmed)
 
 # Fix for Posit Connect graphics rendering
