@@ -2,6 +2,46 @@
 # ULTRA-SIMPLE GLOBAL.R - Using gmed::load_rdm_complete()
 # ============================================================================
 
+# ============================================================================
+# FORCE FRESH GMED INSTALL - Emergency Fix
+# ============================================================================
+
+# Force remove any cached gmed package
+if ("gmed" %in% loadedNamespaces()) {
+  try(unloadNamespace("gmed"), silent = TRUE)
+}
+
+# Force install latest version from GitHub
+if (!requireNamespace("remotes", quietly = TRUE)) {
+  install.packages("remotes")
+}
+
+# Force reinstall with cache busting
+remotes::install_github("fbuckhold3/gmed", 
+                        force = TRUE,
+                        upgrade = "always", 
+                        dependencies = TRUE,
+                        ref = "main")  # Specify branch explicitly
+
+# Now load it
+library(gmed)
+
+# VERIFY the functions are available
+message("=== POST-INSTALL VERIFICATION ===")
+message("gmed loaded: ", "gmed" %in% loadedNamespaces())
+message("load_rdm_complete available: ", exists("load_rdm_complete"))
+message("milestone_dashboard_server available: ", exists("milestone_dashboard_server"))
+
+# If still not available, use emergency access
+if (!exists("load_rdm_complete")) {
+  message("🚨 EMERGENCY: Using namespace access")
+  load_rdm_complete <- gmed:::load_rdm_complete
+  milestone_dashboard_server <- gmed:::milestone_dashboard_server
+  assign("load_rdm_complete", load_rdm_complete, envir = .GlobalEnv)
+  assign("milestone_dashboard_server", milestone_dashboard_server, envir = .GlobalEnv)
+}
+
+
 library(shiny)
 library(shinyjs)
 library(bslib)
@@ -12,10 +52,7 @@ library(ggplot2)     # Required for gmed assessment modules
 library(purrr)       # Required for gmed assessment modules
 library(tidyr)       # Required for gmed assessment modules
 library(lubridate)   # Required for gmed assessment modules
-library(gmed)        # Will be installed via DESCRIPTION file
 
-
-library(gmed)
 
 # Fix for Posit Connect graphics rendering
 options(shiny.plot.res = 96)

@@ -1,0 +1,23 @@
+Package: imslu.ind.dash
+Title: Individual Resident Dashboard
+Version: 1.0.0
+Description: Individual resident dashboard using gmed package for milestone visualization
+Author: Fred Buckhold
+Maintainer: Fred Buckhold <your.email@slu.edu>
+Depends: 
+    R (>= 4.0)
+Imports:
+    shiny,
+    shinyjs,
+    bslib,
+    DT,
+    dplyr,
+    plotly,
+    ggplot2,
+    purrr,
+    tidyr,
+    lubridate
+Remotes:
+    fbuckhold3/gmed
+License: MIT
+Encoding: UTF-8
