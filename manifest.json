@@ -914,16 +914,16 @@
         "RemoteRepo": "gmed",
         "RemoteUsername": "fbuckhold3",
         "RemoteRef": "HEAD",
-        "RemoteSha": "7654e01e2b8584fc0894f67a1ae3ab76e6aa4945",
+        "RemoteSha": "8f04141260e9d6aeab0773171762e774dd62083c",
         "GithubRepo": "gmed",
         "GithubUsername": "fbuckhold3",
         "GithubRef": "HEAD",
-        "GithubSHA1": "7654e01e2b8584fc0894f67a1ae3ab76e6aa4945",
+        "GithubSHA1": "8f04141260e9d6aeab0773171762e774dd62083c",
         "NeedsCompilation": "no",
-        "Packaged": "2025-08-29 10:24:08 UTC; fredbuckhold",
+        "Packaged": "2025-09-06 21:27:24 UTC; fredbuckhold",
         "Author": "First Last [aut, cre]",
         "Maintainer": "First Last <first.last@example.com>",
-        "Built": "R 4.3.3; ; 2025-08-29 10:24:08 UTC; unix"
+        "Built": "R 4.3.3; ; 2025-09-06 21:27:25 UTC; unix"
       }
     },
     "gtable": {
@@ -1900,36 +1900,6 @@
         "Archs": "readr.so.dSYM"
       }
     },
-    "remotes": {
-      "Source": "CRAN",
-      "Repository": "https://cran.rstudio.com",
-      "description": {
-        "Package": "remotes",
-        "Title": "R Package Installation from Remote Repositories, Including\n'GitHub'",
-        "Version": "2.5.0",
-        "Authors@R": "c(\n    person(\"Gábor\", \"Csárdi\", , \"csardi.gabor@gmail.com\", role = c(\"aut\", \"cre\")),\n    person(\"Jim\", \"Hester\", role = \"aut\"),\n    person(\"Hadley\", \"Wickham\", role = \"aut\"),\n    person(\"Winston\", \"Chang\", role = \"aut\"),\n    person(\"Martin\", \"Morgan\", role = \"aut\"),\n    person(\"Dan\", \"Tenenbaum\", role = \"aut\"),\n    person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\")),\n    person(\"Ascent Digital Services\", role = \"cph\")\n  )",
-        "Description": "Download and install R packages stored in 'GitHub', 'GitLab',\n    'Bitbucket', 'Bioconductor', or plain 'subversion' or 'git'\n    repositories.  This package provides the 'install_*' functions in\n    'devtools'. Indeed most of the code was copied over from 'devtools'.",
-        "License": "MIT + file LICENSE",
-        "URL": "https://remotes.r-lib.org, https://github.com/r-lib/remotes#readme",
-        "BugReports": "https://github.com/r-lib/remotes/issues",
-        "Depends": "R (>= 3.0.0)",
-        "Imports": "methods, stats, tools, utils",
-        "Suggests": "brew, callr, codetools, covr, curl, git2r (>= 0.23.0), knitr,\nmockery, pingr, pkgbuild (>= 1.0.1), rmarkdown, rprojroot,\ntestthat (>= 3.0.0), webfakes, withr",
-        "VignetteBuilder": "knitr",
-        "Config/Needs/website": "tidyverse/tidytemplate",
-        "Config/testthat/edition": "3",
-        "Encoding": "UTF-8",
-        "RoxygenNote": "7.2.3",
-        "SystemRequirements": "Subversion for install_svn, git for install_git",
-        "NeedsCompilation": "no",
-        "Packaged": "2024-03-17 12:41:55 UTC; gaborcsardi",
-        "Author": "Gábor Csárdi [aut, cre],\n  Jim Hester [aut],\n  Hadley Wickham [aut],\n  Winston Chang [aut],\n  Martin Morgan [aut],\n  Dan Tenenbaum [aut],\n  Posit Software, PBC [cph, fnd],\n  Ascent Digital Services [cph]",
-        "Maintainer": "Gábor Csárdi <csardi.gabor@gmail.com>",
-        "Repository": "CRAN",
-        "Date/Publication": "2024-03-17 13:20:02 UTC",
-        "Built": "R 4.3.3; ; 2025-01-24 03:13:13 UTC; unix"
-      }
-    },
     "rlang": {
       "Source": "CRAN",
       "Repository": "https://cran.rstudio.com",
@@ -2636,22 +2606,28 @@
   },
   "files": {
     ".RData": {
-      "checksum": "567da8cacc5814267400830a0205de8e"
+      "checksum": "8778413143fb09a7e55e889373d9ef7a"
+    },
+    ".Renviron": {
+      "checksum": "f4a19d040a35e859b1b2394719586b15"
     },
     "app.R": {
-      "checksum": "63fa8dadc809d670e68622a1e25c5d40"
+      "checksum": "dbd50065eaa765f9e15a6cd664ffc6a2"
     },
     "config.yml": {
       "checksum": "f12798eebf7d9b7d57ada46d29730b3d"
     },
     "R/global.R": {
-      "checksum": "26c643e794453863492290c9e5a1b307"
+      "checksum": "21975f6359afacf72579f45892fc74c5"
     },
     "R/server.R": {
-      "checksum": "ec4803a63a8bbdc7ab6367d654c97bf3"
+      "checksum": "07e046c1a3f43b407541ad059457f8cd"
     },
     "R/ui.R": {
-      "checksum": "d5736be6f69dcc9fd2ea8296028b77fa"
+      "checksum": "5c7c98a86442c49336a863d65344fbaf"
+    },
+    "www/milestone_dashboard.css": {
+      "checksum": "c5db9423eaf0eb51fa3a0d084e22f5f7"
     },
     "www/ssm_slucare.png": {
       "checksum": "21837d5f0acec6e2271035b719e17724"

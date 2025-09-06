@@ -1,82 +1,4 @@
-# ============================================================================
-# ULTRA-SIMPLE GLOBAL.R - Using gmed::load_rdm_complete()
-# ============================================================================
 
-# ============================================================================
-# FORCE FRESH GMED INSTALL - Emergency Fix
-# ============================================================================
-
-# ============================================================================
-# AGGRESSIVE CACHE BUSTING FOR POSIT CONNECT
-# ============================================================================
-
-# Force remove any cached gmed package
-if ("gmed" %in% loadedNamespaces()) {
-  try(detach("package:gmed", unload = TRUE), silent = TRUE)
-  try(unloadNamespace("gmed"), silent = TRUE)
-}
-
-# Remove from library if it exists
-gmed_path <- find.package("gmed", quiet = TRUE)
-if (length(gmed_path) > 0) {
-  try(remove.packages("gmed"), silent = TRUE)
-}
-
-# Force install with multiple cache-busting techniques
-if (!requireNamespace("remotes", quietly = TRUE)) {
-  install.packages("remotes")
-}
-
-# Get current timestamp to force "new" install
-timestamp <- format(Sys.time(), "%Y%m%d%H%M%S")
-message("Cache bust timestamp: ", timestamp)
-
-# Force install with SHA commit (most aggressive)
-remotes::install_github("fbuckhold3/gmed",
-                        force = TRUE,
-                        upgrade = "always",
-                        dependencies = TRUE,
-                        INSTALL_opts = "--no-lock",
-                        build_opts = c("--no-resave-data", "--no-manual"))
-
-library(gmed)
-
-# Immediate verification
-message("=== VERIFICATION AFTER AGGRESSIVE INSTALL ===")
-message("gmed namespace loaded: ", "gmed" %in% loadedNamespaces())
-
-# Test direct access to functions
-message("Testing direct function access...")
-tryCatch({
-  ls_gmed <- ls("package:gmed")
-  message("Functions in gmed package: ", paste(ls_gmed, collapse = ", "))
-}, error = function(e) {
-  message("Error listing gmed functions: ", e$message)
-})
-
-# Test specific functions
-test_functions <- c("load_rdm_complete", "milestone_dashboard_server")
-for (func in test_functions) {
-  exists_in_pkg <- exists(func, where = "package:gmed", inherits = FALSE)
-  exists_anywhere <- exists(func, inherits = TRUE)
-  message(func, " in package: ", exists_in_pkg, ", anywhere: ", exists_anywhere)
-}
-
-# EMERGENCY FALLBACK: Direct namespace access
-if (!exists("load_rdm_complete", where = "package:gmed")) {
-  message("🚨 EMERGENCY: Functions not exported, using direct access")
-  
-  # Access functions directly from namespace
-  if ("gmed" %in% loadedNamespaces()) {
-    load_rdm_complete <<- get("load_rdm_complete", envir = asNamespace("gmed"))
-    milestone_dashboard_server <<- get("milestone_dashboard_server", envir = asNamespace("gmed"))
-    message("✅ Emergency access successful")
-  } else {
-    stop("❌ gmed package not loaded at all")
-  }
-}
-
-message("=== END VERIFICATION ===")
 
 
 
@@ -89,7 +11,8 @@ library(plotly)      # Required for gmed assessment modules
 library(ggplot2)     # Required for gmed assessment modules
 library(purrr)       # Required for gmed assessment modules
 library(tidyr)       # Required for gmed assessment modules
-library(lubridate)   # Required for gmed assessment modules
+library(lubridate)   # Required for gmed assessment modules'
+library(gmed)
 
 
 # Fix for Posit Connect graphics rendering
