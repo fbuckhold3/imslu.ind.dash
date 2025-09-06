@@ -13,31 +13,37 @@ library(purrr)       # Required for gmed assessment modules
 library(tidyr)       # Required for gmed assessment modules
 library(lubridate)   # Required for gmed assessment modules
 
-# Force clean installation on deployment
-if (!interactive()) {  # Running on server
-  # Unload gmed if it's loaded
-  if ("gmed" %in% loadedNamespaces()) {
-    try({
-      detach("package:gmed", unload = TRUE, force = TRUE)
-    }, silent = TRUE)
-  }
+# More aggressive package management for Posit Connect
+if (!interactive()) {
+  # Clear the entire namespace
+  try({
+    unloadNamespace("gmed")
+  }, silent = TRUE)
   
-  # Remove old installation
-  if ("gmed" %in% rownames(installed.packages())) {
-    try(remove.packages("gmed"), silent = TRUE)
+  # Wait a moment for cleanup
+  Sys.sleep(1)
+  
+  # Force removal with different approach
+  lib_paths <- .libPaths()
+  gmed_path <- file.path(lib_paths[1], "gmed")
+  if (dir.exists(gmed_path)) {
+    try({
+      unlink(gmed_path, recursive = TRUE, force = TRUE)
+    }, silent = TRUE)
   }
 }
 
-# Install from GitHub
+# Install from GitHub with additional flags
 if (!requireNamespace("remotes", quietly = TRUE)) {
   install.packages("remotes")
 }
 
-# Install with force to overwrite any existing installation
+# Try installation with INSTALL_opts
 remotes::install_github("fbuckhold3/gmed", 
                         force = TRUE, 
                         dependencies = TRUE,
-                        upgrade = "never")
+                        upgrade = "never",
+                        INSTALL_opts = "--no-lock")  # Avoid file locking
 
 library(gmed)
 
@@ -131,10 +137,7 @@ get_resident_by_code <- function(code) {
   as.list(resident)
 }
 
-# NULL coalescing operator
-if (!exists("%||%")) {
-  `%||%` <- function(a, b) if (is.null(a) || length(a) == 0) b else a
-}
+
 
 # ============================================================================
 # STARTUP
