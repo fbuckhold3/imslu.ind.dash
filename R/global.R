@@ -12,6 +12,7 @@ library(ggplot2)     # Required for gmed assessment modules
 library(purrr)       # Required for gmed assessment modules
 library(tidyr)       # Required for gmed assessment modules
 library(lubridate)   # Required for gmed assessment modules
+library(gmed)        # Will be installed via DESCRIPTION file
 
 
 library(gmed)
