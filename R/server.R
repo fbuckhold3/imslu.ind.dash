@@ -383,6 +383,30 @@ server <- function(input, output, session) {
     })
   )
   
+  
+  # =====
+  # LINK OBSERVER
+  # ======
+  # In your server.R where you show/hide sections based on access code
+  # ============================================================================
+  # CONDITIONAL UI DISPLAY LOGIC - FIXED
+  # ============================================================================
+  
+  observe({
+    if (values$authenticated) {
+      shinyjs::show("resident_info_banner")
+      shinyjs::show("quick_links_section")
+      shinyjs::show("assessment_section")
+      shinyjs::show("module_cards_section")
+      shinyjs::hide("access_code_error")
+    } else {
+      shinyjs::hide("resident_info_banner")
+      shinyjs::hide("quick_links_section")
+      shinyjs::hide("assessment_section") 
+      shinyjs::hide("module_cards_section")
+    }
+  })
+  
   # ============================================================================
   # MODAL CONTENT HANDLING
   # ============================================================================
@@ -958,15 +982,6 @@ server <- function(input, output, session) {
     paste(debug_lines, collapse = "\n")
   })
   
-  # ============================================================================
-  # CONDITIONAL UI DISPLAY LOGIC
-  # ============================================================================
-  
-  observe({
-    if (values$authenticated) {
-      shinyjs::hide("access_code_error")
-    }
-  })
   
   # ============================================================================
   # SESSION MANAGEMENT AND ERROR HANDLING - COMPLETELY FIXED

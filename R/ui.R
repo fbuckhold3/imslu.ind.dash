@@ -165,6 +165,7 @@ $(document).ready(function() {
     class = "container mt-4",
     
     # Access code input (always visible at top)
+    # Access code input (always visible at top)
     div(
       class = "row justify-content-center mb-4",
       div(
@@ -179,6 +180,13 @@ $(document).ready(function() {
           ),
           div(
             class = "card-body text-center p-4",
+            # Add the descriptive text here
+            div(
+              class = "mb-4 p-3",
+              style = "background: #f8f9fa; border-radius: 8px; border-left: 4px solid #003d5c;",
+              p("The following is a dashboard for residents in the IMSLU Residency Program to access data on their evaluations, progress in their program, and learning plans. By entering your access code, you are acknowledging that this is data only intended for the individual resident and should only be accessed by that resident and / or designated members in the leadership of the Program.",
+                style = "margin: 0; font-size: 0.95rem; line-height: 1.5; text-align: left; color: #495057;")
+            ),
             p("Please enter your access code to view your dashboard data:", 
               class = "mb-3 text-muted"),
             textInput("access_code_input", NULL, value = "", 
@@ -204,6 +212,42 @@ $(document).ready(function() {
           style = "display: flex; justify-content: space-between; align-items: center;",
           h3(textOutput("resident_name"), style = "margin: 0; font-weight: bold;"),
           h4(textOutput("coach_name"), style = "margin: 0; font-weight: normal;")
+        )
+      )
+    ),
+    
+    # Quick Recording Links Section (shows when code is valid)
+    div(
+      id = "quick_links_section",
+      style = "display: none;",
+      class = "mb-4",
+      div(
+        class = "row mb-3",
+        div(
+          class = "col-12",
+          div(
+            class = "card",
+            style = "border: none; border-radius: 12px; background: #f8f9fa;",
+            div(
+              class = "card-body p-3",
+              h6("Quick Recording Links", style = "margin-bottom: 15px; color: #003d5c;"),
+              div(
+                class = "d-flex flex-wrap gap-2",
+                a(href = "https://fbuckhold3-imslu-resident-assessment.share.connect.posit.cloud",
+                  target = "_blank",
+                  class = "btn btn-outline-primary btn-sm",
+                  icon("clipboard-check"), " Record Assessment"),
+                a(href = "https://fbuckhold3-imslu-facultyeval.share.connect.posit.cloud", 
+                  target = "_blank",
+                  class = "btn btn-outline-primary btn-sm",
+                  icon("user-tie"), " Record Faculty Eval"),
+                a(href = "https://fbuckhold3-imslu-at-noon.share.connect.posit.cloud",
+                  target = "_blank", 
+                  class = "btn btn-outline-primary btn-sm",
+                  icon("users"), " Record Noon Conference")
+              )
+            )
+          )
         )
       )
     ),
