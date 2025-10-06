@@ -26,76 +26,164 @@ server <- function(input, output, session) {
   # ============================================================================
   
   # Handle access code authentication
+  # ============================================================================
+  # AUTHENTICATION SYSTEM - FIXED
+  # Replace the observeEvent(input$access_code_input, ...) section in server.R
+  # ============================================================================
+  
   observeEvent(input$access_code_input, {
-    if (!is.null(input$access_code_input) && nzchar(input$access_code_input)) {
+    # Allow Enter key to trigger submission
+    shinyjs::runjs("
+    $('#access_code_input').on('keypress', function(e) {
+      if(e.which === 13) {
+        $('#submit_access_code').click();
+      }
+    });
+  ")
+  }, once = TRUE)
+  
+  observeEvent(input$submit_access_code, {
+    
+    # Get the access code value
+    access_code <- input$access_code_input
+    
+    # Basic validation
+    if (is.null(access_code) || !nzchar(access_code)) {
+      shinyjs::show("access_code_error")
+      return(NULL)
+    }
+    
+    if (values$debug_mode) {
+      message("=== AUTHENTICATION ATTEMPT ===")
+      message("Access code: ", access_code)
+    }
+    
+    # Show loading state
+    shinyjs::disable("submit_access_code")
+    updateActionButton(session, "submit_access_code", 
+                       label = "Checking...", 
+                       icon = icon("spinner", class = "fa-spin"))
+    
+    # First try demo/test codes (no data loading needed)
+    if (access_code %in% c("demo", "test", "88")) {
+      values$authenticated <- TRUE
+      values$current_resident <- "88"
+      shinyjs::hide("access_code_error")
       
       if (values$debug_mode) {
-        message("=== AUTHENTICATION ATTEMPT ===")
-        message("Access code: ", input$access_code_input)
+        message("Demo access granted for code: ", access_code)
       }
       
-      # Validate against actual resident data
-      tryCatch({
-        global_data <- load_app_data()  # Get global data
+      showNotification("Demo access granted!", 
+                       type = "message", duration = 3)
+      
+      # Show authenticated sections
+      shinyjs::show("resident_info_banner")
+      shinyjs::show("assessment_section")
+      shinyjs::show("module_cards_section")
+      
+      # Initialize data loading
+      load_resident_data()
+      
+      return(NULL)
+    }
+    
+    # Validate against actual resident data
+    tryCatch({
+      global_data <- load_app_data()
+      
+      # Check if residents data loaded successfully
+      if (is.null(global_data) || is.null(global_data$residents)) {
+        if (values$debug_mode) {
+          message("ERROR: Could not load resident data from RDM")
+        }
+        shinyjs::show("access_code_error")
+        showNotification("Data loading error. Please contact support.", 
+                         type = "error", duration = 5)
         
-        # Check if this is a valid access code
+        # Reset button
+        shinyjs::enable("submit_access_code")
+        updateActionButton(session, "submit_access_code", 
+                           label = "Submit", 
+                           icon = icon("sign-in-alt"))
+        return(NULL)
+      }
+      
+      if (values$debug_mode) {
+        message("Loaded resident data with ", nrow(global_data$residents), " residents")
+      }
+      
+      # Check if this is a valid access code OR record_id
+      valid_resident <- NULL
+      
+      if ("access_code" %in% names(global_data$residents)) {
         valid_resident <- global_data$residents %>%
-          filter(access_code == input$access_code_input | record_id == input$access_code_input)
+          filter(
+            (!is.na(access_code) & access_code == !!access_code) | 
+              record_id == !!access_code
+          )
+      } else {
+        # Fallback: just check record_id if access_code doesn't exist
+        if (values$debug_mode) {
+          message("WARNING: access_code column not found, checking record_id only")
+        }
+        valid_resident <- global_data$residents %>%
+          filter(record_id == !!access_code)
+      }
+      
+      if (nrow(valid_resident) > 0) {
+        # SUCCESS - Authentication passed
+        values$authenticated <- TRUE
+        values$current_resident <- as.character(valid_resident$record_id[1])
+        shinyjs::hide("access_code_error")
         
-        if (nrow(valid_resident) > 0) {
-          values$authenticated <- TRUE
-          values$current_resident <- as.character(valid_resident$record_id[1])
-          shinyjs::hide("access_code_error")
-          
-          if (values$debug_mode) {
-            message("Authentication successful for resident: ", values$current_resident)
+        if (values$debug_mode) {
+          message("Authentication successful for resident: ", values$current_resident)
+          if ("name" %in% names(valid_resident)) {
             message("Resident name: ", valid_resident$name[1])
-          }
-          
-          showNotification("Access granted! Loading your data...", 
-                           type = "message", duration = 3)
-          
-          # Show authenticated sections
-          shinyjs::show("resident_info_banner")
-          shinyjs::show("assessment_section") 
-          shinyjs::show("module_cards_section")
-          
-          # Initialize data loading
-          load_resident_data()
-          
-        } else {
-          # Try demo codes for testing
-          if (input$access_code_input %in% c("demo", "test", "88")) {
-            values$authenticated <- TRUE
-            values$current_resident <- "88"  # Default test resident
-            shinyjs::hide("access_code_error")
-            
-            showNotification("Demo access granted!", type = "message", duration = 3)
-            
-            # Show authenticated sections
-            shinyjs::show("resident_info_banner")
-            shinyjs::show("assessment_section")
-            shinyjs::show("module_cards_section")
-            
-            load_resident_data()
-            
-          } else {
-            # Authentication failed
-            shinyjs::show("access_code_error")
-            updateTextInput(session, "access_code_input", value = "")
-            
-            if (values$debug_mode) {
-              message("Authentication failed for code: ", input$access_code_input)
-            }
           }
         }
         
-      }, error = function(e) {
-        message("Error during authentication: ", e$message)
+        showNotification("Access granted! Loading your data...", 
+                         type = "message", duration = 3)
+        
+        # Show authenticated sections
+        shinyjs::show("resident_info_banner")
+        shinyjs::show("assessment_section") 
+        shinyjs::show("module_cards_section")
+        
+        # Initialize data loading
+        load_resident_data()
+        
+      } else {
+        # FAILED - Authentication failed
         shinyjs::show("access_code_error")
         updateTextInput(session, "access_code_input", value = "")
-      })
-    }
+        
+        if (values$debug_mode) {
+          message("Authentication failed for code: ", access_code)
+        }
+        
+        # Reset button
+        shinyjs::enable("submit_access_code")
+        updateActionButton(session, "submit_access_code", 
+                           label = "Submit", 
+                           icon = icon("sign-in-alt"))
+      }
+      
+    }, error = function(e) {
+      message("Error during authentication: ", e$message)
+      shinyjs::show("access_code_error")
+      updateTextInput(session, "access_code_input", value = "")
+      showNotification(paste("Authentication error:", e$message), 
+                       type = "error", duration = 5)
+      
+      # Reset button
+      shinyjs::enable("submit_access_code")
+      updateActionButton(session, "submit_access_code", 
+                         label = "Submit", 
+                         icon = icon("sign-in-alt"))
+    })
   })
   
   # ============================================================================

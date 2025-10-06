@@ -180,7 +180,6 @@ $(document).ready(function() {
           ),
           div(
             class = "card-body text-center p-4",
-            # Add the descriptive text here
             div(
               class = "mb-4 p-3",
               style = "background: #f8f9fa; border-radius: 8px; border-left: 4px solid #003d5c;",
@@ -192,10 +191,18 @@ $(document).ready(function() {
             textInput("access_code_input", NULL, value = "", 
                       placeholder = "Enter your access code...",
                       width = "100%"),
+            # ADD THIS: Submit button
+            div(
+              class = "mt-3",
+              actionButton("submit_access_code", "Submit", 
+                           class = "btn-primary btn-lg",
+                           icon = icon("sign-in-alt"))
+            ),
             div(id = "access_code_error", 
-                class = "alert alert-danger mt-2", 
+                class = "alert alert-danger mt-3", 
                 style = "display: none;",
-                "Invalid access code. Please try again.")
+                icon("exclamation-triangle"),
+                " Invalid access code. Please try again.")
           )
         )
       )
