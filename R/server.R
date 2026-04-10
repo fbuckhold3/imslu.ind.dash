@@ -1,1109 +1,269 @@
-# ============================================================================
-# IMSLU INDIVIDUAL DASHBOARD - SERVER.R (COMPLETE FIXED VERSION)
-# Fixed data loading conflicts, proper gmed integration, and debug panel
-# ============================================================================
+# server.R ─ IMSLU Resident Dashboard
+# Handles: data loading, auth, nav routing, module wiring.
 
 server <- function(input, output, session) {
-  
-  # ============================================================================
-  # REACTIVE VALUES AND INITIALIZATION
-  # ============================================================================
-  
+
+  # ── App state ──────────────────────────────────────────────────────────────
   values <- reactiveValues(
     authenticated = FALSE,
-    current_resident = NULL,
-    current_period = NULL,
-    milestone_results = NULL,
-    app_data = NULL,
-    debug_mode = Sys.getenv("DEBUG_MODE", "true") == "true"  # Read from environment
+    resident      = NULL,   # list of resident fields from REDCap
+    nav           = "login" # "login" | "home" | <block id>
   )
-  
-  # Enable shinyjs
-  shinyjs::useShinyjs()
-  
-  # ============================================================================
-  # AUTHENTICATION SYSTEM - FIXED
-  # ============================================================================
-  
-  # Handle access code authentication
-  # ============================================================================
-  # AUTHENTICATION SYSTEM - FIXED
-  # Replace the observeEvent(input$access_code_input, ...) section in server.R
-  # ============================================================================
-  
-  observeEvent(input$access_code_input, {
-    # Allow Enter key to trigger submission
-    shinyjs::runjs("
-    $('#access_code_input').on('keypress', function(e) {
-      if(e.which === 13) {
-        $('#submit_access_code').click();
-      }
-    });
-  ")
-  }, once = TRUE)
-  
-  observeEvent(input$submit_access_code, {
-    
-    # Get the access code value
-    access_code <- input$access_code_input
-    
-    # Basic validation
-    if (is.null(access_code) || !nzchar(access_code)) {
-      shinyjs::show("access_code_error")
-      return(NULL)
-    }
-    
-    if (values$debug_mode) {
-      message("=== AUTHENTICATION ATTEMPT ===")
-      message("Access code: ", access_code)
-    }
-    
-    # Show loading state
-    shinyjs::disable("submit_access_code")
-    updateActionButton(session, "submit_access_code", 
-                       label = "Checking...", 
-                       icon = icon("spinner", class = "fa-spin"))
-    
-    # First try demo/test codes (no data loading needed)
-    if (access_code %in% c("demo", "test", "88")) {
-      values$authenticated <- TRUE
-      values$current_resident <- "88"
-      shinyjs::hide("access_code_error")
-      
-      if (values$debug_mode) {
-        message("Demo access granted for code: ", access_code)
-      }
-      
-      showNotification("Demo access granted!", 
-                       type = "message", duration = 3)
-      
-      # Show authenticated sections
-      shinyjs::show("resident_info_banner")
-      shinyjs::show("assessment_section")
-      shinyjs::show("module_cards_section")
-      
-      # Initialize data loading
-      load_resident_data()
-      
-      return(NULL)
-    }
-    
-    # Validate against actual resident data
-    tryCatch({
-      global_data <- load_app_data()
-      
-      # Check if residents data loaded successfully
-      if (is.null(global_data) || is.null(global_data$residents)) {
-        if (values$debug_mode) {
-          message("ERROR: Could not load resident data from RDM")
-        }
-        shinyjs::show("access_code_error")
-        showNotification("Data loading error. Please contact support.", 
-                         type = "error", duration = 5)
-        
-        # Reset button
-        shinyjs::enable("submit_access_code")
-        updateActionButton(session, "submit_access_code", 
-                           label = "Submit", 
-                           icon = icon("sign-in-alt"))
-        return(NULL)
-      }
-      
-      if (values$debug_mode) {
-        message("Loaded resident data with ", nrow(global_data$residents), " residents")
-      }
-      
-      # Check if this is a valid access code OR record_id
-      valid_resident <- NULL
-      
-      if ("access_code" %in% names(global_data$residents)) {
-        valid_resident <- global_data$residents %>%
-          filter(
-            (!is.na(access_code) & access_code == !!access_code) | 
-              record_id == !!access_code
-          )
-      } else {
-        # Fallback: just check record_id if access_code doesn't exist
-        if (values$debug_mode) {
-          message("WARNING: access_code column not found, checking record_id only")
-        }
-        valid_resident <- global_data$residents %>%
-          filter(record_id == !!access_code)
-      }
-      
-      if (nrow(valid_resident) > 0) {
-        # SUCCESS - Authentication passed
-        values$authenticated <- TRUE
-        values$current_resident <- as.character(valid_resident$record_id[1])
-        shinyjs::hide("access_code_error")
-        
-        if (values$debug_mode) {
-          message("Authentication successful for resident: ", values$current_resident)
-          if ("name" %in% names(valid_resident)) {
-            message("Resident name: ", valid_resident$name[1])
-          }
-        }
-        
-        showNotification("Access granted! Loading your data...", 
-                         type = "message", duration = 3)
-        
-        # Show authenticated sections
-        shinyjs::show("resident_info_banner")
-        shinyjs::show("assessment_section") 
-        shinyjs::show("module_cards_section")
-        
-        # Initialize data loading
-        load_resident_data()
-        
-      } else {
-        # FAILED - Authentication failed
-        shinyjs::show("access_code_error")
-        updateTextInput(session, "access_code_input", value = "")
-        
-        if (values$debug_mode) {
-          message("Authentication failed for code: ", access_code)
-        }
-        
-        # Reset button
-        shinyjs::enable("submit_access_code")
-        updateActionButton(session, "submit_access_code", 
-                           label = "Submit", 
-                           icon = icon("sign-in-alt"))
-      }
-      
-    }, error = function(e) {
-      message("Error during authentication: ", e$message)
-      shinyjs::show("access_code_error")
-      updateTextInput(session, "access_code_input", value = "")
-      showNotification(paste("Authentication error:", e$message), 
-                       type = "error", duration = 5)
-      
-      # Reset button
-      shinyjs::enable("submit_access_code")
-      updateActionButton(session, "submit_access_code", 
-                         label = "Submit", 
-                         icon = icon("sign-in-alt"))
-    })
-  })
-  
-  # ============================================================================
-  # DATA LOADING FUNCTIONS - FIXED (No duplicate loading)
-  # ============================================================================
-  
-  # Load resident data and initialize milestone system
-  load_resident_data <- function() {
-    if (values$debug_mode) {
-      message("=== LOADING RESIDENT DATA ===")
-      message("Resident ID: ", values$current_resident)
-    }
-    
-    # FIXED: Use the global data, don't reload!
-    tryCatch({
-      showNotification("Initializing data...", id = "loading", duration = NULL)
-      
-      # Get the already-loaded data from global.R
-      rdm_data <- load_app_data()  # This uses your global function
-      
-      if (values$debug_mode) {
-        message("Using global RDM data")
-        message("Residents: ", nrow(rdm_data$residents))
-        message("Assessment records: ", nrow(rdm_data$assessment_data))
-        message("All forms available: ", paste(names(rdm_data$all_forms), collapse = ", "))
-        message("Data dict rows: ", nrow(rdm_data$data_dict))
-      }
-      
-      # Store reference to the global data
-      values$app_data <- rdm_data
-      
-      # Initialize milestone workflow
-      initialize_milestone_workflow()
-      
-      removeNotification("loading")
-      showNotification("Data initialized successfully!", type = "message", duration = 3)
-      
-    }, error = function(e) {
-      removeNotification("loading")
-      message("Error accessing RDM data: ", e$message)
-      showNotification(paste("Error accessing data:", e$message), 
-                       type = "error", duration = 10)
-    })
-  }
-  
-  # Initialize milestone workflow with enhanced debugging
-  initialize_milestone_workflow <- function() {
-    if (values$debug_mode) {
-      message("=== INITIALIZING MILESTONE WORKFLOW ===")
-    }
-    
-    tryCatch({
-      # FIXED: Use correct function call with proper parameters
-      milestone_workflow <- create_milestone_workflow_from_dict(
-        all_forms = values$app_data$all_forms,
-        data_dict = values$app_data$data_dict,
-        resident_data = values$app_data$residents,
-        verbose = values$debug_mode
-      )
-      
-      if (values$debug_mode) {
-        message("Milestone workflow created successfully")
-        message("Available configurations: ", paste(names(milestone_workflow), collapse = ", "))
-        
-        # Debug each configuration
-        for (config_name in names(milestone_workflow)) {
-          config <- milestone_workflow[[config_name]]
-          message("Config '", config_name, "': ", 
-                  ifelse(is.null(config$data), "NO DATA", nrow(config$data)), " rows, ",
-                  ifelse(is.null(config$medians), "NO MEDIANS", nrow(config$medians)), " median periods")
-        }
-      }
-      
-      values$milestone_results <- milestone_workflow
-      
-      # Set current period for the resident
-      set_current_period()
-      
-    }, error = function(e) {
-      message("Error initializing milestone workflow: ", e$message)
-      message("Stack trace: ", paste(traceback(), collapse = "\n"))
-      showNotification(paste("Error initializing milestones:", e$message), 
-                       type = "warning", duration = 5)
-    })
-  }
-  
-  # Set the current period for milestone display
-  set_current_period <- function() {
-    if (is.null(values$app_data) || is.null(values$current_resident)) return()
-    
-    if (values$debug_mode) {
-      message("=== SETTING CURRENT PERIOD ===")
-      message("Looking for resident: ", values$current_resident)
-    }
-    
-    # Find the most recent period for this resident
-    resident_data <- values$app_data$residents %>%
-      filter(record_id == values$current_resident)
-    
-    if (nrow(resident_data) > 0) {
-      level <- resident_data$Level[1] %||% "Unknown"
-      
-      if (values$debug_mode) {
-        message("Resident found - Level: ", level)
-      }
-      
-      # Set period based on level - you can customize this logic
-      period <- switch(level,
-                       "Intern" = "End Intern",
-                       "PGY2" = "End PGY2", 
-                       "PGY3" = "Mid PGY3",
-                       "Unknown" = "End PGY2",  # Default for testing
-                       "End PGY2")  # Final fallback
-      
-      values$current_period <- period
-      
-      if (values$debug_mode) {
-        message("Set current period: ", period, " for level: ", level)
-      }
-    } else {
-      if (values$debug_mode) {
-        message("Resident not found in data!")
-        message("Available residents: ", paste(values$app_data$residents$record_id[1:5], collapse = ", "))
-      }
-      
-      # Set default period anyway
-      values$current_period <- "End PGY2"
-    }
-  }
-  
-  # ============================================================================
-  # GMED INTEGRATION DEBUG HELPER
-  # ============================================================================
-  
+
+  # ── Data loading (fires once on startup) ───────────────────────────────────
+  data_ready <- reactiveVal(FALSE)
+
   observe({
-    req(values$app_data)
-    
-    if (values$debug_mode) {
-      message("=== GMED INTEGRATION DEBUG ===")
-      message("Available data structures:")
-      message("- all_forms: ", length(values$app_data$all_forms))
-      message("- residents: ", nrow(values$app_data$residents))
-      message("- data_dict: ", nrow(values$app_data$data_dict))
-      
-      # Test gmed functions directly
-      test_result <- tryCatch({
-        create_milestone_workflow_from_dict(
-          all_forms = values$app_data$all_forms,
-          data_dict = values$app_data$data_dict,
-          resident_data = values$app_data$residents,
-          verbose = FALSE  # Reduce noise for this test
-        )
-      }, error = function(e) {
-        message("GMED workflow error: ", e$message)
-        return(NULL)
-      })
-      
-      if (!is.null(test_result)) {
-        message("GMED workflow SUCCESS: ", length(test_result), " configurations")
-      } else {
-        message("GMED workflow FAILED")
-      }
-    }
+    load_app_data()
+    data_ready(TRUE)
   })
-  
-  # ============================================================================
-  # MILESTONE DASHBOARD MODULES - PROPERLY INTEGRATED
-  # ============================================================================
-  
-  # Self-Assessment Milestone Module (with enhanced debugging)
-  milestone_dashboard_server("self_milestone_dash", 
-                             milestone_results = reactive({
-                               req(values$milestone_results)
-                               if (values$debug_mode) {
-                                 message("=== SELF MILESTONE MODULE DATA REQUEST ===")
-                                 message("Milestone results available: ", !is.null(values$milestone_results))
-                                 message("Number of configurations: ", length(values$milestone_results))
-                                 
-                                 # Check for self-assessment data specifically
-                                 self_configs <- names(values$milestone_results)[grepl("self", names(values$milestone_results))]
-                                 message("Self configurations found: ", paste(self_configs, collapse = ", "))
-                               }
-                               return(values$milestone_results)
-                             }),
-                             record_id = reactive({
-                               req(values$current_resident)
-                               if (values$debug_mode) {
-                                 message("Self module - Record ID: ", values$current_resident)
-                               }
-                               return(values$current_resident)
-                             }),
-                             period = reactive({
-                               req(values$current_period)
-                               if (values$debug_mode) {
-                                 message("Self module - Period: ", values$current_period)
-                               }
-                               return(values$current_period)
-                             }),
-                             milestone_type = "self",
-                             resident_data = reactive({
-                               req(values$app_data)
-                               if (values$debug_mode) {
-                                 message("Self module - Residents data: ", nrow(values$app_data$residents), " residents")
-                               }
-                               return(values$app_data$residents)
-                             })
-  )
-  
-  # Program Assessment Milestone Module (with enhanced debugging)  
-  milestone_dashboard_server("program_milestone_dash",
-                             milestone_results = reactive({
-                               req(values$milestone_results)
-                               if (values$debug_mode) {
-                                 message("=== PROGRAM MILESTONE MODULE DATA REQUEST ===")
-                                 message("Milestone results available: ", !is.null(values$milestone_results))
-                                 
-                                 # Check for program data specifically
-                                 program_configs <- names(values$milestone_results)[grepl("program", names(values$milestone_results))]
-                                 message("Program configurations found: ", paste(program_configs, collapse = ", "))
-                               }
-                               return(values$milestone_results)
-                             }),
-                             record_id = reactive({
-                               req(values$current_resident)
-                               if (values$debug_mode) {
-                                 message("Program module - Record ID: ", values$current_resident)
-                               }
-                               return(values$current_resident)
-                             }),
-                             period = reactive({
-                               req(values$current_period)
-                               if (values$debug_mode) {
-                                 message("Program module - Period: ", values$current_period)
-                               }
-                               return(values$current_period)
-                             }),
-                             milestone_type = "program",
-                             resident_data = reactive({
-                               req(values$app_data)
-                               if (values$debug_mode) {
-                                 message("Program module - Residents data: ", nrow(values$app_data$residents), " residents")
-                               }
-                               return(values$app_data$residents)
-                             })
-  )
-  
-  # ============================================================================
-  # ASSESSMENT VISUALIZATION MODULE
-  # ============================================================================
-  
-  # Assessment visualization module (using gmed)
-  assessment_viz_server(
-    "main_assessment",
-    data = reactive({  # CHANGED FROM: assessment_data
-      req(values$app_data)
-      
-      # Use the same approach as the working version
-      all_data <- bind_rows(values$app_data$all_forms, .id = "source_form")
-      
-      # Ensure required columns exist
-      if (!"ass_level" %in% names(all_data)) {
-        all_data$ass_level <- NA_integer_
-      }
-      if (!"fac_eval_level" %in% names(all_data)) {
-        all_data$fac_eval_level <- NA_integer_
-      }
-      
-      return(all_data)
-    }),
-    record_id = reactive({
-      req(values$current_resident)
-      return(values$current_resident)
-    }),
-    resident_name = reactive({  # ADDED: missing parameter
-      req(values$app_data, values$current_resident)
-      
-      resident <- values$app_data$residents %>%
-        filter(record_id == values$current_resident)
-      
-      if (nrow(resident) > 0) {
-        return(resident$name[1] %||% paste("Resident", values$current_resident))
-      } else {
-        return(paste("Resident", values$current_resident))
-      }
-    })
-  )
-  
-  
-  # =====
-  # LINK OBSERVER
-  # ======
-  # In your server.R where you show/hide sections based on access code
-  # ============================================================================
-  # CONDITIONAL UI DISPLAY LOGIC - FIXED
-  # ============================================================================
-  
-  observe({
-    if (values$authenticated) {
-      shinyjs::show("resident_info_banner")
-      shinyjs::show("quick_links_section")
-      shinyjs::show("assessment_section")
-      shinyjs::show("module_cards_section")
-      shinyjs::hide("access_code_error")
-    } else {
-      shinyjs::hide("resident_info_banner")
-      shinyjs::hide("quick_links_section")
-      shinyjs::hide("assessment_section") 
-      shinyjs::hide("module_cards_section")
-    }
-  })
-  
-  # ============================================================================
-  # MODAL CONTENT HANDLING
-  # ============================================================================
-  
-  # Modal title based on selected module
-  output$modal_title <- renderUI({
-    switch(input$module_selected,
-           "plus_delta" = "Plus / Delta Feedback",
-           "evaluation_data" = "Evaluation Data",
-           "milestone_plots" = "Milestone Assessment",
-           "learning_plan" = "Learning Plan", 
-           "scholarship" = "Scholarship",
-           "schedule_data" = "Schedule Data",
-           "peer_evaluations" = "Peer Evaluations",
-           "Selected Module")
-  })
-  
-  # Dynamic UI for selected module content
-  output$selected_module_ui <- renderUI({
-    req(input$module_selected)
-    
-    switch(input$module_selected,
-           "plus_delta" = {
-             # Use the gmed module instead of custom code
-             mod_plus_delta_table_ui("resident_plus_delta")
-           },
-           
-           "evaluation_data" = {
-             div(
-               h4("Evaluation Data", class = "text-primary mb-3"),
-               div(class = "alert alert-secondary", "Coming Soon"),
-               p("Will use: gmed::evaluation_data_ui() when implemented")
-             )
-           },
-           
-           "milestone_plots" = {
-             div(
-               h4("Milestone Assessment", class = "text-warning mb-3"),
-               p("Complete your milestone self-assessment and compare with program data.", 
-                 class = "text-muted mb-4"),
-               
-               # Side-by-side milestone modules - FIXED SIZING
-               fluidRow(
-                 column(
-                   width = 6,
-                   div(
-                     class = "milestone-module-container",
-                     style = "min-height: 600px; height: 600px;",
-                     h5("Self-Assessment Milestones", class = "text-primary mb-3"),
-                     milestone_dashboard_ui("self_milestone_dash", 
-                                            milestone_type = "self", 
-                                            height = "550px")
-                   )
-                 ),
-                 column(
-                   width = 6,
-                   div(
-                     class = "milestone-module-container", 
-                     style = "min-height: 600px; height: 600px;",
-                     h5("Program Assessment", class = "text-success mb-3"),
-                     milestone_dashboard_ui("program_milestone_dash", 
-                                            milestone_type = "program", 
-                                            height = "550px")
-                   )
-                 )
-               )
-             )
-           },
-           
-           "learning_plan" = {
-             div(
-               h4("Learning Plan", class = "text-success mb-3"), 
-               div(class = "alert alert-secondary", "Coming Soon"),
-               p("Will use: gmed::learning_plan_ui() when implemented")
-             )
-           },
-           
-           "scholarship" = {
-             div(
-               h4("Scholarship", class = "text-warning mb-3"),
-               div(class = "alert alert-secondary", "Coming Soon"), 
-               p("Will use: gmed::scholarship_ui() when implemented")
-             )
-           },
-           
-           "schedule_data" = {
-             div(
-               h4("Schedule Data", class = "text-info mb-3"),
-               div(class = "alert alert-secondary", "Coming Soon"),
-               p("Will use: gmed::schedule_ui() when implemented")
-             )
-           },
-           
-           "peer_evaluations" = {
-             div(
-               h4("Peer Evaluations", class = "text-secondary mb-3"),
-               div(class = "alert alert-secondary", "Coming Soon"),
-               p("Will use: gmed::peer_eval_ui() when implemented")
-             )
-           },
-           
-           # Default case
-           {
-             div(class = "alert alert-warning", "Module not yet implemented.")
+
+  # ── Auto-fill access code from URL query param ?code=XXX ──────────────────
+  # Allows deep-linking from CCC dashboard: open this app with resident pre-authed
+  observeEvent(data_ready(), {
+    req(data_ready())
+    query <- parseQueryString(session$clientData$url_search)
+    code  <- query[["code"]]
+    if (!is.null(code) && nchar(trimws(code)) > 0) {
+      safe_code <- gsub("'", "\\'", trimws(code), fixed = TRUE)
+      shinyjs::runjs(sprintf(
+        "setTimeout(function(){
+           var el = document.getElementById('auth-access_code');
+           if (el && el.value === '') {
+             el.value = '%s';
+             Shiny.setInputValue('auth-access_code_btn', Math.random(), {priority:'event'});
            }
-    )
-  })
-  
-  # ============================================================================
-  # PLUS/DELTA MODULE INTEGRATION
-  # ============================================================================
-  
-  # Plus/Delta Module using gmed
-  mod_plus_delta_table_server(
-    "resident_plus_delta",
-    rdm_data = reactive({
-      req(values$app_data)
-      # Use the assessment data - combine all forms if needed
-      bind_rows(values$app_data$all_forms, .id = "source_form")
-    }),
-    record_id = reactive(values$current_resident)
+         }, 400);",
+        safe_code
+      ))
+    }
+  }, once = TRUE)
+
+  # ── Authentication ─────────────────────────────────────────────────────────
+  auth_result <- mod_auth_server(
+    id          = "auth",
+    residents_r = reactive({
+      req(data_ready())
+      app_data_store$residents
+    })
   )
-  
-  # ============================================================================
-  # RESIDENT INFO DISPLAY
-  # ============================================================================
-  
-  output$resident_name <- renderText({
-    req(values$authenticated, values$app_data, values$current_resident)
-    
-    resident <- values$app_data$residents %>%
-      filter(record_id == values$current_resident)
-    
-    if (nrow(resident) > 0) {
-      return(resident$name[1] %||% "Unknown Resident")
-    } else {
-      return("Unknown Resident")
-    }
+
+  observeEvent(auth_result(), {
+    res <- auth_result()
+    req(isTRUE(res$success))
+    values$authenticated <- TRUE
+    values$resident      <- res$resident_info
+    values$nav           <- "home"
   })
-  
-  output$coach_name <- renderText({
-    req(values$authenticated, values$app_data, values$current_resident)
-    
-    resident <- values$app_data$residents %>%
-      filter(record_id == values$current_resident)
-    
-    if (nrow(resident) > 0) {
-      coach <- resident$coach[1] %||% "No Coach Assigned"
-      return(paste("Coach:", coach))
-    } else {
-      return("Coach: Unknown")
-    }
+
+  # ── Navigation ─────────────────────────────────────────────────────────────
+  observeEvent(input$nav_block, {
+    req(values$authenticated)
+    values$nav <- input$nav_block
   })
-  
-  # ============================================================================
-  # FIX MILESTONE DROPDOWN USING GMED UNIVERSAL LABELS
-  # Add this to your server.R to properly populate dropdowns
-  # ============================================================================
-  
-  # Replace your milestone debugging section with this enhanced version:
-  
-  # ============================================================================
-  # MILESTONE DROPDOWN POPULATION (USING GMED FUNCTIONS)
-  # ============================================================================
-  
-  # Custom dropdown population using gmed's universal labeling system
-  observe({
-    req(values$milestone_results, values$authenticated)
-    
-    if (values$debug_mode) {
-      message("=== GMED DROPDOWN POPULATION ===")
-    }
-    
-    # Update self-assessment dropdown
-    self_configs <- names(values$milestone_results)[grepl("self", names(values$milestone_results))]
-    
-    if (length(self_configs) > 0) {
-      config <- values$milestone_results[[self_configs[1]]]
-      
-      if (!is.null(config$data)) {
-        # Get self milestone columns using gmed pattern
-        milestone_cols <- names(config$data)[grepl("^rep_(pc|mk|sbp|pbl|prof|ics)\\d+_self$", names(config$data))]
-        
-        if (length(milestone_cols) > 0) {
-          # Use gmed's universal labeling system
-          choices <- list()
-          for (col in milestone_cols) {
-            # Use gmed's get_milestone_label function for universal labels
-            label <- gmed::get_milestone_label(col, "rep")
-            choices[[label]] <- col
-          }
-          
-          # Update dropdown
-          updateSelectInput(session, "self_milestone_dash-selected_milestone", 
-                            choices = choices,
-                            selected = choices[[1]])
-          
-          if (values$debug_mode) {
-            message("Self dropdown updated with ", length(choices), " gmed-labeled milestones")
-            message("Sample labels: ", paste(head(names(choices), 3), collapse = ", "))
-          }
-        }
-      }
-    }
-    
-    # Update program assessment dropdown
-    program_configs <- names(values$milestone_results)[grepl("program", names(values$milestone_results))]
-    
-    if (length(program_configs) > 0) {
-      config <- values$milestone_results[[program_configs[1]]]
-      
-      if (!is.null(config$data)) {
-        # Get program milestone columns using gmed pattern
-        milestone_cols <- names(config$data)[grepl("^rep_(pc|mk|sbp|pbl|prof|ics)\\d+$", names(config$data))]
-        
-        if (length(milestone_cols) > 0) {
-          # Use gmed's universal labeling system
-          choices <- list()
-          for (col in milestone_cols) {
-            # Use gmed's get_milestone_label function for universal labels
-            label <- gmed::get_milestone_label(col, "rep")
-            choices[[label]] <- col
-          }
-          
-          # Update dropdown
-          updateSelectInput(session, "program_milestone_dash-selected_milestone", 
-                            choices = choices,
-                            selected = choices[[1]])
-          
-          if (values$debug_mode) {
-            message("Program dropdown updated with ", length(choices), " gmed-labeled milestones")
-            message("Sample labels: ", paste(head(names(choices), 3), collapse = ", "))
-          }
-        }
-      }
-    }
+
+  observeEvent(input$nav_back, {
+    values$nav <- "home"
   })
-  
-  # ============================================================================
-  # ALTERNATIVE: Test gmed functions directly
-  # ============================================================================
-  
-  # Add this observe block to test if gmed functions are working:
-  observe({
-    if (values$debug_mode && values$authenticated) {
-      message("=== TESTING GMED FUNCTIONS ===")
-      
-      # Test the universal labeling functions
-      test_columns <- c("rep_pc1", "rep_pc1_self", "rep_mk2", "acgme_sbp1")
-      
-      for (col in test_columns) {
-        # Test gmed's get_milestone_label function
-        tryCatch({
-          label <- gmed::get_milestone_label(col, "rep")
-          message("gmed::get_milestone_label('", col, "', 'rep') = '", label, "'")
-        }, error = function(e) {
-          message("Error with gmed::get_milestone_label('", col, "'): ", e$message)
-        })
-      }
-      
-      # Test the definitions function
-      tryCatch({
-        definitions <- gmed::get_milestone_definitions("rep")
-        message("gmed::get_milestone_definitions working: ", !is.null(definitions))
-        if (!is.null(definitions)) {
-          total_items <- sum(sapply(definitions, function(x) length(x$items)))
-          message("Total milestone definitions: ", total_items)
-        }
-      }, error = function(e) {
-        message("Error with gmed::get_milestone_definitions: ", e$message)
-      })
-    }
-  })
-  
-  # ============================================================================
-  # ENHANCED DEBUGGING FOR MILESTONE DATA
-  # ============================================================================
-  
-  observe({
-    req(values$milestone_results, values$current_resident, values$current_period)
-    
-    if (values$debug_mode) {
-      message("=== ENHANCED MILESTONE DEBUG ===")
-      message("Current resident: ", values$current_resident)
-      message("Current period: ", values$current_period)
-      
-      # Check each configuration in detail
-      for (config_name in names(values$milestone_results)) {
-        config <- values$milestone_results[[config_name]]
-        message("\n--- Config: ", config_name, " ---")
-        
-        if (!is.null(config$data)) {
-          # Show data summary
-          message("Data rows: ", nrow(config$data))
-          message("Data columns: ", ncol(config$data))
-          
-          # Show milestone columns
-          all_cols <- names(config$data)
-          milestone_cols <- all_cols[grepl("^(rep_|acgme_)(pc|mk|sbp|pbl|prof|ics)", all_cols)]
-          message("Milestone columns found: ", length(milestone_cols))
-          message("Sample milestone columns: ", paste(head(milestone_cols, 5), collapse = ", "))
-          
-          # Check data for current resident
-          resident_data <- config$data %>% filter(record_id == values$current_resident)
-          message("Rows for current resident: ", nrow(resident_data))
-          
-          if (nrow(resident_data) > 0) {
-            # Show available periods for this resident
-            periods <- unique(resident_data$period_name)
-            message("Available periods for resident: ", paste(periods, collapse = ", "))
-            
-            # Check if current period exists
-            current_period_data <- resident_data %>% filter(period_name == values$current_period)
-            message("Data for current period '", values$current_period, "': ", nrow(current_period_data), " rows")
-          }
-        }
-        
-        if (!is.null(config$medians)) {
-          message("Median rows: ", nrow(config$medians))
-          if (nrow(config$medians) > 0) {
-            median_periods <- unique(config$medians$period_name)
-            message("Median periods: ", paste(median_periods, collapse = ", "))
-          }
-        }
-      }
-    }
-  })
-  
-  # ============================================================================
-  # FALLBACK: Static dropdown with gmed labels
-  # ============================================================================
-  
-  # If the dynamic approach doesn't work, use this static fallback:
-  observe({
-    
-    # Create static choices using gmed definitions
-    tryCatch({
-      # Get milestone definitions from gmed
-      rep_definitions <- gmed::get_milestone_definitions("rep")
-      
-      # Extract all milestone items into a flat list
-      static_choices <- list()
-      for (section in rep_definitions) {
-        for (milestone_key in names(section$items)) {
-          label <- section$items[[milestone_key]]
-          static_choices[[label]] <- milestone_key
-        }
-      }
-      
-      # Update both dropdowns with gmed-derived choices
-      updateSelectInput(session, "self_milestone_dash-selected_milestone", 
-                        choices = static_choices,
-                        selected = static_choices[[1]])
-      
-      updateSelectInput(session, "program_milestone_dash-selected_milestone", 
-                        choices = static_choices,
-                        selected = static_choices[[1]])
-      
-      if (values$debug_mode) {
-        message("Applied gmed static fallback choices: ", length(static_choices), " milestones")
-        message("Sample static choices: ", paste(head(names(static_choices), 3), collapse = ", "))
-      }
-      
-    }, error = function(e) {
-      if (values$debug_mode) {
-        message("Error with gmed static fallback: ", e$message)
-      }
-    })
-  })
-  
-  # ============================================================================
-  # VERIFY GMED PACKAGE FUNCTIONS
-  # ============================================================================
-  
-  # Add this to check which gmed functions are available:
-  observe({
-    if (values$debug_mode) {
-      message("=== GMED PACKAGE VERIFICATION ===")
-      
-      # Check if gmed is loaded
-      gmed_loaded <- "gmed" %in% loadedNamespaces()
-      message("gmed package loaded: ", gmed_loaded)
-      
-      if (gmed_loaded) {
-        # Check specific functions
-        required_functions <- c(
-          "get_milestone_label",
-          "get_milestone_definitions", 
-          "get_milestone_columns_simple",
-          "create_milestone_label"
+
+  # ── Shared reactives passed to every module ────────────────────────────────
+  rdm_data    <- reactive({ req(values$authenticated); app_data_store })
+  resident_id <- reactive({ req(values$resident); values$resident$record_id })
+
+  # ── Module servers (initialized once; guard internally with req()) ─────────
+  mod_evaluations_server( "evaluations",  rdm_data = rdm_data, resident_id = resident_id)
+  mod_learning_server(    "learning",     rdm_data = rdm_data, resident_id = resident_id)
+  mod_milestones_server(  "milestones",   rdm_data = rdm_data, resident_id = resident_id)
+  mod_scholarship_server( "scholarship",  rdm_data = rdm_data, resident_id = resident_id)
+  mod_faculty_eval_server("faculty_eval", rdm_data = rdm_data, resident_id = resident_id)
+  mod_self_eval_server(   "self_eval",    rdm_data = rdm_data, resident_id = resident_id)
+  mod_schedule_server(    "schedule")
+  mod_resources_server(   "resources")
+
+  # ── Main view ──────────────────────────────────────────────────────────────
+  output$main_view <- renderUI({
+
+    # ── LOGIN ────────────────────────────────────────────────────────────────
+    if (!values$authenticated) {
+      return(tagList(
+
+        # Full-width brand header
+        div(
+          style = paste(
+            "background: #003d5c; color: white;",
+            "padding: 18px 32px;",
+            "display: flex; align-items: center; gap: 16px;",
+            "margin: -24px -24px 40px -24px;"   # bleed past container padding
+          ),
+          div(
+            style = "background: rgba(255,255,255,0.15); font-size:0.68rem;
+                     font-weight:700; letter-spacing:0.12em; padding: 4px 10px;
+                     border-radius: 3px; white-space: nowrap;",
+            "SSM HEALTH \u00b7 SLUCARE"
+          ),
+          tags$h1(
+            "IMSLU Resident Dashboard",
+            style = "margin:0; font-size:1.2rem; font-weight:700; letter-spacing:0.01em;"
+          ),
+          div(
+            style = "margin-left:auto; font-size:0.8rem; opacity:0.65;",
+            "Internal Medicine \u00b7 Saint Louis University"
+          )
+        ),
+
+        # Centered login card — col-lg-8 like the self-assessment
+        div(
+          class = "row justify-content-center",
+          div(
+            class = "col-lg-8 col-md-10 col-12",
+            div(
+              class = "card shadow-lg",
+              div(
+                class = "card-body p-5",
+
+                # Welcome header
+                div(
+                  class = "text-center mb-4",
+                  tags$h2(
+                    class = "mb-2",
+                    style = "color: #003d5c; font-weight: 700;",
+                    tags$i(class = "bi bi-person-circle me-2",
+                           style = "color: #0066a1;"),
+                    "Welcome"
+                  ),
+                  tags$p(
+                    class = "lead text-muted",
+                    "Access your evaluations, milestones, learning plan, and more."
+                  ),
+                  tags$hr()
+                ),
+
+                # Disclaimer
+                div(
+                  style = paste(
+                    "background: #f8fafc;",
+                    "border: 1px solid #dde5ed;",
+                    "border-left: 4px solid #0066a1;",
+                    "border-radius: 4px;",
+                    "padding: 16px 18px;",
+                    "font-size: 0.82rem;",
+                    "color: #4a5568;",
+                    "line-height: 1.7;",
+                    "margin-bottom: 28px;"
+                  ),
+                  paste(
+                    "This dashboard is for residents in the IMSLU Internal Medicine",
+                    "Residency Program to access their evaluations, competency progress,",
+                    "and learning plans. By entering your access code you acknowledge that",
+                    "this data is intended solely for the named resident and authorized",
+                    "program leadership. Unauthorized access or distribution is prohibited.",
+                    "All activity within this system may be monitored and logged."
+                  )
+                ),
+
+                # Access code form
+                # Input IDs match what mod_auth_server("auth") expects
+                div(
+                  tags$label(
+                    "Access Code",
+                    style = "font-size:0.82rem; font-weight:600; color:#2d3748; margin-bottom:6px; display:block;"
+                  ),
+                  tags$input(
+                    id          = "auth-access_code",
+                    type        = "password",
+                    placeholder = "Enter your access code",
+                    autocomplete = "off",
+                    style = paste(
+                      "width:100%; padding:10px 14px;",
+                      "border:1.5px solid #cdd5df; border-radius:5px;",
+                      "font-size:1rem; letter-spacing:0.08em;",
+                      "font-family:inherit; outline:none; box-sizing:border-box;"
+                    )
+                  ),
+                  tags$button(
+                    "Sign In",
+                    style = paste(
+                      "width:100%; margin-top:14px; padding:12px;",
+                      "background:#003d5c; color:white; border:none;",
+                      "border-radius:5px; font-size:0.95rem; font-weight:600;",
+                      "font-family:inherit; cursor:pointer;",
+                      "transition:background 0.2s;"
+                    ),
+                    onmouseover = "this.style.background='#0066a1'",
+                    onmouseout  = "this.style.background='#003d5c'",
+                    onclick = "Shiny.setInputValue('auth-access_code_btn', Math.random(), {priority:'event'})"
+                  ),
+                  # Enter key support
+                  tags$script(HTML(
+                    "document.getElementById('auth-access_code').addEventListener('keypress', function(e){
+                       if(e.key==='Enter') Shiny.setInputValue('auth-access_code_btn', Math.random(), {priority:'event'});
+                    });"
+                  )),
+                  uiOutput("auth-access_code_error")
+                )
+              )
+            )
+          )
         )
-        
-        for (func in required_functions) {
-          exists_check <- exists(func, where = "package:gmed")
-          message("gmed::", func, " exists: ", exists_check)
-        }
-      }
+      ))
     }
-  })
-  
-  # ============================================================================
-  # MILESTONE DROPDOWN POPULATION - TRIGGER ON MODAL OPEN
-  # ============================================================================
-  
-  # Remove the immediate observeEvent(input$module_selected) for dropdowns
-  
-  # Instead, add this observer that waits for modal to be ready
-  observe({
-    # Only run when milestone modal is selected AND milestone results are available
-    req(input$module_selected == "milestone_plots", 
-        values$milestone_results, 
-        values$authenticated)
-    
-    if (values$debug_mode) {
-      message("=== WAITING FOR MODAL TO RENDER BEFORE DROPDOWN POPULATION ===")
-    }
-    
-    # Use invalidateLater to delay the dropdown population
-    invalidateLater(2000, session)  # Wait 2 seconds for modal to fully render
-    
-    # Now populate dropdowns
-    isolate({
-      if (values$debug_mode) {
-        message("=== POPULATING DROPDOWNS AFTER DELAY ===")
-      }
-      
-      # Self-assessment dropdown
-      self_configs <- names(values$milestone_results)[grepl("self", names(values$milestone_results))]
-      
-      if (length(self_configs) > 0) {
-        config <- values$milestone_results[[self_configs[1]]]
-        
-        if (!is.null(config$data)) {
-          milestone_cols <- names(config$data)[grepl("^rep_(pc|mk|sbp|pbl|prof|ics)\\d+_self$", names(config$data))]
-          
-          if (length(milestone_cols) > 0) {
-            choices <- list()
-            for (col in milestone_cols) {
-              label <- gmed::get_milestone_label(col, "rep")
-              choices[[label]] <- col
-            }
-            
-            updateSelectInput(session, "self_milestone_dash-selected_milestone", 
-                              choices = choices, selected = choices[[1]])
-            
-            if (values$debug_mode) {
-              message("Delayed: Self dropdown updated with ", length(choices), " choices")
-            }
-          }
-        }
-      }
-      
-      # Program assessment dropdown  
-      program_configs <- names(values$milestone_results)[grepl("program", names(values$milestone_results))]
-      
-      if (length(program_configs) > 0) {
-        config <- values$milestone_results[[program_configs[1]]]
-        
-        if (!is.null(config$data)) {
-          milestone_cols <- names(config$data)[grepl("^rep_(pc|mk|sbp|pbl|prof|ics)\\d+$", names(config$data))]
-          
-          if (length(milestone_cols) > 0) {
-            choices <- list()
-            for (col in milestone_cols) {
-              label <- gmed::get_milestone_label(col, "rep")
-              choices[[label]] <- col
-            }
-            
-            updateSelectInput(session, "program_milestone_dash-selected_milestone", 
-                              choices = choices, selected = choices[[1]])
-            
-            if (values$debug_mode) {
-              message("Delayed: Program dropdown updated with ", length(choices), " choices")
-            }
-          }
-        }
-      }
-    })
-  })
-  
-  # ============================================================================
-  # ENHANCED DEBUG OUTPUTS
-  # ============================================================================
-  
-  output$debug_info <- renderText({
-    if (!values$debug_mode) return("")
-    
-    debug_lines <- c(
-      "=== APPLICATION STATUS ===",
-      paste("Authenticated:", values$authenticated),
-      paste("Current Resident:", values$current_resident),
-      paste("Current Period:", values$current_period),
-      paste("App Data Available:", !is.null(values$app_data))
-    )
-    
-    if (!is.null(values$app_data)) {
-      debug_lines <- c(debug_lines,
-                       "",
-                       "=== DATA SUMMARY ===",
-                       paste("Residents in data:", nrow(values$app_data$residents)),
-                       paste("Data structures:", paste(names(values$app_data), collapse = ", "))
+
+    state <- values$nav
+
+    # ── HOME ─────────────────────────────────────────────────────────────────
+    if (state == "home") {
+      res   <- values$resident
+      name  <- if (!is.null(res[["name"]])) res[["name"]] else "Resident"
+      level <- if (!is.null(res[["Level"]])) paste0(" \u00b7 ", res[["Level"]]) else ""
+
+      return(
+        gmed_nav_blocks(
+          blocks   = resident_nav_blocks,
+          title    = paste0("Welcome, ", name),
+          subtitle = paste0("Internal Medicine \u00b7 Saint Louis University", level),
+          input_id = "nav_block"
+        )
       )
-      
-      if ("all_forms" %in% names(values$app_data)) {
-        debug_lines <- c(debug_lines,
-                         paste("Available forms:", paste(names(values$app_data$all_forms), collapse = ", "))
-        )
-      }
     }
-    
-    if (!is.null(values$milestone_results)) {
-      debug_lines <- c(debug_lines,
-                       "",
-                       "=== MILESTONE STATUS ===",
-                       paste("Milestone Results Available: TRUE"),
-                       paste("Milestone configurations:", paste(names(values$milestone_results), collapse = ", "))
+
+    # ── SECTION ──────────────────────────────────────────────────────────────
+    block_info    <- Filter(function(b) b$id == state, resident_nav_blocks)
+    section_label <- if (length(block_info)) block_info[[1]]$label else state
+    section_icon  <- if (length(block_info)) block_info[[1]]$icon  else "grid"
+
+    tagList(
+
+      # Back / breadcrumb bar
+      div(
+        class = "d-flex align-items-center mb-4 pb-3",
+        style = "border-bottom: 1px solid var(--ssm-border);",
+        tags$button(
+          class   = "btn btn-sm btn-outline-secondary me-3",
+          onclick = "Shiny.setInputValue('nav_back', Math.random(), {priority: 'event'})",
+          tags$i(class = "bi bi-arrow-left me-1"), "Home"
+        ),
+        tags$i(
+          class = paste0("bi bi-", section_icon, " me-2"),
+          style = "color: var(--ssm-secondary-blue); font-size: 1.15rem;"
+        ),
+        tags$span(
+          section_label,
+          style = "font-weight: 700; font-size: 1.1rem; color: var(--ssm-primary-blue);"
+        )
+      ),
+
+      # Module content
+      switch(state,
+        evaluations  = mod_evaluations_ui("evaluations"),
+        learning     = mod_learning_ui("learning"),
+        milestones   = mod_milestones_ui("milestones"),
+        scholarship  = mod_scholarship_ui("scholarship"),
+        faculty_eval = mod_faculty_eval_ui("faculty_eval"),
+        self_eval    = mod_self_eval_ui("self_eval"),
+        schedule     = mod_schedule_ui("schedule"),
+        resources    = mod_resources_ui("resources"),
+        div("Unknown section")
       )
-      
-      # Show data availability for each config
-      for (config_name in names(values$milestone_results)) {
-        config <- values$milestone_results[[config_name]]
-        data_rows <- ifelse(is.null(config$data), 0, nrow(config$data))
-        median_rows <- ifelse(is.null(config$medians), 0, nrow(config$medians))
-        debug_lines <- c(debug_lines,
-                         paste("  ", config_name, ": ", data_rows, " data rows, ", median_rows, " median rows")
-        )
-      }
-    } else {
-      debug_lines <- c(debug_lines,
-                       "",
-                       "=== MILESTONE STATUS ===",
-                       "Milestone Results Available: FALSE")
-    }
-    
-    paste(debug_lines, collapse = "\n")
-  })
-  
-  # Data structure debug output
-  output$data_structure_debug <- renderText({
-    if (!values$debug_mode) return("")
-    
-    req(values$app_data)
-    
-    debug_lines <- c("=== DATA STRUCTURE BREAKDOWN ===")
-    
-    # Show structure of each main component
-    for (name in names(values$app_data)) {
-      item <- values$app_data[[name]]
-      if (is.data.frame(item)) {
-        debug_lines <- c(debug_lines,
-                         paste(name, ": data.frame with", nrow(item), "rows,", ncol(item), "columns"),
-                         paste("  Sample columns:", paste(names(item)[1:min(5, ncol(item))], collapse = ", "))
-        )
-      } else if (is.list(item)) {
-        debug_lines <- c(debug_lines,
-                         paste(name, ": list with", length(item), "elements"),
-                         paste("  Elements:", paste(names(item), collapse = ", "))
-        )
-      } else {
-        debug_lines <- c(debug_lines,
-                         paste(name, ": ", class(item), "with length", length(item))
-        )
-      }
-    }
-    
-    # Add memory usage info
-    debug_lines <- c(debug_lines,
-                     "",
-                     "=== MEMORY USAGE ===",
-                     paste("App data object size:", format(object.size(values$app_data), units = "MB"))
     )
-    
-    paste(debug_lines, collapse = "\n")
-  })
-  
-  
-  # ============================================================================
-  # SESSION MANAGEMENT AND ERROR HANDLING - COMPLETELY FIXED
-  # ============================================================================
-  
-  # Session cleanup - capture debug mode value safely
-  observe({
-    # Capture debug mode state when app starts (only runs once)
-    session$userData$debug_mode_captured <- values$debug_mode
-  })
-  
-  session$onSessionEnded(function() {
-    # Use the captured value instead of accessing reactive
-    debug_mode_captured <- session$userData$debug_mode_captured %||% FALSE
-    
-    if (debug_mode_captured) {
-      # Safely get current resident without reactive access
-      current_resident <- tryCatch({
-        # Don't access reactive values in session cleanup
-        "session_ended"
-      }, error = function(e) "unknown")
-      
-      message("Session ended for resident: ", current_resident)
-    }
-  })
-  
-  # Error handling without reactive access
-  options(shiny.error = function() {
-    message("Unhandled error in Shiny app")
-    message("Stack trace: ", paste(traceback(), collapse = "\n"))
-    
-    # Show notification to user (this is safe in error handler)
-    showNotification("An unexpected error occurred. Please refresh the page.", 
-                     type = "error", duration = 10)
   })
 }
-
