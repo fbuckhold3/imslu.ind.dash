@@ -1,117 +1,97 @@
-
-
-
-
 library(shiny)
 library(shinyjs)
 library(bslib)
 library(DT)
 library(dplyr)
-library(plotly)      # Required for gmed assessment modules
-library(ggplot2)     # Required for gmed assessment modules
-library(purrr)       # Required for gmed assessment modules
-library(tidyr)       # Required for gmed assessment modules
-library(lubridate)   # Required for gmed assessment modules'
+library(plotly)
+library(ggplot2)
+library(purrr)
+library(tidyr)
+library(lubridate)
+library(httr)
+library(jsonlite)
 library(gmed)
 
-
-# Fix for Posit Connect graphics rendering
+# ── Graphics options ──────────────────────────────────────────────────────────
 options(shiny.plot.res = 96)
-options(repr.plot.width = 8, repr.plot.height = 6)
+if (!interactive()) options(bitmapType = "cairo")
 
-# Ensure graphics device settings work in server environment
-if (!interactive()) {
-  options(bitmapType = "cairo")
-}
+# ── Configuration ─────────────────────────────────────────────────────────────
+# Environment switch: set RDM_ENV=test in your .Renviron (or session) to point
+# all reads AND writes at the test REDCap project.  Leave unset (or set to
+# "production") for the live database.
+#
+#   Test mode:       Sys.setenv(RDM_ENV = "test")   # in R console before runApp()
+#   Production mode: Sys.setenv(RDM_ENV = "production")  # or just restart R
+#
+# RDM_TEST_TOKEN must be set in .Renviron alongside RDM_TOKEN.
 
-# ============================================================================
-# CONFIGURATION - Secure for GitHub and Posit Connect
-# ============================================================================
+.rdm_env <- tolower(trimws(Sys.getenv("RDM_ENV", unset = "production")))
 
 app_config <- list(
-  rdm_token = Sys.getenv("RDM_TOKEN"),
+  env        = .rdm_env,
+  is_test    = (.rdm_env == "test"),
+  rdm_token  = if (.rdm_env == "test") Sys.getenv("RDM_TEST_TOKEN")
+               else                    Sys.getenv("RDM_TOKEN"),
   redcap_url = "https://redcapsurvey.slu.edu/api/"
 )
 
-# ============================================================================
-# DATA LOADING - ULTRA-SIMPLE with load_rdm_complete
-# ============================================================================
+if (app_config$is_test) {
+  message("\u26a0\ufe0f  [TEST MODE] Connected to test REDCap project. ",
+          "Reads and writes go to RDM_TEST_TOKEN.")
+} else {
+  message("\u2705  [PRODUCTION] Connected to live REDCap project.")
+}
 
+# ── Utility operators (R < 4.4 doesn't have %||% in base) ────────────────────
+`%||%` <- function(x, y) if (!is.null(x)) x else y
+
+# ── Navigation blocks definition ──────────────────────────────────────────────
+# Edit here to add / reorder / rename sections. Each list must have:
+#   id    — used internally for routing (must be unique, no spaces)
+#   label — shown on the home screen block
+#   icon  — Bootstrap Icons name (https://icons.getbootstrap.com)
+#   desc  — small subtitle on the block
+
+resident_nav_blocks <- list(
+  list(id = "evaluations",  label = "My Evaluations",         icon = "clipboard2-check-fill",  desc = "Evaluations received & feedback"),
+  list(id = "learning",     label = "My Learning",            icon = "mortarboard-fill",        desc = "Goals, learning topics & exam prep"),
+  list(id = "milestones",   label = "Milestones",             icon = "graph-up-arrow",          desc = "Competency progress & curves"),
+  list(id = "scholarship",  label = "Scholarship & Teaching", icon = "award-fill",              desc = "Research, teaching & academic portfolio"),
+  list(id = "faculty_eval", label = "Faculty Evaluations",    icon = "person-check-fill",       desc = "Evaluations you've completed"),
+  list(id = "self_eval",    label = "Self Evaluations",       icon = "person-lines-fill",       desc = "Self-assessments & ILP"),
+  list(id = "schedule",     label = "Schedule",               icon = "calendar3-fill",          desc = "Rotation schedule"),
+  list(id = "resources",    label = "Program Resources",      icon = "grid-3x3-gap-fill",       desc = "Links, SharePoint & program tools")
+)
+
+# ── Data loading ───────────────────────────────────────────────────────────────
 app_data_store <- NULL
 
 load_app_data <- function() {
   if (is.null(app_data_store)) {
-    message("Loading RDM 2.0 data using load_rdm_complete...")
-    
-    # Use your new clean function!
-    complete_data <- load_rdm_complete(
-      rdm_token = app_config$rdm_token, 
-      verbose = TRUE
+    message("Loading RDM 2.0 data...")
+    app_data_store <<- load_rdm_complete(
+      rdm_token    = app_config$rdm_token,
+      verbose      = FALSE,
+      raw_or_label = "raw"   # keep numeric codes so scale visualizations work
     )
-    
-    # DEBUG: Check what we actually got
-    message("=== DEBUGGING DATA STRUCTURE ===")
-    if (!is.null(complete_data$residents)) {
-      message("Residents data columns: ", paste(names(complete_data$residents), collapse = ", "))
-      if ("Level" %in% names(complete_data$residents)) {
-        level_counts <- table(complete_data$residents$Level, useNA = "always")
-        message("Resident Level distribution: ", paste(names(level_counts), "=", level_counts, collapse = ", "))
-      }
-    }
-    
-    if (!is.null(complete_data$all_forms$assessment)) {
-      message("Assessment data columns: ", paste(names(complete_data$all_forms$assessment)[1:10], collapse = ", "), "...")
-      if ("ass_level" %in% names(complete_data$all_forms$assessment)) {
-        ass_level_counts <- table(complete_data$all_forms$assessment$ass_level, useNA = "always")
-        message("Assessment ass_level distribution: ", paste(names(ass_level_counts), "=", ass_level_counts, collapse = ", "))
-      }
-    }
-    message("=== END DEBUG ===")
-    
-    app_data_store <<- complete_data
-   
-    message("Data loaded successfully!")
-    message("Residents: ", nrow(complete_data$residents))
-    message("Assessment records: ", nrow(complete_data$all_forms$assessment))
-    message("Data dictionary fields: ", nrow(complete_data$data_dict))
+    message("Data loaded — ", nrow(app_data_store$residents), " residents, ",
+            nrow(app_data_store$all_forms$assessment), " assessments.")
   }
-  
-  
-  
-  return(app_data_store)
+  app_data_store
 }
 
-# ============================================================================
-# HELPER FUNCTIONS - Simplified
-# ============================================================================
+# ── Shared UI helpers ──────────────────────────────────────────────────────────
 
-validate_access_code <- function(code) {
-  if (is.null(code) || code == "") return(FALSE)
-  
-  data <- load_app_data()
-  if (is.null(data$residents) || !"access_code" %in% names(data$residents)) return(FALSE)
-  
-  return(code %in% data$residents$access_code)
+# Placeholder card for sections not yet built
+section_placeholder <- function(icon_name, msg = "Content coming soon") {
+  div(
+    class = "d-flex flex-column align-items-center justify-content-center py-5",
+    style = "color: var(--ssm-text-muted);",
+    tags$i(
+      class = paste0("bi bi-", icon_name),
+      style = "font-size: 3rem; opacity: 0.25; margin-bottom: 16px;"
+    ),
+    tags$p(msg, style = "font-size: 0.95rem; margin: 0;")
+  )
 }
-
-get_resident_by_code <- function(code) {
-  data <- load_app_data()
-  
-  resident <- data$residents %>%
-    filter(access_code == !!code) %>%
-    slice(1)
-  
-  if (nrow(resident) == 0) return(NULL)
-  as.list(resident)
-}
-
-
-
-# ============================================================================
-# STARTUP
-# ============================================================================
-
-message("=== INDIVIDUAL DASHBOARD STARTUP ===")
-message("GMED package loaded: ", "gmed" %in% loadedNamespaces())
-message("load_rdm_complete available: ", exists("load_rdm_complete", where = "package:gmed"))
-message("Ready to load data with clean pattern!")
