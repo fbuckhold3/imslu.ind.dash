@@ -68,26 +68,30 @@
 
 # Sections per period (for checklist)
 .PERIOD_SECTIONS <- list(
-  "7" = c(goals="Learning Goals", prep="Preparedness Ratings",
-          topics="Topics & Learning Styles", concerns="Concerns"),
+  # Period 7: concerns shown but NOT tracked (optional); milestones + background added
+  "7" = c(goals="Learning Goals", background="Background Questions",
+          prep="Preparedness Ratings", topics="Topics & Learning Styles",
+          milestones="Milestone Self-Assessment"),
+  # Periods 1-5: boards section added
   "1" = c(reflection="Self-Reflection", career="Career Planning",
           topics="Topics & Learning Styles", feedback="Program Feedback",
-          milestones="Milestone Self-Assessment", ilp="ILP Goals"),
+          boards="Boards & ITE", milestones="Milestone Self-Assessment", ilp="ILP Goals"),
   "2" = c(reflection="Self-Reflection", career="Career Planning",
           topics="Topics & Learning Styles", feedback="Program Feedback",
-          milestones="Milestone Self-Assessment", ilp="ILP Goals"),
+          boards="Boards & ITE", milestones="Milestone Self-Assessment", ilp="ILP Goals"),
   "3" = c(reflection="Self-Reflection", career="Career Planning",
           topics="Topics & Learning Styles", feedback="Program Feedback",
-          milestones="Milestone Self-Assessment", ilp="ILP Goals"),
+          boards="Boards & ITE", milestones="Milestone Self-Assessment", ilp="ILP Goals"),
   "4" = c(reflection="Self-Reflection", career="Career Planning",
           topics="Topics & Learning Styles", feedback="Program Feedback",
-          milestones="Milestone Self-Assessment", ilp="ILP Goals"),
+          boards="Boards & ITE", milestones="Milestone Self-Assessment", ilp="ILP Goals"),
   "5" = c(reflection="Self-Reflection", career="Career Planning",
           topics="Topics & Learning Styles", feedback="Program Feedback",
-          milestones="Milestone Self-Assessment", ilp="ILP Goals"),
+          boards="Boards & ITE", milestones="Milestone Self-Assessment", ilp="ILP Goals"),
+  # Period 6: board + alumni added
   "6" = c(reflection="Self-Reflection", board="Board Preparation",
-          topics="Topics & Learning Styles", feedback="Program Feedback",
-          milestones="Milestone Self-Assessment")
+          alumni="Graduation Info", topics="Topics & Learning Styles",
+          feedback="Program Feedback", milestones="Milestone Self-Assessment")
 )
 
 # ── Non-reactive helpers ───────────────────────────────────────────────────────
@@ -119,6 +123,30 @@
   }, error = function(e) list(success=FALSE, message=paste("Error:", e$message)))
 }
 
+# Save to non-repeating resident_data instrument
+.rc_save_resident <- function(record_id, fields) {
+  tryCatch({
+    row <- as.data.frame(
+      c(list(record_id = as.character(record_id)),
+        lapply(fields, function(x)
+          if (is.null(x)||length(x)==0||(length(x)==1&&is.na(x))) ""
+          else as.character(x))),
+      stringsAsFactors=FALSE, check.names=FALSE)
+    resp <- httr::POST(
+      url  = app_config$redcap_url,
+      body = list(token=app_config$rdm_token, content="record", format="json",
+                  type="flat", overwriteBehavior="overwrite",
+                  data=jsonlite::toJSON(row, auto_unbox=TRUE),
+                  returnContent="ids", returnFormat="json"),
+      encode="form", httr::timeout(30))
+    if (httr::status_code(resp)==200)
+      list(success=TRUE, ts=format(Sys.time(),"%b %d %I:%M %p"))
+    else
+      list(success=FALSE, message=paste0("REDCap error (",httr::status_code(resp),"): ",
+             httr::content(resp,"text",encoding="UTF-8")))
+  }, error=function(e) list(success=FALSE, message=paste("Error:",e$message)))
+}
+
 .checked_codes <- function(data_row, prefix) {
   if (is.null(data_row) || nrow(data_row) == 0) return(character(0))
   cols <- names(data_row)[startsWith(names(data_row), paste0(prefix,"___"))]
@@ -147,7 +175,8 @@
 }
 
 # Check if a named section is complete given current cached data
-.section_complete <- function(section, sr, ir, ms_data) {
+# res = resident_data row (for background/alumni sections stored outside s_eval)
+.section_complete <- function(section, sr, ir, ms_data, res = NULL) {
   has <- function(row, fld) {
     if (is.null(row) || nrow(row)==0) return(FALSE)
     v <- if (fld %in% names(row)) row[[fld]][1] else NA
@@ -162,26 +191,29 @@
   }
   switch(section,
     goals      = has(sr, "s_e_ume_goal1"),
+    background = has(res, "hs_mo"),            # in resident_data
     prep       = has(sr, "s_e_prep_1"),
     topics     = any_checked(sr, "s_e_topic_sel"),
-    concerns   = has(sr, "s_e_ume_concern"),
+    concerns   = TRUE,                         # optional — always counts as done
     reflection = has(sr, "s_e_plus") || has(sr, "s_e_delta"),
     career     = any_checked(sr, "s_e_career_path"),
     feedback   = has(sr, "s_e_prog_plus") || has(sr, "s_e_prog_delta"),
+    boards     = has(sr, "s_e_step3"),         # periods 1-5
     milestones = {
       if (is.null(ms_data) || nrow(ms_data)==0) return(FALSE)
       has(ms_data, "rep_pc1_self")
     },
     ilp        = has(ir, "goal_pcmk") && has(ir, "goal_sbppbl") &&
                  has(ir, "goal_subcomp_profics"),
-    board      = has(sr, "s_e_board_plan"),
+    board      = has(sr, "s_e_step3") || has(sr, "s_e_board_plan"),  # period 6
+    alumni     = has(res, "grad_email"),       # in resident_data
     FALSE
   )
 }
 
 # ── Period completion (for status table) ──────────────────────────────────────
 
-.period_status <- function(seva, ilp, ms_data, period) {
+.period_status <- function(seva, ilp, ms_data, period, res = NULL) {
   p  <- as.character(period)
   sr <- if (!is.null(seva) && nrow(seva)>0) seva[as.character(seva$s_e_period)==p,] else NULL
   ir <- if (!is.null(ilp)  && nrow(ilp)>0)  ilp[as.character(ilp$year_resident)==p,] else NULL
@@ -192,7 +224,7 @@
 
   secs <- .PERIOD_SECTIONS[[p]]
   if (is.null(secs)) return(list(status="not_started", done=0L, total=0L))
-  done  <- sum(sapply(names(secs), function(s) .section_complete(s, sr, ir, md)))
+  done  <- sum(sapply(names(secs), function(s) .section_complete(s, sr, ir, md, res)))
   total <- length(secs)
   status <- if (done == total) "complete"
             else if (done > 0) "in_progress"
@@ -235,6 +267,123 @@
                   placeholder=placeholder,
                   style="font-size:0.88rem; resize:vertical;", value))
 
+# Preparedness rating matrix — replaces 17 individual dropdowns
+.prep_matrix_ui <- function(ns, sr) {
+  scale_labels <- c("1"="Not prepared","2"="Slightly","3"="Moderately","4"="Very","5"="Extremely")
+  header_row <- tags$tr(
+    tags$th(style="width:45%; font-size:0.78rem; font-weight:600; color:#6c757d;", "Skill area"),
+    lapply(names(scale_labels), function(v)
+      tags$th(style="text-align:center; font-size:0.72rem; color:#6c757d; font-weight:500; min-width:68px;",
+              scale_labels[[v]]))
+  )
+  body_rows <- lapply(names(.PREP_LABELS), function(n) {
+    cur <- .fv(sr, paste0("s_e_prep_",n))
+    tags$tr(
+      style=paste0("background:", if (as.integer(n)%%2==0) "#f8fafc" else "white", ";"),
+      tags$td(style="font-size:0.83rem; color:#2c3e50; padding:6px 8px;", .PREP_LABELS[[n]]),
+      lapply(names(scale_labels), function(v)
+        tags$td(style="text-align:center; padding:4px;",
+          tags$input(type="radio",
+            name=ns(paste0("s_e_prep_",n)),
+            id=paste0(ns(paste0("s_e_prep_",n)),"_",v),
+            value=v,
+            class="form-check-input",
+            style="cursor:pointer; width:1.1em; height:1.1em;",
+            if (cur==v) list(checked="checked") else list())))
+    )
+  })
+  div(class="table-responsive",
+    tags$table(class="table table-bordered mb-0",
+               style="font-size:0.82rem;",
+      tags$thead(header_row),
+      tags$tbody(body_rows)))
+}
+
+# ITE score panel + board self-report questions (periods 1-5)
+.ite_board_section_ui <- function(ns, sr, dd, ite_data, pgy) {
+  # ITE percent correct for current PGY year
+  pgy_fld <- paste0("pgy", pgy, "_tot_correct")
+  ite_pct  <- if (!is.null(ite_data) && nrow(ite_data)>0 && pgy_fld %in% names(ite_data)) {
+    v <- ite_data[[pgy_fld]][1]; if (!is.na(v) && nzchar(v)) as.numeric(v) else NA
+  } else NA_real_
+
+  ite_panel <- if (!is.na(ite_pct)) {
+    risk_col   <- if (ite_pct >= 70) "#2e7d32" else if (ite_pct >= 60) "#e65100" else "#c62828"
+    risk_label <- if (ite_pct >= 70) "On track" else if (ite_pct >= 60) "Monitor" else "At risk"
+    div(class="alert mb-3 py-2 px-3",
+        style=paste0("background:#f8fafc; border-left:4px solid ", risk_col, "; font-size:0.83rem;"),
+      div(class="d-flex align-items-center gap-3",
+        div(style="text-align:center; min-width:60px;",
+          tags$span(style=paste0("font-size:1.5rem; font-weight:700; color:", risk_col),
+                    paste0(round(ite_pct,1),"%")),
+          tags$p(style="font-size:0.68rem; color:#6c757d; margin:0;", "ITE % correct")),
+        div(style="flex:1;",
+          tags$p(style="margin:0; font-weight:600; font-size:0.85rem; color:#003d5c;",
+                 paste0("PGY", pgy, " ACP ITE Score")),
+          tags$p(style="margin:0; font-size:0.78rem; color:#6c757d;",
+                 paste0("Board readiness: "),
+                 tags$span(style=paste0("font-weight:700; color:", risk_col), risk_label))))
+    )
+  } else {
+    div(class="alert alert-light mb-3 py-2 px-3",
+        style="font-size:0.82rem; border-left:4px solid #adb5bd;",
+        tags$i(class="bi bi-info-circle me-1"),
+        "ITE score not yet available. Complete your ACP ITE to see your score here.")
+  }
+
+  # Board yesno + MKSAP fields
+  mksap_ch <- .dd_choices(dd, "s_e_mksap_comp")
+  yn_row <- function(id, label, val) {
+    div(class="mb-2 d-flex align-items-center gap-3",
+      tags$label(label, style="font-size:0.83rem; color:#2c3e50; min-width:280px; margin:0;"),
+      div(class="btn-group btn-group-sm",
+        tags$input(type="radio", class="btn-check", name=ns(id),
+                   id=paste0(ns(id),"_1"), value="1",
+                   if (val=="1") list(checked="checked") else list()),
+        tags$label(class=paste0("btn btn-outline-success",
+                                if (val=="1") " active" else ""),
+                   `for`=paste0(ns(id),"_1"), "Yes"),
+        tags$input(type="radio", class="btn-check", name=ns(id),
+                   id=paste0(ns(id),"_0"), value="0",
+                   if (val=="0") list(checked="checked") else list()),
+        tags$label(class=paste0("btn btn-outline-secondary",
+                                if (val=="0") " active" else ""),
+                   `for`=paste0(ns(id),"_0"), "No")))
+  }
+
+  tagList(
+    ite_panel,
+    yn_row("s_e_step3", "Have you completed Step 3 / USMLE?", .fv(sr,"s_e_step3")),
+    yn_row("s_e_step3_contact", "Have you sent your score to the program?",
+           .fv(sr,"s_e_step3_contact")),
+    yn_row("s_e_step3_date_set", "Have you set a Step 3 exam date?",
+           .fv(sr,"s_e_step3_date_set")),
+    div(class="mb-2",
+      tags$label("Step 3 scheduled date (if applicable)",
+                 style="font-size:0.83rem; color:#2c3e50;"),
+      tags$input(type="date", id=ns("s_e_step3_date"),
+                 class="form-control form-control-sm", style="max-width:200px;",
+                 value=.fv(sr,"s_e_step3_date"))),
+    div(class="mt-3 mb-2 pt-2", style="border-top:1px solid #f0f0f0;",
+      yn_row("s_e_board_concern",
+             "Do you have concerns about failing boards?", .fv(sr,"s_e_board_concern")),
+      yn_row("s_e_board_help",
+             "Have you discussed this with the program?", .fv(sr,"s_e_board_help")),
+      .ta(ns("s_e_board_discu"), "Who have you spoken with and what steps are being taken?",
+          .fv(sr,"s_e_board_discu"), rows=2)),
+    if (!is.null(mksap_ch)) div(class="mb-2",
+      tags$label("MKSAP completion",
+                 style="font-size:0.83rem; color:#2c3e50; font-weight:600;"),
+      tags$select(id=ns("s_e_mksap_comp"), class="form-select form-select-sm",
+                  style="max-width:340px;",
+        tags$option(value="", if(.fv(sr,"s_e_mksap_comp")=="") "-- select --"),
+        lapply(names(mksap_ch), function(v)
+          tags$option(value=v,
+            selected=if(.fv(sr,"s_e_mksap_comp")==v) NA else NULL,
+            mksap_ch[[v]]))))
+  )
+}
+
 .section_hdr <- function(icon, title, subtitle=NULL)
   div(class="mb-3",
     tags$h6(style="color:#003d5c; font-weight:700; margin-bottom:2px;",
@@ -243,10 +392,10 @@
       tags$p(class="text-muted", style="font-size:0.8rem; margin:0;", subtitle))
 
 # Section progress card (items 2 & 8)
-.section_checklist_card <- function(sections, sr, ir, ms_data) {
+.section_checklist_card <- function(sections, sr, ir, ms_data, res = NULL) {
   if (is.null(sections)) return(NULL)
   items <- lapply(names(sections), function(s) {
-    done <- .section_complete(s, sr, ir, ms_data)
+    done <- .section_complete(s, sr, ir, ms_data, res)
     div(class="d-flex align-items-center gap-2",
         style="min-width:140px;",
       (if (done) tags$i(class="bi bi-check-circle-fill", style="color:#2e7d32; font-size:0.9rem;")
@@ -254,7 +403,7 @@
       tags$span(style=paste0("font-size:0.8rem; color:",
                              if(done) "#1a6b3a" else "#6c757d"), sections[[s]]))
   })
-  n_done  <- sum(sapply(names(sections), function(s) .section_complete(s, sr, ir, ms_data)))
+  n_done  <- sum(sapply(names(sections), function(s) .section_complete(s, sr, ir, ms_data, res)))
   n_total <- length(sections)
   all_done <- n_done == n_total
   div(class="card border-0 mb-4",
@@ -322,6 +471,12 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
     evals_r      <- reactive({
       req(rdm_data(), resident_id())
       df <- rdm_data()$assessment %||% rdm_data()$all_forms$assessment
+      if (is.null(df) || nrow(df)==0) return(NULL)
+      df[df$record_id == resident_id(), ]
+    })
+    ite_data_r <- reactive({
+      req(rdm_data(), resident_id())
+      df <- rdm_data()$all_forms$test_data %||% rdm_data()$test_data
       if (is.null(df) || nrow(df)==0) return(NULL)
       df[df$record_id == resident_id(), ]
     })
@@ -414,9 +569,9 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
 
     # ── save state ────────────────────────────────────────────────────────────
     ss <- reactiveValues(
-      goals=NULL, prep=NULL, topics=NULL, concerns=NULL,
+      goals=NULL, background=NULL, prep=NULL, topics=NULL, concerns=NULL,
       reflection=NULL, career=NULL, feedback=NULL, ilp=NULL,
-      board=NULL, milestones=NULL)
+      boards=NULL, board=NULL, alumni=NULL, milestones=NULL)
 
     # Cache merge helpers
     .merge_seva <- function(period, fields) {
@@ -439,15 +594,18 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
     }
 
     # ── save handlers ─────────────────────────────────────────────────────────
-    output$save_goals_status     <- renderUI(.save_status_ui(ss$goals))
-    output$save_prep_status      <- renderUI(.save_status_ui(ss$prep))
-    output$save_topics_status    <- renderUI(.save_status_ui(ss$topics))
-    output$save_concerns_status  <- renderUI(.save_status_ui(ss$concerns))
-    output$save_reflection_status<- renderUI(.save_status_ui(ss$reflection))
-    output$save_career_status    <- renderUI(.save_status_ui(ss$career))
+    output$save_goals_status      <- renderUI(.save_status_ui(ss$goals))
+    output$save_background_status <- renderUI(.save_status_ui(ss$background))
+    output$save_prep_status       <- renderUI(.save_status_ui(ss$prep))
+    output$save_topics_status     <- renderUI(.save_status_ui(ss$topics))
+    output$save_concerns_status   <- renderUI(.save_status_ui(ss$concerns))
+    output$save_reflection_status <- renderUI(.save_status_ui(ss$reflection))
+    output$save_career_status     <- renderUI(.save_status_ui(ss$career))
     output$save_feedback_status  <- renderUI(.save_status_ui(ss$feedback))
     output$save_ilp_status       <- renderUI(.save_status_ui(ss$ilp))
+    output$save_boards_status    <- renderUI(.save_status_ui(ss$boards))
     output$save_board_status     <- renderUI(.save_status_ui(ss$board))
+    output$save_alumni_status    <- renderUI(.save_status_ui(ss$alumni))
     output$milestone_save_status <- renderUI(.save_status_ui(ss$milestones))
 
     observeEvent(input$save_goals, {
@@ -482,6 +640,29 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       f <- list(s_e_period="7", s_e_ume_concern=input$s_e_ume_concern%||%"")
       res <- .rc_save(resident_id(),"s_eval",7,f); ss$concerns <- res
       if (res$success) .merge_seva(7,f)
+    })
+    # Background questions → resident_data (non-repeating)
+    observeEvent(input$save_background, {
+      f <- list(hs_mo     = input$hs_mo     %||% "",
+                college_mo= input$college_mo %||% "",
+                med_mo    = input$med_mo     %||% "",
+                slusom    = input$slusom     %||% "")
+      res <- .rc_save_resident(resident_id(), f); ss$background <- res
+    })
+    # Boards section → s_eval (periods 1-5)
+    observeEvent(input$save_boards, {
+      p <- local$sel_period; req(p %in% as.character(1:5))
+      f <- list(s_e_period=p,
+                s_e_step3         = input$s_e_step3          %||% "",
+                s_e_step3_contact = input$s_e_step3_contact   %||% "",
+                s_e_step3_date_set= input$s_e_step3_date_set  %||% "",
+                s_e_step3_date    = input$s_e_step3_date       %||% "",
+                s_e_board_concern = input$s_e_board_concern    %||% "",
+                s_e_board_help    = input$s_e_board_help       %||% "",
+                s_e_board_discu   = input$s_e_board_discu      %||% "",
+                s_e_mksap_comp    = input$s_e_mksap_comp       %||% "")
+      res <- .rc_save(resident_id(),"s_eval",as.integer(p),f); ss$boards <- res
+      if (res$success) .merge_seva(p,f)
     })
     observeEvent(input$save_reflection, {
       p <- local$sel_period; req(p %in% as.character(1:6))
@@ -521,12 +702,30 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
     })
     observeEvent(input$save_board, {
       req(local$sel_period=="6")
-      f <- list(s_e_period="6", s_e_step3=input$s_e_step3%||%"",
-                s_e_board_target=input$s_e_board_target%||%"",
-                s_e_board_concern=input$s_e_board_concern%||%"",
-                s_e_board_plan=input$s_e_board_plan%||%"")
+      f <- list(s_e_period="6",
+                s_e_step3         = input$s_e_step3          %||% "",
+                s_e_step3_contact = input$s_e_step3_contact   %||% "",
+                s_e_board_concern = input$s_e_board_concern    %||% "",
+                s_e_board_help    = input$s_e_board_help       %||% "",
+                s_e_board_discu   = input$s_e_board_discu      %||% "",
+                s_e_mksap_comp    = input$s_e_mksap_comp       %||% "",
+                s_e_board_plan    = input$s_e_board_plan        %||% "")
       res <- .rc_save(resident_id(),"s_eval",6,f); ss$board <- res
       if (res$success) .merge_seva(6,f)
+    })
+    # Alumni / graduation data → resident_data (non-repeating)
+    observeEvent(input$save_alumni, {
+      f <- list(grad_spec          = input$grad_spec           %||% "",
+                res_alumni_position= input$res_alumni_position  %||% "",
+                res_alumni_academic= input$res_alumni_academic  %||% "",
+                chief              = input$chief               %||% "",
+                ssm                = input$ssm                 %||% "",
+                mo_prac            = input$mo_prac             %||% "",
+                rural              = input$rural               %||% "",
+                und_urban          = input$und_urban           %||% "",
+                grad_email         = input$grad_email          %||% "",
+                grad_phone         = input$grad_phone          %||% "")
+      res <- .rc_save_resident(resident_id(), f); ss$alumni <- res
     })
 
     # ── period selection ──────────────────────────────────────────────────────
@@ -535,98 +734,141 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       for (n in names(reactiveValuesToList(ss))) ss[[n]] <- NULL
     })
 
-    # ── status table (#1 — color-coded with section counts) ───────────────────
+    # ── status table (#7 — high-contrast redesign, clearly separate from form) ──
     output$status_table <- renderUI({
       req(local$ready)
-      res <- resident_r(); if (is.null(res)||nrow(res)==0) return(NULL)
-      tp  <- suppressWarnings(as.numeric(res$type[1]))
+      res_row <- resident_r(); if (is.null(res_row)||nrow(res_row)==0) return(NULL)
+      tp  <- suppressWarnings(as.numeric(res_row$type[1]))
       if (!is.na(tp) && tp==3)
         return(div(class="alert alert-warning",
                    tags$i(class="bi bi-exclamation-triangle me-2"),
                    "Self-evaluation not available for this record."))
-      periods <- if (!is.na(tp) && tp==1) c(7,1,2) else c(7,1,2,3,4,5,6)
-      pi      <- period_info_r()
+      periods  <- if (!is.na(tp) && tp==1) c(7L,1L,2L) else c(7L,1L,2L,3L,4L,5L,6L)
+      pi       <- period_info_r()
       active_p <- if (!is.null(pi)&&!is.na(pi$period_number))
-        as.character(pi$period_number) else NULL
+                    as.character(pi$period_number) else NULL
 
-      period_names <- c("7"="Entering Residency","1"="Mid-Intern","2"="End of Intern Year",
-                        "3"="Mid-PGY2","4"="End of PGY2","5"="Mid-PGY3","6"="Graduating")
+      period_names <- c("7"="Entering Residency","1"="Mid-Intern","2"="End Intern Year",
+                        "3"="Mid-PGY2","4"="End PGY2","5"="Mid-PGY3","6"="Graduating")
+
+      # Count how many periods are fully complete
+      n_complete <- sum(sapply(periods, function(p) {
+        ps <- .period_status(local$seva, local$ilp, local$ms, p, res_row)
+        ps$status == "complete"
+      }))
 
       rows <- lapply(periods, function(p) {
         p_str <- as.character(p)
-        ps    <- .period_status(local$seva, local$ilp, local$ms, p)
-        is_sel <- !is.null(local$sel_period) && p_str == local$sel_period
-        is_act <- !is.null(active_p) && p_str == active_p
+        ps    <- .period_status(local$seva, local$ilp, local$ms, p, res_row)
+        is_sel <- isTRUE(local$sel_period == p_str)
+        is_act <- isTRUE(active_p == p_str)
 
-        left_col <- switch(ps$status,
-          complete    = "#2e7d32",
-          in_progress = "#e65100",
-          "#adb5bd")
+        # Colors per status
+        status_col <- switch(ps$status,
+          complete    = list(border="#2e7d32", bg="#f0faf4", badge_bg="#c8e6c9", text="#1a6b3a"),
+          in_progress = list(border="#bf360c", bg="#fff8f5", badge_bg="#ffe0b2", text="#bf360c"),
+                        list(border="#9e9e9e", bg="#fafafa",  badge_bg="#eeeeee", text="#757575"))
+
         icon_el <- switch(ps$status,
-          complete    = tags$i(class="bi bi-check-circle-fill", style="color:#2e7d32;"),
-          in_progress = tags$i(class="bi bi-circle-half",       style="color:#e65100;"),
-          tags$i(class="bi bi-circle", style="color:#adb5bd;"))
+          complete    = tags$i(class="bi bi-check-circle-fill",
+                               style=paste0("color:",status_col$border,"; font-size:1rem;")),
+          in_progress = tags$i(class="bi bi-circle-half",
+                               style=paste0("color:",status_col$border,"; font-size:1rem;")),
+          tags$i(class="bi bi-circle", style="color:#bdbdbd; font-size:1rem;"))
 
-        badge_el <- if (ps$total > 0)
-          tags$span(class="badge",
-            style=paste0("background:",
-              switch(ps$status,complete="#e8f5e9",in_progress="#fff3e0","#f5f5f5"),
-              "; color:",
-              switch(ps$status,complete="#2e7d32",in_progress="#e65100","#9e9e9e"),
-              "; font-size:0.7rem; font-weight:600; border-radius:20px; padding:3px 8px;"),
-            paste0(ps$done,"/",ps$total," sections"))
-        else tags$span()
+        badge_txt <- if (ps$total>0) paste0(ps$done,"/",ps$total) else ""
 
-        div(class="d-flex align-items-center gap-3",
-            style=paste0(
-              "cursor:pointer; padding:10px 14px; border-radius:6px;",
-              " border-left:3px solid ", left_col, ";",
-              " margin-bottom:3px;",
-              " background:", if(is_sel) "#e8f0f7" else "transparent", ";",
-              " border: 1px solid ", if(is_sel) "#003d5c" else "transparent", ";",
-              " border-left: 3px solid ", left_col, " !important;"),
-            `data-period`=p_str,
+        row_bg <- if (is_sel) "#e3eef8" else status_col$bg
+        row_border <- if (is_sel) "#0066a1" else status_col$border
+        row_outline <- if (is_sel) "2px solid #0066a1" else "1px solid #e8e8e8"
+
+        div(style=paste0("cursor:pointer; display:flex; align-items:center; gap:10px;",
+                         " padding:9px 14px; border-radius:7px; margin-bottom:4px;",
+                         " background:", row_bg, ";",
+                         " outline:", row_outline, ";",
+                         " border-left: 4px solid ", row_border, ";"),
             onclick=sprintf("Shiny.setInputValue('%s','%s',{priority:'event'})",
                             ns("select_period"), p_str),
-          div(style="width:18px; text-align:center;", icon_el),
-          div(style="flex:1;",
-            tags$span(style=paste0("font-size:0.88rem; font-weight:",
-                                   if(is_act)"700" else "500", "; color:",
-                                   if(is_sel)"#003d5c" else "#2c3e50"),
-              period_names[[p_str]],
-              if (is_act) tags$span(style="font-size:0.7rem; color:#0066a1; margin-left:6px;",
-                                    "(Current)"),
-              if (isTRUE(pi$is_prestart) && p_str=="7")
-                tags$span(style="font-size:0.7rem; color:#6f42c1; margin-left:6px;",
-                          "Early access"))),
-          badge_el)
+          div(style="width:20px; text-align:center; flex-shrink:0;", icon_el),
+          div(style="flex:1; min-width:0;",
+            tags$span(style=paste0("font-size:0.87rem; font-weight:",
+                                   if(is_sel||is_act)"700" else "500",
+                                   "; color:", if(is_sel)"#003d5c" else "#2c3e50"),
+              period_names[[p_str]]),
+            if (is_act) tags$span(style="font-size:0.68rem; background:#0066a1; color:#fff;
+                                        border-radius:10px; padding:1px 7px; margin-left:6px;",
+                                  "Current"),
+            if (isTRUE(pi$is_prestart) && p_str=="7")
+              tags$span(style="font-size:0.68rem; background:#6f42c1; color:#fff;
+                               border-radius:10px; padding:1px 7px; margin-left:4px;",
+                        "Early access")),
+          if (nzchar(badge_txt))
+            tags$span(style=paste0("font-size:0.72rem; font-weight:700;",
+                                   " background:", status_col$badge_bg,
+                                   "; color:", status_col$text,
+                                   "; border-radius:20px; padding:2px 9px; white-space:nowrap;"),
+                      badge_txt))
       })
 
-      div(class="card border-0 shadow-sm", style="border-radius:8px;",
-        div(class="card-header border-0",
-            style="background:#f8fafc; border-radius:8px 8px 0 0; padding:14px 18px;",
-          div(class="d-flex align-items-center gap-2",
-            tags$i(class="bi bi-list-check", style="color:#003d5c; font-size:1.1rem;"),
-            tags$span(style="font-weight:700; color:#003d5c;", "Self-Evaluation Status"),
-            tags$span(class="ms-auto text-muted", style="font-size:0.78rem;",
-                      "Click a period to open"))),
-        div(class="card-body py-2", div(rows)))
+      # Overall progress summary bar
+      n_tot <- length(periods)
+      pct   <- round(100 * n_complete / n_tot)
+      prog_col <- if (pct==100) "#2e7d32" else if (pct>0) "#bf360c" else "#9e9e9e"
+
+      div(
+        # ── Completion overview panel ──────────────────────────────────────────
+        div(style=paste0("background:#1a2e42; border-radius:10px 10px 0 0;",
+                         " padding:14px 18px 10px;"),
+          div(style="display:flex; align-items:center; justify-content:space-between;",
+            div(
+              tags$p(style="margin:0; font-size:0.65rem; font-weight:700; letter-spacing:.1em;
+                           color:#7fb3d3; text-transform:uppercase;",
+                     "Self-Evaluation"),
+              tags$p(style="margin:0; font-size:1rem; font-weight:700; color:#ffffff;",
+                     "Completion Overview")),
+            tags$span(style=paste0("font-size:1.4rem; font-weight:800; color:",
+                                   if(pct==100)"#81c784" else "#f9a825"),
+                      paste0(pct, "%"))),
+          div(style="margin-top:8px; background:rgba(255,255,255,0.15); border-radius:4px; height:5px;",
+            div(style=paste0("width:", pct, "%; height:100%; border-radius:4px; background:",
+                             if(pct==100)"#81c784" else "#f9a825", ";")))),
+
+        # ── Period rows ────────────────────────────────────────────────────────
+        div(style="background:#ffffff; border:1px solid #e0e0e0; border-top:none;
+                   border-radius:0 0 10px 10px; padding:10px 12px 8px;",
+          tags$p(style="font-size:0.73rem; color:#757575; margin:0 0 8px 2px;",
+                 tags$i(class="bi bi-hand-index me-1"), "Click any period to open its evaluation"),
+          rows),
+
+        # ── Separator before form ──────────────────────────────────────────────
+        div(style="margin-top:16px; margin-bottom:4px; display:flex; align-items:center; gap:10px;",
+          div(style="flex:1; height:1px; background:#e0e0e0;"),
+          tags$span(style="font-size:0.72rem; font-weight:700; color:#9e9e9e;
+                           text-transform:uppercase; letter-spacing:.08em; white-space:nowrap;",
+                    tags$i(class="bi bi-chevron-double-down me-1"),
+                    "Self-Evaluation Form"),
+          div(style="flex:1; height:1px; background:#e0e0e0;"))
+      )
     })
 
     # ── period form ───────────────────────────────────────────────────────────
     output$period_form <- renderUI({
       req(local$ready, local$sel_period)
-      p   <- local$sel_period
-      sr  <- sel_seva(); ir <- sel_ilp(); md <- sel_ms()
-      dd  <- data_dict_r()
-      psr <- prev_seva_r()
-      ev  <- evals_r()
+      p    <- local$sel_period
+      sr   <- sel_seva(); ir <- sel_ilp(); md <- sel_ms()
+      dd   <- data_dict_r()
+      psr  <- prev_seva_r()
+      ev   <- evals_r()
+      res  <- resident_r()
+      ite  <- ite_data_r()
+      pi   <- period_info_r()
+      pgy  <- if (!is.null(pi)) as.integer(pi$pgy_year) else 1L
       secs <- .PERIOD_SECTIONS[[p]]
-      chk  <- .section_checklist_card(secs, sr, ir, md)
+      chk  <- .section_checklist_card(secs, sr, ir, md, res)
 
-      if (p=="7")      .form_p7(ns, p, sr, dd, psr, chk)
-      else if (p=="6") .form_p6(ns, p, sr, dd, psr, ev, chk)
-      else             .form_std(ns, p, sr, ir, dd, psr, ev, chk)
+      if (p=="7")      .form_p7(ns, p, sr, dd, psr, res, chk)
+      else if (p=="6") .form_p6(ns, p, sr, dd, psr, ev, res, chk, ite)
+      else             .form_std(ns, p, sr, ir, dd, psr, ev, chk, ite, pgy)
     })
 
     # Milestone UI lives outside renderUI so the server stays initialized
@@ -637,37 +879,55 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
 
 # ── Form helpers ──────────────────────────────────────────────────────────────
 
-# Recent evaluations reference panel (#5)
+# Recent evaluations reference panel (#5) — shows all available fields
 .eval_reference_panel <- function(ev) {
   if (is.null(ev) || nrow(ev)==0) return(NULL)
-  recent <- ev %>%
-    dplyr::arrange(dplyr::desc(suppressWarnings(as.Date(ass_date, "%Y-%m-%d")))) %>%
-    dplyr::slice(1:min(3, nrow(.)))
 
-  items <- lapply(seq_len(nrow(recent)), function(i) {
-    row   <- recent[i,]
-    dt    <- if ("ass_date" %in% names(row)) .fv(row,"ass_date") else ""
-    fac   <- if ("ass_faculty" %in% names(row)) .fv(row,"ass_faculty") else ""
-    plus  <- if ("ass_plus" %in% names(row)) .fv(row,"ass_plus") else ""
-    delta <- if ("ass_delta"%in% names(row)) .fv(row,"ass_delta") else ""
-    div(class="mb-2 pb-2", style="border-bottom:1px solid #f0f0f0;",
+  # Sort by date descending, show up to 5 most recent
+  ev_sorted <- ev %>%
+    dplyr::mutate(.dt = suppressWarnings(as.Date(ass_date, "%Y-%m-%d"))) %>%
+    dplyr::arrange(dplyr::desc(.dt)) %>%
+    dplyr::slice(1:min(5, dplyr::n())) %>%
+    dplyr::select(-.dt)
+
+  level_map <- c("1"="Intern","2"="PGY2","3"="PGY3","4"="Graduated","5"="Rotator")
+
+  items <- lapply(seq_len(nrow(ev_sorted)), function(i) {
+    row   <- ev_sorted[i,]
+    fget  <- function(f) if (f %in% names(row)) .fv(row,f) else ""
+    dt    <- fget("ass_date"); fac   <- fget("ass_faculty")
+    spec  <- fget("ass_specialty"); rot <- fget("ass_rotator")
+    lev   <- fget("ass_level"); plus  <- fget("ass_plus"); delta <- fget("ass_delta")
+
+    lev_label <- if (nzchar(lev)) level_map[lev] %||% lev else ""
+    meta_parts <- Filter(nzchar, c(fac, spec, rot, lev_label, dt))
+
+    div(class="mb-3 pb-2", style="border-bottom:1px solid #eef0f3;",
       tags$p(class="mb-1",
-             style="font-size:0.72rem; font-weight:600; color:#6c757d; text-transform:uppercase;",
-             paste(c(fac, dt), collapse=" · ")),
+             style="font-size:0.72rem; font-weight:700; color:#003d5c; text-transform:uppercase; letter-spacing:.05em;",
+             paste(meta_parts, collapse=" · ")),
       if (nzchar(plus))
-        tags$p(class="mb-1", style="font-size:0.82rem; color:#1a6b3a;",
-               tags$i(class="bi bi-plus-circle-fill me-1"), plus),
+        div(class="mb-1 d-flex gap-2",
+          tags$i(class="bi bi-plus-circle-fill flex-shrink-0 mt-1",
+                 style="color:#2e7d32; font-size:0.85rem;"),
+          tags$p(class="mb-0", style="font-size:0.83rem; color:#1a6b3a;", plus)),
       if (nzchar(delta))
-        tags$p(class="mb-0", style="font-size:0.82rem; color:#c0392b;",
-               tags$i(class="bi bi-arrow-up-circle-fill me-1"), delta))
+        div(class="d-flex gap-2",
+          tags$i(class="bi bi-arrow-repeat flex-shrink-0 mt-1",
+                 style="color:#c0392b; font-size:0.85rem;"),
+          tags$p(class="mb-0", style="font-size:0.83rem; color:#c0392b;", delta)))
   })
 
+  total <- nrow(ev)
+  shown <- min(5, total)
   tags$details(
     tags$summary(
-      style="cursor:pointer; font-size:0.82rem; color:#0066a1; font-weight:600; padding:6px 0; list-style:none;",
+      style="cursor:pointer; font-size:0.82rem; color:#0066a1; font-weight:600; padding:8px 0; list-style:none;",
       tags$i(class="bi bi-clipboard2-check me-1"),
-      "Reference: recent evaluations (click to expand)"),
-    div(class="mt-2 ps-2", items))
+      sprintf("Review recent evaluations — %d shown of %d total (click to expand)", shown, total)),
+    div(class="mt-2 ps-2 pe-1 py-1",
+        style="background:#f8fafc; border-radius:6px; max-height:400px; overflow-y:auto;",
+        items))
 }
 
 # ILP goal select with fallback hint for pre-existing free text
@@ -689,17 +949,36 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
 
 # ── Period 7 form ─────────────────────────────────────────────────────────────
 
-.form_p7 <- function(ns, p, sr, dd, psr, chk) {
+.form_p7 <- function(ns, p, sr, dd, psr, res, chk) {
   tc <- .dd_choices(dd,"s_e_topic_sel"); sc <- .dd_choices(dd,"s_e_learn_style")
   sel_t <- .checked_codes(sr,"s_e_topic_sel"); sel_s <- .checked_codes(sr,"s_e_learn_style")
+
+  # Yes/No helper for background questions
+  yn_q <- function(id, label, val)
+    div(class="mb-2 d-flex align-items-center gap-3 flex-wrap",
+      tags$label(label, style="font-size:0.84rem; color:#2c3e50; min-width:320px; margin:0;"),
+      div(class="btn-group btn-group-sm",
+        tags$input(type="radio", class="btn-check", name=ns(id),
+                   id=paste0(ns(id),"_1"), value="1",
+                   if (.fv(res,id)=="1") list(checked="checked") else list()),
+        tags$label(class=paste0("btn btn-outline-success",
+                                if (.fv(res,id)=="1") " active" else ""),
+                   `for`=paste0(ns(id),"_1"), "Yes"),
+        tags$input(type="radio", class="btn-check", name=ns(id),
+                   id=paste0(ns(id),"_0"), value="0",
+                   if (.fv(res,id)=="0") list(checked="checked") else list()),
+        tags$label(class=paste0("btn btn-outline-secondary",
+                                if (.fv(res,id)=="0") " active" else ""),
+                   `for`=paste0(ns(id),"_0"), "No")))
 
   div(
     div(class="alert alert-info mb-3 py-2 px-3",
         style="font-size:0.83rem; border-left:4px solid #0d6efd;",
         tags$i(class="bi bi-info-circle me-1"),
         tags$strong("Entering Residency"),
-        " — Complete each section. You can save and return at any time."),
+        " — Complete each section below. You can save and return at any time."),
     chk,
+
     .sec_card(title="Learning Goals", icon="bullseye",
       tags$p(class="text-muted", style="font-size:0.82rem;",
              "What are your 3 main learning goals entering residency?"),
@@ -709,27 +988,42 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       .ta(ns("s_e_ume_goal3"),"Goal 3",.fv(sr,"s_e_ume_goal3"),rows=2),
       .save_btn(ns,"save_goals")),
 
+    # Background questions → saved to resident_data
+    .sec_card(title="Background Questions", icon="geo-alt-fill",
+      tags$p(class="text-muted mb-3", style="font-size:0.82rem;",
+             "These help us track our program's regional impact — one answer per question."),
+      yn_q("hs_mo",     "Did any of your high school education take place in Missouri?",     .fv(res,"hs_mo")),
+      yn_q("college_mo","Did any of your college / undergraduate education take place in Missouri?", .fv(res,"college_mo")),
+      yn_q("med_mo",    "Did you attend medical school in Missouri?",                        .fv(res,"med_mo")),
+      yn_q("slusom",    "Are you a Saint Louis University School of Medicine (SLUSOM) graduate?", .fv(res,"slusom")),
+      .save_btn(ns,"save_background")),
+
+    # Preparedness ratings — compact matrix instead of 17 dropdowns
     .sec_card(title="Preparedness Ratings", icon="clipboard-check",
-      tags$p(class="text-muted", style="font-size:0.82rem;",
-             "1 = Not at all prepared · 5 = Extremely prepared"),
-      div(lapply(names(.PREP_LABELS), function(n) {
-        cur <- .fv(sr,paste0("s_e_prep_",n))
-        div(class="mb-2",
-          tags$label(style="font-size:0.85rem; color:#2c3e50; display:block; margin-bottom:3px;",
-                     .PREP_LABELS[[n]]),
-          tags$select(id=ns(paste0("s_e_prep_",n)), class="form-select form-select-sm",
-                      style="max-width:280px;",
-            tags$option(value="", if(cur=="") "-- select --"),
-            lapply(names(.PREP_SCALE), function(v)
-              tags$option(value=v, selected=if(cur==v) NA else NULL, .PREP_SCALE[[v]]))))
-      })),
+      tags$p(class="text-muted mb-3", style="font-size:0.82rem;",
+             "Rate your preparedness for each skill area. Be honest — this is for your benefit!"),
+      .prep_matrix_ui(ns, sr),
       .save_btn(ns,"save_prep")),
 
     .form_topics_section(ns, sr, dd, tc, sc, sel_t, sel_s, psr),
 
+    # Milestone self-assessment
+    .sec_card(title="Milestone Self-Assessment", icon="graph-up-arrow",
+      div(class="alert alert-light border mb-3 py-1 px-2",
+          style="font-size:0.78rem; border-left:3px solid #198754 !important;",
+          tags$i(class="bi bi-info-circle me-1"),
+          "Rate yourself on each ACGME milestone. Ratings of 4+ require a brief description."),
+      uiOutput(ns("milestone_ui")),
+      uiOutput(ns("milestone_save_status"))),
+
+    # Concerns — optional (not tracked for completion)
     .sec_card(title="Concerns / Additional Notes", icon="chat-text",
+      div(class="alert alert-light border mb-3 py-1 px-2",
+          style="font-size:0.78rem; border-left:3px solid #6c757d !important;",
+          tags$i(class="bi bi-info-circle me-1"),
+          "Optional — anything you'd like the program to know before you start."),
       .ta(ns("s_e_ume_concern"),
-          "Any concerns or things you'd like your program to know?",
+          "Any concerns or questions for the program?",
           .fv(sr,"s_e_ume_concern"), rows=4),
       .save_btn(ns,"save_concerns"))
   )
@@ -737,7 +1031,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
 
 # ── Standard periods (1-5) ────────────────────────────────────────────────────
 
-.form_std <- function(ns, p, sr, ir, dd, psr, ev, chk) {
+.form_std <- function(ns, p, sr, ir, dd, psr, ev, chk, ite_data = NULL, pgy = 1L) {
   tc <- .dd_choices(dd,"s_e_topic_sel"); sc <- .dd_choices(dd,"s_e_learn_style")
   cp <- .dd_choices(dd,"s_e_career_path"); fl <- .dd_choices(dd,"s_e_fellow")
   tr <- .dd_choices(dd,"s_e_track_type")
@@ -817,7 +1111,12 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       .ta(ns("s_e_progfeed"),"Other comments",.fv(sr,"s_e_progfeed"),rows=2),
       .save_btn(ns,"save_feedback")),
 
-    # 5. Milestone Self-Assessment
+    # 5. Boards & ITE
+    .sec_card(title="Boards & ITE", icon="clipboard2-pulse-fill",
+      .ite_board_section_ui(ns, sr, dd, ite_data, pgy),
+      .save_btn(ns, "save_boards", "Save Board Info")),
+
+    # 6. Milestone Self-Assessment
     .sec_card(title="Milestone Self-Assessment", icon="graph-up-arrow",
       div(class="alert alert-light border mb-3 py-1 px-2",
           style="font-size:0.78rem; border-left:3px solid #198754 !important;",
@@ -826,7 +1125,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       uiOutput(ns("milestone_ui")),
       uiOutput(ns("milestone_save_status"))),
 
-    # 6. ILP Goals
+    # 7. ILP Goals
     .sec_card(title="Individual Learning Plan Goals", icon="map-fill",
       div(class="alert alert-light border mb-3 py-1 px-2",
           style="font-size:0.8rem; border-left:4px solid #6f42c1 !important;",
@@ -860,10 +1159,34 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
 
 # ── Period 6 (Graduating) ────────────────────────────────────────────────────
 
-.form_p6 <- function(ns, p, sr, dd, psr, ev, chk) {
+.form_p6 <- function(ns, p, sr, dd, psr, ev, res, chk, ite_data = NULL) {
   tc <- .dd_choices(dd,"s_e_topic_sel"); sc <- .dd_choices(dd,"s_e_learn_style")
-  s3 <- .dd_choices(dd,"s_e_step3")
+  mksap_ch <- .dd_choices(dd,"s_e_mksap_comp")
+  grad_spec_ch <- .dd_choices(dd,"grad_spec")
   sel_t <- .checked_codes(sr,"s_e_topic_sel"); sel_s <- .checked_codes(sr,"s_e_learn_style")
+
+  # PGY3 ITE panel for graduation period
+  ite_pct <- tryCatch({
+    if (!is.null(ite_data)&&nrow(ite_data)>0&&"pgy3_tot_correct"%in%names(ite_data)) {
+      v <- ite_data[["pgy3_tot_correct"]][1]
+      if (!is.na(v)&&nzchar(as.character(v))) as.numeric(v) else NA_real_
+    } else NA_real_
+  }, error=function(e) NA_real_)
+
+  yn_row <- function(id, label, val)
+    div(class="mb-2 d-flex align-items-center gap-3 flex-wrap",
+      tags$label(label, style="font-size:0.83rem; color:#2c3e50; min-width:280px; margin:0;"),
+      div(class="btn-group btn-group-sm",
+        tags$input(type="radio", class="btn-check", name=ns(id),
+                   id=paste0(ns(id),"_1"), value="1",
+                   if (val=="1") list(checked="checked") else list()),
+        tags$label(class=paste0("btn btn-outline-success",if(val=="1")" active" else ""),
+                   `for`=paste0(ns(id),"_1"), "Yes"),
+        tags$input(type="radio", class="btn-check", name=ns(id),
+                   id=paste0(ns(id),"_0"), value="0",
+                   if (val=="0") list(checked="checked") else list()),
+        tags$label(class=paste0("btn btn-outline-secondary",if(val=="0")" active" else ""),
+                   `for`=paste0(ns(id),"_0"), "No")))
 
   div(
     div(class="alert alert-info mb-3 py-2 px-3",
@@ -881,25 +1204,88 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
           .fv(sr,"s_e_delta"),rows=3),
       .save_btn(ns,"save_reflection")),
 
+    # Board prep — full fields per item 8
     .sec_card(title="Board Preparation", icon="clipboard2-data-fill",
-      if (!is.null(s3)) {
-        sv <- .fv(sr,"s_e_step3")
-        div(class="mb-3",
-          tags$label("Step 3 / USMLE Status", class="form-label fw-semibold",
-                     style="font-size:0.85rem;"),
-          tags$select(id=ns("s_e_step3"), class="form-select form-select-sm",
-                      style="max-width:280px;",
-            tags$option(value="", if(sv=="") "-- select --"),
-            lapply(names(s3), function(v)
-              tags$option(value=v, selected=if(sv==v) NA else NULL, s3[[v]]))))
+      if (!is.na(ite_pct)) {
+        risk_col   <- if (ite_pct>=70) "#2e7d32" else if (ite_pct>=60) "#e65100" else "#c62828"
+        risk_label <- if (ite_pct>=70) "On track" else if (ite_pct>=60) "Monitor" else "At risk"
+        div(class="alert mb-3 py-2 px-3",
+            style=paste0("background:#f8fafc; border-left:4px solid ",risk_col,"; font-size:0.83rem;"),
+          div(class="d-flex align-items-center gap-3",
+            div(style="text-align:center; min-width:60px;",
+              tags$span(style=paste0("font-size:1.4rem; font-weight:700; color:",risk_col),
+                        paste0(round(ite_pct,1),"%")),
+              tags$p(style="font-size:0.68rem; color:#6c757d; margin:0;", "PGY3 ITE")),
+            tags$p(style="margin:0; font-size:0.82rem;",
+                   tags$strong("Board readiness: "),
+                   tags$span(style=paste0("color:",risk_col,"; font-weight:700;"), risk_label))))
       },
-      .ta(ns("s_e_board_target"),"ABIM target / goal",
-          .fv(sr,"s_e_board_target"),rows=1),
-      .ta(ns("s_e_board_concern"),"Any concerns about boards?",
-          .fv(sr,"s_e_board_concern"),rows=2),
-      .ta(ns("s_e_board_plan"),"Study plan / resources being used",
-          .fv(sr,"s_e_board_plan"),rows=3),
+      yn_row("s_e_step3",         "Have you completed Step 3 / USMLE?",          .fv(sr,"s_e_step3")),
+      yn_row("s_e_step3_contact", "Have you sent your Step 3 score to the program?", .fv(sr,"s_e_step3_contact")),
+      div(class="mt-3 mb-1 pt-2", style="border-top:1px solid #f0f0f0;"),
+      yn_row("s_e_board_concern", "Do you have concerns about failing boards?",   .fv(sr,"s_e_board_concern")),
+      yn_row("s_e_board_help",    "Have you previously discussed this with the program?", .fv(sr,"s_e_board_help")),
+      .ta(ns("s_e_board_discu"),  "Who have you spoken with / what steps are being taken?",
+          .fv(sr,"s_e_board_discu"), rows=2),
+      if (!is.null(mksap_ch)) div(class="mt-2",
+        tags$label("MKSAP completion", style="font-size:0.83rem; color:#2c3e50; font-weight:600;"),
+        tags$select(id=ns("s_e_mksap_comp"), class="form-select form-select-sm",
+                    style="max-width:340px;",
+          tags$option(value="", if(.fv(sr,"s_e_mksap_comp")=="") "-- select --"),
+          lapply(names(mksap_ch), function(v)
+            tags$option(value=v, selected=if(.fv(sr,"s_e_mksap_comp")==v) NA else NULL,
+                        mksap_ch[[v]])))),
+      .ta(ns("s_e_board_plan"), "Study plan / resources being used",
+          .fv(sr,"s_e_board_plan"), rows=2),
       .save_btn(ns,"save_board")),
+
+    # Graduation / Alumni info → saved to resident_data
+    .sec_card(title="Graduation Info", icon="mortarboard-fill",
+      tags$p(class="text-muted mb-3", style="font-size:0.82rem;",
+             "This information helps us track alumni outcomes. All fields update your resident record."),
+      div(class="row g-3",
+        div(class="col-md-6",
+          if (!is.null(grad_spec_ch)) {
+            sv <- .fv(res,"grad_spec")
+            tagList(
+              tags$label("Post-residency specialty", class="form-label fw-semibold",
+                         style="font-size:0.85rem;"),
+              tags$select(id=ns("grad_spec"), class="form-select form-select-sm",
+                tags$option(value="", if(sv=="") "-- select --"),
+                lapply(names(grad_spec_ch), function(v)
+                  tags$option(value=v, selected=if(sv==v) NA else NULL, grad_spec_ch[[v]]))))
+          },
+          div(class="mt-3",
+            tags$label("Current / future position title", class="form-label fw-semibold",
+                       style="font-size:0.85rem;"),
+            tags$input(type="text", id=ns("res_alumni_position"),
+                       class="form-control form-control-sm",
+                       placeholder="e.g., Hospitalist at SSM Health",
+                       value=.fv(res,"res_alumni_position")))),
+        div(class="col-md-6",
+          yn_row("res_alumni_academic", "Academic medicine position?",      .fv(res,"res_alumni_academic")),
+          div(class="mt-2",
+          yn_row("chief",               "Chief resident?",                   .fv(res,"chief"))),
+          div(class="mt-2",
+          yn_row("ssm",                 "Staying within SSM Health System?", .fv(res,"ssm"))),
+          div(class="mt-2",
+          yn_row("mo_prac",             "Practicing in Missouri?",           .fv(res,"mo_prac"))),
+          div(class="mt-2",
+          yn_row("rural",               "Rural practice setting?",           .fv(res,"rural"))),
+          div(class="mt-2",
+          yn_row("und_urban",           "Underserved / urban setting?",      .fv(res,"und_urban"))))),
+      div(class="row g-3 mt-1",
+        div(class="col-md-6",
+          tags$label("Best future email address", class="form-label fw-semibold",
+                     style="font-size:0.85rem;"),
+          tags$input(type="email", id=ns("grad_email"), class="form-control form-control-sm",
+                     placeholder="you@example.com", value=.fv(res,"grad_email"))),
+        div(class="col-md-6",
+          tags$label("Best future phone number", class="form-label fw-semibold",
+                     style="font-size:0.85rem;"),
+          tags$input(type="tel", id=ns("grad_phone"), class="form-control form-control-sm",
+                     placeholder="314-555-0100", value=.fv(res,"grad_phone")))),
+      .save_btn(ns,"save_alumni","Save Graduation Info")),
 
     .form_topics_section(ns, sr, dd, tc, sc, sel_t, sel_s, psr),
 
