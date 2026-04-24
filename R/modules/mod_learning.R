@@ -13,33 +13,7 @@
 #   pgy*_total_ile   = national percentile (relative)
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
-
-# McDonald et al. 2020 (Academic Medicine) — Figure 2 Nomogram
-# Logistic regression: P(pass) = 1 / (1 + exp(-(b0 + b1 * ITE_%_correct)))
-# Coefficients derived from published anchor points.
-.NOMOGRAM_PARAMS <- list(
-  `1` = list(b0 = -7.0641,  b1 = 0.1811),   # PGY-1
-  `2` = list(b0 = -8.1445,  b1 = 0.1733),   # PGY-2
-  `3` = list(b0 = -11.9491, b1 = 0.2173)    # PGY-3
-)
-
-.pass_prob <- function(pct, pgy) {
-  if (is.na(pct) || is.na(pgy)) return(NA_real_)
-  pgy <- as.character(max(1L, min(3L, as.integer(pgy))))
-  p <- .NOMOGRAM_PARAMS[[pgy]]
-  1.0 / (1.0 + exp(-(p$b0 + p$b1 * pct)))
-}
-
-.risk_from_prob <- function(prob) {
-  if (is.na(prob)) return(list(level = "No Data", class = "alert-secondary",
-                                color = "#adb5bd"))
-  if (prob < 0.50) return(list(level = "High Risk",      class = "alert-danger",
-                                color = "#d32f2f"))
-  if (prob < 0.75) return(list(level = "Moderate Risk",  class = "alert-warning",
-                                color = "#e65100"))
-  return(           list(level = "Low Risk",              class = "alert-success",
-                          color = "#2e7d32"))
-}
+# .NOMOGRAM_PARAMS / .pass_prob / .risk_from_prob defined in global.R (shared)
 
 # Generate nomogram curve data for plotting (20–100% at 0.5% steps)
 .nomogram_curves <- function() {
@@ -110,7 +84,18 @@ mod_learning_server <- function(id, rdm_data, resident_id) {
       df <- rdm_data()$all_forms$test_data
       if (is.null(df) || nrow(df) == 0) df <- rdm_data()$residents
       if (is.null(df) || nrow(df) == 0) return(NULL)
-      df %>% dplyr::filter(record_id == resident_id())
+      td <- df %>% dplyr::filter(record_id == resident_id())
+      if (nrow(td) == 0) return(td)
+      # If multiple rows (repeating instrument), take the most recent instance
+      if ("redcap_repeat_instance" %in% names(td) && nrow(td) > 1) {
+        td <- td %>%
+          dplyr::mutate(.inst = suppressWarnings(as.integer(
+            .data$redcap_repeat_instance))) %>%
+          dplyr::arrange(dplyr::desc(.inst)) %>%
+          dplyr::slice(1) %>%
+          dplyr::select(-.inst)
+      }
+      td
     })
     questions_r <- reactive({
       req(rdm_data(), resident_id())
@@ -470,11 +455,11 @@ mod_learning_server <- function(id, rdm_data, resident_id) {
     }
 
     # Plot 1: ABIM pass probability nomogram — 3 curves + resident's points
+    # Renders even when no resident pct data (shows reference curves only)
     output$ite_nomogram_plot <- plotly::renderPlotly({
-      td <- test_r()
+      td   <- test_r()
       if (is.null(td) || nrow(td) == 0) return(NULL)
-      pcts <- .pct_vec(td)
-      if (length(pcts) == 0) return(NULL)
+      pcts <- .pct_vec(td)  # may be length-0 → curves only
 
       curves <- .nomogram_curves()
       curve_cols  <- c("1"="#4e79a7", "2"="#59a14f", "3"="#f28e2b")
@@ -641,8 +626,8 @@ mod_learning_server <- function(id, rdm_data, resident_id) {
           div(style=paste0("background:#fff; border-left:5px solid ",risk$color,";",
                            " border-radius:0 8px 8px 0; padding:16px;",
                            " box-shadow:0 1px 4px rgba(0,0,0,.07);"),
-            tags$p(style="font-size:0.7rem; font-weight:700; text-transform:uppercase;",
-                   " letter-spacing:.07em; color:#6c757d; margin-bottom:8px;",
+            tags$p(style=paste0("font-size:0.7rem; font-weight:700; text-transform:uppercase;",
+                               " letter-spacing:.07em; color:#6c757d; margin-bottom:8px;"),
                    paste0("PGY-", y)),
             if (!is.na(pct_v))
               tagList(
@@ -727,15 +712,22 @@ mod_learning_server <- function(id, rdm_data, resident_id) {
           if (length(yr_cards) > 0)
             div(class="row g-3 mb-4", yr_cards),
 
-          # Nomogram chart (primary — 3 curves + resident's dots)
-          if (has_pct)
-            div(class="mb-4",
-              sec_lbl("graph-up-arrow", "ABIM Pass Probability Nomogram"),
+          # Nomogram chart — always shown; dots only appear when % correct is available
+          div(class="mb-4",
+            sec_lbl("graph-up-arrow", "ABIM Pass Probability Nomogram"),
+            if (has_pct)
               tags$p(class="text-muted small mb-2",
                 "All three PGY curves are shown. Your scores are plotted as diamonds ",
-                "on their corresponding curve. Hover for exact probability."),
-              plotly::plotlyOutput(ns("ite_nomogram_plot"), height="320px")
-            ),
+                "on their corresponding curve. Hover for exact probability.")
+            else
+              div(class="alert alert-light border mb-3 py-2 px-3",
+                  style="font-size:0.8rem; border-left:3px solid #adb5bd;",
+                tags$i(class="bi bi-info-circle me-1"),
+                "Your ITE ", tags$strong("% correct"), " has not been entered yet — ",
+                "the three reference curves are shown so you can see what score ",
+                "corresponds to each risk level. Your dot will appear once % correct is recorded."),
+            plotly::plotlyOutput(ns("ite_nomogram_plot"), height="320px")
+          ),
 
           # Percentile trajectory (secondary)
           if (has_ile)

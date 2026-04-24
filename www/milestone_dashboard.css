@@ -62,3 +62,176 @@
 .plotly, .js-plotly-plot {
   width: 100% !important;
 }
+
+/* ── Login page ──────────────────────────────────────────────────────────────── */
+.login-brand-header {
+  background: #003d5c;
+  color: white;
+  padding: 18px 32px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: -24px -24px 40px -24px;
+}
+
+.login-brand-badge {
+  background: rgba(255, 255, 255, 0.15);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  padding: 4px 10px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.login-brand-title {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.login-brand-sub {
+  margin-left: auto;
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.login-disclaimer {
+  background: #f8fafc;
+  border: 1px solid #dde5ed;
+  border-left: 4px solid #0066a1;
+  border-radius: 6px;
+  padding: 14px 16px;
+  font-size: 0.875rem;
+  color: #4a5568;
+  line-height: 1.7;
+  margin-bottom: 24px;
+}
+
+.login-code-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid #cdd5df;
+  border-radius: 6px;
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.login-submit-btn {
+  width: 100%;
+  margin-top: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+/* ── Collapsible info notes ──────────────────────────────────────────────────── */
+.info-note {
+  font-size: 0.82rem;
+  color: #546e7a;
+  margin-bottom: 0.75rem;
+  border-left: 3px solid #b0c4d8;
+  padding-left: 10px;
+}
+
+.info-note summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #0066a1;
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  user-select: none;
+}
+
+.info-note summary::-webkit-details-marker { display: none; }
+
+.info-note[open] summary {
+  margin-bottom: 6px;
+}
+
+.info-note-body {
+  line-height: 1.65;
+  padding-top: 4px;
+}
+
+.info-note-body p {
+  margin-bottom: 4px;
+}
+
+/* ── Startup loading overlay ─────────────────────────────────────────────────── */
+#loading_overlay {
+  position: fixed;
+  inset: 0;
+  background: #f3f6fa;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  transition: opacity 0.4s ease;
+}
+
+#loading_overlay.fadeout {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loading-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.loading-brand-badge {
+  background: #003d5c;
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  padding: 4px 10px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.loading-brand-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #003d5c;
+  margin: 0;
+  letter-spacing: 0.01em;
+}
+
+.loading-spinner-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+/* SSM-branded ring spinner — pure CSS, no extra packages */
+.loading-ring {
+  width: 48px;
+  height: 48px;
+  border: 4px solid #dde5ed;
+  border-top-color: #0066a1;
+  border-radius: 50%;
+  animation: loading-spin 0.85s linear infinite;
+}
+
+@keyframes loading-spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-label {
+  font-size: 0.88rem;
+  color: #546e7a;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}

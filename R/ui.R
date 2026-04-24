@@ -14,6 +14,7 @@ ui <- gmed_page(
       href = "https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
     ),
     tags$link(rel = "stylesheet", type = "text/css", href = "milestone_dashboard.css"),
+    tags$script(src = "app.js"),
 
     # Inline overrides — guaranteed to load last and win
     tags$style(HTML("
@@ -48,6 +49,24 @@ ui <- gmed_page(
         .gmed-nav-grid { grid-template-columns: repeat(2, 1fr) !important; }
       }
     "))
+  ),
+
+  # Injects a CSS rule to hide the overlay once data_ready() fires server-side
+  uiOutput("overlay_hide"),
+
+  # Startup loading overlay — hidden by server once data_ready() fires
+  div(
+    id = "loading_overlay",
+    div(
+      class = "loading-brand",
+      div(class = "loading-brand-badge", "SSM HEALTH \u00b7 SLUCARE"),
+      tags$h1(class = "loading-brand-title", "IMSLU Resident Dashboard")
+    ),
+    div(
+      class = "loading-spinner-wrap",
+      div(class = "loading-ring"),
+      div(class = "loading-label", "Loading\u2026")
+    )
   ),
 
   # Single content area — server renders login | home | section

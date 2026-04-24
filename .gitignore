@@ -7,3 +7,13 @@ config.yml
 .RData
 .Ruserdata
 .Renviron
+
+# renv package cache (users restore locally)
+renv/library/
+renv/staging/
+renv/local/
+renv/cellar/
+
+# macOS
+.DS_Store
+**/.DS_Store

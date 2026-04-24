@@ -10,18 +10,75 @@ server <- function(input, output, session) {
     nav           = "login" # "login" | "home" | <block id>
   )
 
-  # ── Data loading (fires once on startup) ───────────────────────────────────
-  data_ready <- reactiveVal(FALSE)
+  # ── Two-phase data loading ─────────────────────────────────────────────────
+  # Phase 1 (~4 s): fetch residents only — unblocks login UI
+  # Phase 2 (~25 s): fetch full data — triggered after Phase 1 completes
+  residents_ready <- reactiveVal(FALSE)
+  data_ready      <- reactiveVal(FALSE)
 
+  # Phase 1 — blocking but fast; dismisses loading overlay when done
   observe({
-    load_app_data()
-    data_ready(TRUE)
+    tryCatch(load_app_residents(), error = function(e) {
+      message("Phase 1 error: ", e$message)
+    })
+    residents_ready(TRUE)
+  })
+
+  # Phase 2 — background R worker populates globals; poller detects completion
+  observeEvent(residents_ready(), once = TRUE, {
+    if (!is.null(app_data_store)) {
+      data_ready(TRUE)
+      return()
+    }
+
+    token     <- app_config$rdm_token
+    url       <- app_config$redcap_url
+    fac_token <- app_config$fac_token
+
+    message("Phase 2: loading full RDM data (background)...")
+
+    # Only assign to globals in the callback — no reactive state touched here.
+    # data_ready() is set by the poller below, which runs in the proper domain.
+    future_promise({
+      list(
+        rdm = gmed::load_rdm_complete(rdm_token = token, redcap_url = url,
+                                      verbose = FALSE, raw_or_label = "raw"),
+        fac = gmed::load_faculty_roster(fac_token = fac_token, redcap_url = url)
+      )
+    }, globals  = list(token = token, url = url, fac_token = fac_token),
+       packages = c("gmed", "dplyr", "httr", "jsonlite"),
+       seed     = NULL) %...>% (function(result) {
+      app_data_store       <<- result$rdm
+      faculty_roster_store <<- result$fac
+    }) %...!% (function(err) {
+      message("Phase 2 error: ", conditionMessage(err))
+      # Leave app_data_store NULL — poller will detect and unblock anyway
+    })
+
+    NULL
+  })
+
+  # Poller: runs inside the reactive domain; sets data_ready once globals land
+  observe({
+    req(residents_ready())
+    if (isolate(data_ready())) return()
+    invalidateLater(500)
+    if (!is.null(app_data_store)) {
+      message("Phase 2 done — ", nrow(app_data_store$residents), " residents, ",
+              nrow(app_data_store$all_forms$assessment), " assessments.")
+      data_ready(TRUE)
+    }
+  })
+
+  # Hide loading overlay as soon as Phase 1 completes (residents available)
+  output$overlay_hide <- renderUI({
+    if (!residents_ready()) return(NULL)
+    tags$style("#loading_overlay { display: none !important; }")
   })
 
   # ── Auto-fill access code from URL query param ?code=XXX ──────────────────
   # Allows deep-linking from CCC dashboard: open this app with resident pre-authed
-  observeEvent(data_ready(), {
-    req(data_ready())
+  observeEvent(residents_ready(), once = TRUE, {
     query <- parseQueryString(session$clientData$url_search)
     code  <- query[["code"]]
     if (!is.null(code) && nchar(trimws(code)) > 0) {
@@ -37,14 +94,17 @@ server <- function(input, output, session) {
         safe_code
       ))
     }
-  }, once = TRUE)
+  })
 
   # ── Authentication ─────────────────────────────────────────────────────────
+  # Phase 1 residents are enough for auth; Phase 2 data used by modules.
   auth_result <- mod_auth_server(
     id          = "auth",
     residents_r = reactive({
-      req(data_ready())
-      app_data_store$residents
+      req(residents_ready())
+      # Prefer Phase 2 residents (already merged + leveled via full load)
+      # but fall back to Phase 1 store while Phase 2 is still running.
+      if (data_ready()) app_data_store$residents else residents_store
     })
   )
 
@@ -54,6 +114,40 @@ server <- function(input, output, session) {
     values$authenticated <- TRUE
     values$resident      <- res$resident_info
     values$nav           <- "home"
+  })
+
+  # ── Phase 3: per-resident data load (triggered on login, ~3–5 s) ──────────
+  # Fetches only this resident's records across all forms.  Much faster than
+  # waiting for Phase 2 (full cohort).  Modules become usable immediately.
+  resident_rv <- reactiveValues(store = NULL, ready = FALSE)
+
+  observeEvent(values$resident, {
+    req(values$resident)
+    rec_id    <- values$resident$record_id
+    token     <- app_config$rdm_token
+    url       <- app_config$redcap_url
+
+    message("Phase 3: loading data for resident ", rec_id, "...")
+
+    future_promise({
+      gmed::load_rdm_for_resident(
+        rdm_token   = token,
+        redcap_url  = url,
+        record_id   = rec_id,
+        raw_or_label = "raw"
+      )
+    }, globals  = list(token = token, url = url, rec_id = rec_id),
+       packages = c("gmed", "httr", "jsonlite"),
+       seed     = NULL) %...>% (function(result) {
+      resident_rv$store <- result
+      resident_rv$ready <- TRUE
+      message("Phase 3 done — resident ", rec_id)
+    }) %...!% (function(err) {
+      message("Phase 3 error for ", rec_id, ": ", conditionMessage(err))
+      # Fall through to Phase 2 data via rdm_data()
+    })
+
+    NULL
   })
 
   # ── Navigation ─────────────────────────────────────────────────────────────
@@ -66,16 +160,43 @@ server <- function(input, output, session) {
     values$nav <- "home"
   })
 
+  observeEvent(input$sign_out, {
+    values$authenticated <- FALSE
+    values$resident      <- NULL
+    values$nav           <- "login"
+  })
+
   # ── Shared reactives passed to every module ────────────────────────────────
-  rdm_data    <- reactive({ req(values$authenticated); app_data_store })
-  resident_id <- reactive({ req(values$resident); values$resident$record_id })
+  # Priority: Phase 3 (per-resident, fast) > Phase 2 (full cohort, slow).
+  # When Phase 2 finishes, enriches Phase 3 data with cohort stats in-place.
+  rdm_data <- reactive({
+    req(values$authenticated)
+
+    if (resident_rv$ready) {
+      rd <- resident_rv$store
+      # Splice in cohort stats from Phase 2 if available
+      if (data_ready() && !is.null(app_data_store)) {
+        rd$milestone_workflow <- app_data_store$milestone_workflow
+        rd$historical_medians <- app_data_store$historical_medians
+      }
+      rd
+    } else {
+      # Phase 3 not yet done — wait for Phase 2 as fallback
+      req(data_ready())
+      app_data_store
+    }
+  })
+
+  resident_id    <- reactive({ req(values$resident); values$resident$record_id })
+  faculty_roster <- reactive({ req(values$authenticated, data_ready()); faculty_roster_store })
 
   # ── Module servers (initialized once; guard internally with req()) ─────────
   mod_evaluations_server( "evaluations",  rdm_data = rdm_data, resident_id = resident_id)
   mod_learning_server(    "learning",     rdm_data = rdm_data, resident_id = resident_id)
   mod_milestones_server(  "milestones",   rdm_data = rdm_data, resident_id = resident_id)
   mod_scholarship_server( "scholarship",  rdm_data = rdm_data, resident_id = resident_id)
-  mod_faculty_eval_server("faculty_eval", rdm_data = rdm_data, resident_id = resident_id)
+  mod_faculty_eval_server("faculty_eval", rdm_data = rdm_data, resident_id = resident_id,
+                          faculty_roster_r = faculty_roster)
   mod_self_eval_server(   "self_eval",    rdm_data = rdm_data, resident_id = resident_id)
   mod_schedule_server(    "schedule")
   mod_resources_server(   "resources")
@@ -85,145 +206,39 @@ server <- function(input, output, session) {
 
     # ── LOGIN ────────────────────────────────────────────────────────────────
     if (!values$authenticated) {
-      return(tagList(
-
-        # Full-width brand header
-        div(
-          style = paste(
-            "background: #003d5c; color: white;",
-            "padding: 18px 32px;",
-            "display: flex; align-items: center; gap: 16px;",
-            "margin: -24px -24px 40px -24px;"   # bleed past container padding
-          ),
-          div(
-            style = "background: rgba(255,255,255,0.15); font-size:0.68rem;
-                     font-weight:700; letter-spacing:0.12em; padding: 4px 10px;
-                     border-radius: 3px; white-space: nowrap;",
-            "SSM HEALTH \u00b7 SLUCARE"
-          ),
-          tags$h1(
-            "IMSLU Resident Dashboard",
-            style = "margin:0; font-size:1.2rem; font-weight:700; letter-spacing:0.01em;"
-          ),
-          div(
-            style = "margin-left:auto; font-size:0.8rem; opacity:0.65;",
-            "Internal Medicine \u00b7 Saint Louis University"
-          )
-        ),
-
-        # Centered login card — col-lg-8 like the self-assessment
-        div(
-          class = "row justify-content-center",
-          div(
-            class = "col-lg-8 col-md-10 col-12",
-            div(
-              class = "card shadow-lg",
-              div(
-                class = "card-body p-5",
-
-                # Welcome header
-                div(
-                  class = "text-center mb-4",
-                  tags$h2(
-                    class = "mb-2",
-                    style = "color: #003d5c; font-weight: 700;",
-                    tags$i(class = "bi bi-person-circle me-2",
-                           style = "color: #0066a1;"),
-                    "Welcome"
-                  ),
-                  tags$p(
-                    class = "lead text-muted",
-                    "Access your evaluations, milestones, learning plan, and more."
-                  ),
-                  tags$hr()
-                ),
-
-                # Disclaimer
-                div(
-                  style = paste(
-                    "background: #f8fafc;",
-                    "border: 1px solid #dde5ed;",
-                    "border-left: 4px solid #0066a1;",
-                    "border-radius: 4px;",
-                    "padding: 16px 18px;",
-                    "font-size: 0.82rem;",
-                    "color: #4a5568;",
-                    "line-height: 1.7;",
-                    "margin-bottom: 28px;"
-                  ),
-                  paste(
-                    "This dashboard is for residents in the IMSLU Internal Medicine",
-                    "Residency Program to access their evaluations, competency progress,",
-                    "and learning plans. By entering your access code you acknowledge that",
-                    "this data is intended solely for the named resident and authorized",
-                    "program leadership. Unauthorized access or distribution is prohibited.",
-                    "All activity within this system may be monitored and logged."
-                  )
-                ),
-
-                # Access code form
-                # Input IDs match what mod_auth_server("auth") expects
-                div(
-                  tags$label(
-                    "Access Code",
-                    style = "font-size:0.82rem; font-weight:600; color:#2d3748; margin-bottom:6px; display:block;"
-                  ),
-                  tags$input(
-                    id          = "auth-access_code",
-                    type        = "password",
-                    placeholder = "Enter your access code",
-                    autocomplete = "off",
-                    style = paste(
-                      "width:100%; padding:10px 14px;",
-                      "border:1.5px solid #cdd5df; border-radius:5px;",
-                      "font-size:1rem; letter-spacing:0.08em;",
-                      "font-family:inherit; outline:none; box-sizing:border-box;"
-                    )
-                  ),
-                  tags$button(
-                    "Sign In",
-                    style = paste(
-                      "width:100%; margin-top:14px; padding:12px;",
-                      "background:#003d5c; color:white; border:none;",
-                      "border-radius:5px; font-size:0.95rem; font-weight:600;",
-                      "font-family:inherit; cursor:pointer;",
-                      "transition:background 0.2s;"
-                    ),
-                    onmouseover = "this.style.background='#0066a1'",
-                    onmouseout  = "this.style.background='#003d5c'",
-                    onclick = "Shiny.setInputValue('auth-access_code_btn', Math.random(), {priority:'event'})"
-                  ),
-                  # Enter key support
-                  tags$script(HTML(
-                    "document.getElementById('auth-access_code').addEventListener('keypress', function(e){
-                       if(e.key==='Enter') Shiny.setInputValue('auth-access_code_btn', Math.random(), {priority:'event'});
-                    });"
-                  )),
-                  uiOutput("auth-access_code_error")
-                )
-              )
-            )
-          )
-        )
-      ))
+      return(mod_auth_page_ui())
     }
 
     state <- values$nav
 
+    # ── Shared resident metadata ──────────────────────────────────────────────
+    res        <- values$resident
+    res_name   <- if (!is.null(res[["name"]])) res[["name"]] else "Resident"
+    res_level  <- if (!is.null(res[["Level"]])) res[["Level"]] else ""
+    coach_code <- res[["coach"]]
+    coach_name <- if (!is.null(coach_code) && !is.na(coach_code) && nzchar(as.character(coach_code)))
+                    get_coach_name_from_code(coach_code) else NULL
+
+    sign_out_btn <- tags$button(
+      class   = "btn btn-sm btn-outline-danger ms-2",
+      onclick = "Shiny.setInputValue('sign_out', Math.random(), {priority:'event'})",
+      tags$i(class = "bi bi-box-arrow-right me-1"), "Sign Out"
+    )
+
     # ── HOME ─────────────────────────────────────────────────────────────────
     if (state == "home") {
-      res   <- values$resident
-      name  <- if (!is.null(res[["name"]])) res[["name"]] else "Resident"
-      level <- if (!is.null(res[["Level"]])) paste0(" \u00b7 ", res[["Level"]]) else ""
+      level_str <- if (nzchar(res_level)) paste0(" \u00b7 ", res_level) else ""
+      coach_str <- if (!is.null(coach_name)) paste0(" \u00b7 Coach: ", coach_name) else ""
 
-      return(
+      return(tagList(
+        div(class = "d-flex justify-content-end mb-n2", sign_out_btn),
         gmed_nav_blocks(
           blocks   = resident_nav_blocks,
-          title    = paste0("Welcome, ", name),
-          subtitle = paste0("Internal Medicine \u00b7 Saint Louis University", level),
+          title    = paste0("Welcome, ", res_name),
+          subtitle = paste0("Internal Medicine \u00b7 Saint Louis University", level_str, coach_str),
           input_id = "nav_block"
         )
-      )
+      ))
     }
 
     # ── SECTION ──────────────────────────────────────────────────────────────
@@ -235,8 +250,14 @@ server <- function(input, output, session) {
 
       # Back / breadcrumb bar
       div(
-        class = "d-flex align-items-center mb-4 pb-3",
-        style = "border-bottom: 1px solid var(--ssm-border);",
+        class = "d-flex align-items-center mb-4",
+        style = paste(
+          "background: white;",
+          "border-radius: 10px;",
+          "padding: 10px 16px;",
+          "box-shadow: 0 2px 8px rgba(0,61,92,0.07);",
+          "border-left: 4px solid var(--ssm-secondary-blue);"
+        ),
         tags$button(
           class   = "btn btn-sm btn-outline-secondary me-3",
           onclick = "Shiny.setInputValue('nav_back', Math.random(), {priority: 'event'})",
@@ -249,6 +270,17 @@ server <- function(input, output, session) {
         tags$span(
           section_label,
           style = "font-weight: 700; font-size: 1.1rem; color: var(--ssm-primary-blue);"
+        ),
+        # Right side: resident name + coach + sign out
+        div(
+          class = "ms-auto d-flex align-items-center gap-2",
+          div(
+            style = "text-align:right; font-size:0.875rem; line-height:1.4;",
+            tags$div(style = "font-weight:600; color:var(--ssm-primary-blue);", res_name),
+            if (!is.null(coach_name))
+              tags$div(style = "font-size:0.8rem; color:#546e7a;", paste0("Coach: ", coach_name))
+          ),
+          sign_out_btn
         )
       ),
 
