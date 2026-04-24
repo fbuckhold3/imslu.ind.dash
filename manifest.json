@@ -802,6 +802,30 @@
         "Archs": "fs.so.dSYM"
       }
     },
+    "future": {
+      "Source": "CRAN",
+      "Repository": "https://cran.rstudio.com",
+      "description": {
+        "Package": "future",
+        "Version": "1.40.0",
+        "Title": "Unified Parallel and Distributed Processing in R for Everyone",
+        "Depends": "R (>= 3.2.0)",
+        "Imports": "digest, globals (>= 0.16.1), listenv (>= 0.8.0), parallel,\nparallelly (>= 1.43.0), utils",
+        "Suggests": "methods, RhpcBLASctl, R.rsp, markdown",
+        "VignetteBuilder": "R.rsp",
+        "License": "LGPL (>= 2.1)",
+        "LazyLoad": "TRUE",
+        "ByteCompile": "true",
+        "URL": "https://future.futureverse.org, https://github.com/futureverse/future",
+        "BugReports": "https://github.com/futureverse/future/issues",
+        "Encoding": "UTF-8",
+        "RoxygenNote": "7.3.2",
+        "NeedsCompilation": "no",
+        "Author": "Henrik Bengtsson [aut, cre, cph]",
+        "Maintainer": "Henrik Bengtsson <henrikb@braju.com>",
+        "Repository": "CRAN"
+      }
+    },
     "generics": {
       "Source": "CRAN",
       "Repository": "https://cran.rstudio.com",
@@ -891,6 +915,27 @@
         "Date/Publication": "2024-09-30 22:30:01 UTC",
         "Built": "R 4.3.3; aarch64-apple-darwin20; 2024-09-30 23:32:40 UTC; unix",
         "Archs": "glue.so.dSYM"
+      }
+    },
+    "globals": {
+      "Source": "CRAN",
+      "Repository": "https://cran.rstudio.com",
+      "description": {
+        "Package": "globals",
+        "Version": "0.17.0",
+        "Depends": "R (>= 3.1.2)",
+        "Imports": "codetools",
+        "Title": "Identify Global Objects in R Expressions",
+        "License": "LGPL (>= 2.1)",
+        "LazyLoad": "TRUE",
+        "ByteCompile": "true",
+        "URL": "https://globals.futureverse.org, https://github.com/futureverse/globals",
+        "BugReports": "https://github.com/futureverse/globals/issues",
+        "RoxygenNote": "7.3.2",
+        "NeedsCompilation": "no",
+        "Author": "Henrik Bengtsson [aut, cre, cph], Davis Vaughan [ctb]",
+        "Maintainer": "Henrik Bengtsson <henrikb@braju.com>",
+        "Repository": "CRAN"
       }
     },
     "gmed": {
@@ -1378,6 +1423,27 @@
         "Built": "R 4.3.1; ; 2023-11-15 03:32:00 UTC; unix"
       }
     },
+    "listenv": {
+      "Source": "CRAN",
+      "Repository": "https://cran.rstudio.com",
+      "description": {
+        "Package": "listenv",
+        "Version": "0.9.1",
+        "Depends": "R (>= 3.1.2)",
+        "Suggests": "R.utils, R.rsp, markdown",
+        "VignetteBuilder": "R.rsp",
+        "Title": "Environments Behaving (Almost) as Lists",
+        "License": "LGPL (>= 2.1)",
+        "LazyLoad": "TRUE",
+        "URL": "https://listenv.futureverse.org, https://github.com/HenrikBengtsson/listenv",
+        "BugReports": "https://github.com/HenrikBengtsson/listenv/issues",
+        "RoxygenNote": "7.3.1",
+        "NeedsCompilation": "no",
+        "Author": "Henrik Bengtsson [aut, cre, cph]",
+        "Maintainer": "Henrik Bengtsson <henrikb@braju.com>",
+        "Repository": "CRAN"
+      }
+    },
     "lubridate": {
       "Source": "CRAN",
       "Repository": "https://cran.rstudio.com",
@@ -1575,6 +1641,30 @@
         "Date/Publication": "2025-05-26 13:00:02 UTC",
         "Built": "R 4.3.3; aarch64-apple-darwin20; 2025-05-26 14:41:36 UTC; unix",
         "Archs": "openssl.so.dSYM"
+      }
+    },
+    "parallelly": {
+      "Source": "CRAN",
+      "Repository": "https://cran.rstudio.com",
+      "description": {
+        "Package": "parallelly",
+        "Version": "1.45.0",
+        "Title": "Enhancing the 'parallel' Package",
+        "Imports": "parallel, tools, utils",
+        "Suggests": "commonmark, base64enc",
+        "VignetteBuilder": "parallelly",
+        "License": "LGPL (>= 2.1)",
+        "LazyLoad": "TRUE",
+        "ByteCompile": "true",
+        "URL": "https://parallelly.futureverse.org, https://github.com/futureverse/parallelly",
+        "BugReports": "https://github.com/futureverse/parallelly/issues",
+        "Language": "en-US",
+        "Encoding": "UTF-8",
+        "RoxygenNote": "7.3.2",
+        "NeedsCompilation": "yes",
+        "Author": "Henrik Bengtsson [aut, cre, cph], Mike Cheng [ctb]",
+        "Maintainer": "Henrik Bengtsson <henrikb@braju.com>",
+        "Repository": "CRAN"
       }
     },
     "pillar": {
