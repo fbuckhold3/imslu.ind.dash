@@ -2137,7 +2137,12 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
     })
     observeEvent(input$save_reflection, {
       p <- local$sel_period; req(p %in% as.character(1:6), period_mode_r() %in% c("active","unknown"))
-      f <- list(s_e_period=p, s_e_plus=input$s_e_plus%||%"", s_e_delta=input$s_e_delta%||%"")
+      f <- list(s_e_period=p, s_e_plus=input$s_e_plus%||%"", s_e_delta=input$s_e_delta%||%"",
+                s_e_well=input$s_e_well%||%"",
+                s_e_discussion = if (isTRUE(input$discuss_with_mentor))
+                                   input$s_e_discussion %||% "" else "",
+                s_e_prog_assist = if (isTRUE(input$prog_assist_toggle))
+                                    input$s_e_prog_assist %||% "" else "")
       res <- .rc_save(resident_id(),"s_eval",as.integer(p),f); ss$reflection <- res
       if (res$success) { .merge_seva(p,f); .advance_after("reflection") }
     })
@@ -2159,9 +2164,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
                 s_e_prog_plus    = input$s_e_prog_plus    %||% "",
                 s_e_prog_delta   = input$s_e_prog_delta   %||% "",
                 s_e_progconf     = input$s_e_progconf     %||% "",
-                s_e_progfeed     = input$s_e_progfeed     %||% "",
-                s_e_discussion   = if (isTRUE(input$discuss_with_mentor))
-                                     input$s_e_discussion %||% "" else "")
+                s_e_progfeed     = input$s_e_progfeed     %||% "")
       res <- .rc_save(resident_id(),"s_eval",as.integer(p),f); ss$feedback <- res
       if (res$success) { .merge_seva(p,f); .advance_after("feedback") }
     })
@@ -2942,6 +2945,27 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       .prev_ref_text(.fv(psr,"s_e_delta"), label="Previous period \u2014 areas to develop"),
       .ta(ns("s_e_delta"),NULL,.fv(sr,"s_e_delta"),rows=3,
           placeholder="What do you want to work on next period?"),
+      .section_hdr("heart-pulse-fill","How are you doing mentally, emotionally, and physically?"),
+      .ta(ns("s_e_well"),NULL,.fv(sr,"s_e_well"),rows=3,
+          placeholder="Share anything about your wellness \u2014 work-life balance, stress, support needs..."),
+      # Mentor discussion gate
+      div(class="mt-3 mb-1 pt-2", style="border-top:1px dashed #dee2e6;"),
+      checkboxInput(ns("discuss_with_mentor"),
+                    "I have specific topics I'd like to discuss at my next mentor meeting",
+                    value=nzchar(.fv(sr,"s_e_discussion"))),
+      conditionalPanel(
+        condition=paste0("input['", ns("discuss_with_mentor"), "'] === true"),
+        .ta(ns("s_e_discussion"), NULL, .fv(sr,"s_e_discussion"), rows=3,
+            placeholder="Topics / agenda items for your next mentor meeting...")),
+      # Program-assistance gate
+      div(class="mt-3 mb-1 pt-2", style="border-top:1px dashed #dee2e6;"),
+      checkboxInput(ns("prog_assist_toggle"),
+                    "Is there anything the program can do to assist you?",
+                    value=nzchar(.fv(sr,"s_e_prog_assist"))),
+      conditionalPanel(
+        condition=paste0("input['", ns("prog_assist_toggle"), "'] === true"),
+        .ta(ns("s_e_prog_assist"), NULL, .fv(sr,"s_e_prog_assist"), rows=3,
+            placeholder="Tell us what would help \u2014 scheduling, mentorship, academic support, wellness resources, etc.")),
       .save_btn(ns,"save_reflection")),
 
     # 2. Career Planning
@@ -3104,6 +3128,27 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
             .fv(sr,"s_e_plus"),rows=3)),
       .ta(ns("s_e_delta"),"What would you do differently?",
           .fv(sr,"s_e_delta"),rows=3),
+      .ta(ns("s_e_well"),"How are you doing mentally, emotionally, and physically?",
+          .fv(sr,"s_e_well"),rows=3,
+          placeholder="Share anything about your wellness — work-life balance, stress, support needs..."),
+      # Mentor discussion gate
+      div(class="mt-3 mb-1 pt-2", style="border-top:1px dashed #dee2e6;"),
+      checkboxInput(ns("discuss_with_mentor"),
+                    "I have specific topics I'd like to discuss at my next mentor meeting",
+                    value=nzchar(.fv(sr,"s_e_discussion"))),
+      conditionalPanel(
+        condition=paste0("input['", ns("discuss_with_mentor"), "'] === true"),
+        .ta(ns("s_e_discussion"), NULL, .fv(sr,"s_e_discussion"), rows=3,
+            placeholder="Topics / agenda items for your next mentor meeting...")),
+      # Program-assistance gate
+      div(class="mt-3 mb-1 pt-2", style="border-top:1px dashed #dee2e6;"),
+      checkboxInput(ns("prog_assist_toggle"),
+                    "Is there anything the program can do to assist you?",
+                    value=nzchar(.fv(sr,"s_e_prog_assist"))),
+      conditionalPanel(
+        condition=paste0("input['", ns("prog_assist_toggle"), "'] === true"),
+        .ta(ns("s_e_prog_assist"), NULL, .fv(sr,"s_e_prog_assist"), rows=3,
+            placeholder="Tell us what would help — scheduling, mentorship, academic support, wellness resources, etc.")),
       .save_btn(ns,"save_reflection")),
 
     # 2. Graduation Info — cascading logic rendered server-side
@@ -3143,7 +3188,6 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
 # is_grad=TRUE adds "advice for future residents" framing to the last textarea
 
 .form_feedback_section <- function(ns, sr, is_grad = FALSE, collapsed = FALSE) {
-  has_discussion <- nzchar(.fv(sr, "s_e_discussion"))
   .sec_card(title="Program Feedback", icon="chat-dots-fill", collapsed=collapsed,
     tags$p(class="text-muted mb-3", style="font-size:0.82rem;",
            "Share candid feedback — this goes to program leadership, not your evaluating faculty."),
@@ -3161,17 +3205,6 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
     .ta(ns("s_e_progfeed"),
         if (is_grad) "Final comments / advice for future residents" else "Other program comments",
         .fv(sr,"s_e_progfeed"), rows=2),
-    # Mentor discussion gate
-    div(class="mt-3 mb-1 pt-2", style="border-top:1px dashed #dee2e6;"),
-    checkboxInput(ns("discuss_with_mentor"),
-                  "I have specific topics I'd like to discuss at my next mentor meeting",
-                  value=has_discussion),
-    conditionalPanel(
-      condition=paste0("input['", ns("discuss_with_mentor"), "'] === true"),
-      .ta(ns("s_e_discussion"),
-          NULL,
-          .fv(sr,"s_e_discussion"), rows=3,
-          placeholder="Topics / agenda items for your next mentor meeting...")),
     .save_btn(ns,"save_feedback"))
 }
 
