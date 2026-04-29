@@ -217,14 +217,23 @@
 
     # Verification read-back: REDCap can return the record id (so the body
     # check passes) even when it silently rejected every field \u2014 most
-    # commonly because the instrument isn't enabled as a repeating
-    # instrument in Project Setup. Re-fetch the same instance for one of
-    # the fields we just wrote and confirm at least one non-empty value
-    # round-tripped. If not, surface a real error so the user knows the
-    # save didn't actually land.
-    chk_field <- names(fields)[1]
-    written   <- if (length(chk_field)) as.character(fields[[chk_field]]) else ""
-    if (length(chk_field) && nzchar(chk_field) && nzchar(trimws(written))) {
+    # commonly when the API token has read but not write access to the
+    # form. Pick a field whose VALUE we just wrote (skipping key/period
+    # fields whose value is preserved from any pre-existing record) and
+    # confirm REDCap returns the exact value we sent. If the round-trip
+    # disagrees, surface a real save failure.
+    skip_keys <- c("record_id", "redcap_repeat_instrument",
+                   "redcap_repeat_instance", "year_resident", "s_e_period",
+                   "prog_mile_period_self")
+    chk_field <- NULL; written <- ""
+    for (fn in names(fields)) {
+      if (fn %in% skip_keys) next
+      v <- as.character(fields[[fn]])
+      if (length(v) >= 1 && !is.na(v[1]) && nzchar(trimws(v[1]))) {
+        chk_field <- fn; written <- v[1]; break
+      }
+    }
+    if (!is.null(chk_field)) {
       verify <- tryCatch({
         v_resp <- httr::POST(
           url  = app_config$redcap_url,
@@ -246,19 +255,20 @@
           "redcap_repeat_instance" %in% names(verify)) {
         match_row <- verify[as.character(verify$redcap_repeat_instance) ==
                               as.character(instance), , drop = FALSE]
-        landed <- nrow(match_row) > 0 &&
-                  !is.na(match_row[[chk_field]][1]) &&
-                  nzchar(trimws(as.character(match_row[[chk_field]][1])))
-        if (!landed) {
+        actual <- if (nrow(match_row) > 0)
+                    trimws(as.character(match_row[[chk_field]][1])) else ""
+        if (!identical(actual, trimws(written))) {
           message("[rc_save] VERIFY FAILED instrument=", instrument,
                   " instance=", instance, " field=", chk_field,
-                  " expected=", substr(written, 1, 60))
+                  " expected='", substr(written, 1, 60),
+                  "' actual='", substr(actual, 1, 60), "'")
           return(list(success = FALSE,
                       message = paste0(
-                        "REDCap accepted the request but did not store any '",
-                        instrument, "' fields. The instrument may not be ",
-                        "enabled as a repeating instrument in Project Setup, ",
-                        "or the API token lacks write access to that form.")))
+                        "REDCap returned success but the round-trip read of '",
+                        chk_field, "' did not match what was sent. ",
+                        "The API token likely lacks write access to the '",
+                        instrument, "' form (Read-Only or No Access). ",
+                        "Update User Rights in REDCap and try again.")))
         }
       }
     }
@@ -1750,6 +1760,15 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
 
         if (is.null(prev_name)) return(NULL)   # domain had no previous goal
 
+        # Prefer the descriptive label from .SUBCOMP_CHOICES (e.g. "PC1 \u2014
+        # History-taking / interviewing") when the data dictionary only has
+        # the bare label ("Patient Care 1"). Falls back to whatever was found.
+        sc <- .SUBCOMP_CHOICES[[domain]]
+        rich_name <- if (!is.null(sc)) {
+          rn <- names(sc)[sc == prev_code]
+          if (length(rn)) rn[1] else prev_name[1]
+        } else prev_name[1]
+
         # Prefer live input; fall back to saved value
         saved_val  <- .fv(ir, prior_fld)
         disp_val   <- if (!is.null(cur_val) && nzchar(cur_val)) cur_val
@@ -1757,7 +1776,8 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
                       else NULL
 
         prev_row   <- .fv(pir_data, row_fld)
-        lv_txt     <- if (nzchar(prev_level)) paste0(", Level ", prev_level) else ""
+        lv_txt     <- if (nzchar(prev_level)) paste0(" \u2014 Level ", prev_level) else ""
+        row_txt    <- if (nzchar(prev_row))   paste0("Row ", prev_row, ": ")    else ""
         goal_text  <- .get_goal_text(domain, prev_code, prev_row, prev_level, dd)
 
         div(class = "mb-4 pb-3", style = "border-bottom:1px solid #f0f0f0;",
@@ -1770,12 +1790,15 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
                    tags$i(class = paste0("bi bi-", icon_cls, " me-1")), domain_label,
                    " \u2014 Previous Goal"),
             tags$p(style = "font-size:0.78rem; color:#5b6e84; margin:0 0 2px; font-weight:600;",
-                   paste0(prev_name[1], lv_txt)),
+                   paste0(rich_name, lv_txt)),
             if (!is.null(goal_text))
               tags$p(style = "font-size:0.82rem; color:#2c3e50; margin:0; line-height:1.4;
                               font-style:italic;",
                      tags$i(class = "bi bi-quote me-1", style = "opacity:0.4;"),
-                     goal_text)),
+                     paste0(row_txt, goal_text))
+            else if (nzchar(prev_row) || nzchar(prev_level))
+              tags$p(style = "font-size:0.78rem; color:#9ca3af; margin:0; font-style:italic;",
+                     "(milestone anchor text not recorded for this row/level)")),
 
           # Achievement yes/no — onclick on LABEL (visible click target in btn-check)
           div(class = "mb-2 d-flex align-items-center gap-3",
@@ -2140,39 +2163,69 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
     output$ilp_pending_preview <- renderUI({
       req(local$sel_period %in% as.character(1:5))
       dd <- data_dict_r()
+      ir <- sel_ilp()
       lv_labels <- c("1"="Novice","2"="Adv Beginner","3"="Competent",
                      "4"="Proficient","5"="Expert")
+      # Live-or-saved: use the input value if set, otherwise fall back to the
+      # saved REDCap value. Mirrors .ilp_table_ui's fallback so the preview
+      # reflects what's currently displayed in the table (saved selections
+      # remain visible until the user actively replaces them).
+      ls <- function(input_name, fld) {
+        v <- input[[input_name]]
+        if (!is.null(v) && nzchar(trimws(as.character(v)))) as.character(v)
+        else .fv(ir, fld)
+      }
       domains <- list(
         list(key="pcmk",    title="Patient Care / Med Knowledge",
              color="#0d6efd", icon="heart-pulse-fill",
              dd_fld="goal_pcmk",
-             goal=input$goal_pcmk, level=input$goal_level_pcmk,
-             row=input$goal_level_r_pcmk, how=input$how_pcmk),
+             goal=ls("goal_pcmk", "goal_pcmk"),
+             level=ls("goal_level_pcmk", "goal_level_pcmk"),
+             row=ls("goal_level_r_pcmk", "goal_level_r_pcmk"),
+             how=ls("how_pcmk", "how_pcmk")),
         list(key="sbppbl",  title="Systems / Practice-Based Learning",
              color="#198754", icon="diagram-3-fill",
              dd_fld="goal_sbppbl",
-             goal=input$goal_sbppbl, level=input$goal_level_sbppbl,
-             row=input$goal_r_sbppbl, how=input$how_sbppbl),
+             goal=ls("goal_sbppbl", "goal_sbppbl"),
+             level=ls("goal_level_sbppbl", "goal_level_sbppbl"),
+             row=ls("goal_r_sbppbl", "goal_r_sbppbl"),
+             how=ls("how_sbppbl", "how_sbppbl")),
         list(key="profics", title="Professionalism / Interpersonal",
              color="#6f42c1", icon="people-fill",
              dd_fld="goal_subcomp_profics",
-             goal=input$goal_subcomp_profics, level=input$goal_level_profics,
-             row=input$goal_r_profics, how=input$how_profics))
+             goal=ls("goal_subcomp_profics", "goal_subcomp_profics"),
+             level=ls("goal_level_profics", "goal_level_profics"),
+             row=ls("goal_r_profics", "goal_r_profics"),
+             how=ls("how_profics", "how_profics")))
 
       cards <- lapply(domains, function(d) {
         ch     <- .dd_select(dd, d$dd_fld, .SUBCOMP_CHOICES[[d$key]])
+        sc     <- .SUBCOMP_CHOICES[[d$key]]
         goal_v <- d$goal %||% ""
         complete <- nzchar(trimws(goal_v))
         if (complete) {
-          goal_lbl <- if (!is.null(ch)) {
-            nm <- names(ch)[ch == goal_v]
-            if (length(nm)) nm[1] else goal_v
-          } else goal_v
+          # Prefer .SUBCOMP_CHOICES descriptive label over bare DD label.
+          goal_lbl <- if (!is.null(sc)) {
+                        rn <- names(sc)[sc == goal_v]
+                        if (length(rn)) rn[1]
+                        else if (!is.null(ch)) {
+                          nm <- names(ch)[ch == goal_v]
+                          if (length(nm)) nm[1] else goal_v
+                        } else goal_v
+                      } else if (!is.null(ch)) {
+                        nm <- names(ch)[ch == goal_v]
+                        if (length(nm)) nm[1] else goal_v
+                      } else goal_v
           lv_v   <- d$level %||% ""
           lv_txt <- if (nzchar(lv_v) && lv_v %in% names(lv_labels))
                       paste0("Level ", lv_v, " — ", lv_labels[[lv_v]]) else "Level not set"
           row_v  <- d$row %||% ""
           row_txt <- if (nzchar(row_v)) paste0("Row ", row_v) else "Row not set"
+          # Pull milestone anchor text for the selected row/level when both
+          # are set, so the user sees exactly which behavior they're targeting.
+          anchor_text <- if (nzchar(row_v) && nzchar(lv_v))
+            tryCatch(.get_goal_text(d$key, goal_v, row_v, lv_v, dd),
+                     error = function(e) NULL) else NULL
           how_v  <- trimws(d$how %||% "")
           status_icon <- if (nzchar(lv_v) && nzchar(row_v) && nzchar(how_v))
                            tags$i(class="bi bi-check-circle-fill me-1",
@@ -2191,6 +2244,11 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
                      goal_lbl),
               tags$p(style="font-size:0.74rem; color:#495057; margin:0;",
                      paste0(row_txt, " · ", lv_txt)),
+              if (!is.null(anchor_text) && nzchar(anchor_text))
+                tags$p(style="font-size:0.74rem; color:#2c3e50; margin:4px 0 0;
+                              line-height:1.35; font-style:italic;",
+                       tags$i(class="bi bi-quote me-1", style="opacity:0.4;"),
+                       anchor_text),
               if (nzchar(how_v))
                 tags$p(style="font-size:0.74rem; color:#6c757d; margin:4px 0 0; font-style:italic;
                               white-space:pre-wrap;", how_v)
@@ -2380,6 +2438,30 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
                 goal_level_profics   = input$goal_level_profics   %||% "",
                 goal_r_profics       = input$goal_r_profics       %||% "",
                 how_profics          = input$how_profics          %||% "")
+      # Mirror each goal's row+level into the canonical milestone-anchor
+      # field on the ilp form (e.g. PC4 row 1 level 4 → pc4_r1 = "4"). These
+      # dropdown fields are how the ACGME-style milestone level is recorded
+      # per-row in REDCap; without them the resident's targeted level isn't
+      # visible on the milestone field itself.
+      .anchor_field <- function(domain, code, row) {
+        comp <- .get_comp_code(domain, code)
+        if (is.null(comp) || !nzchar(row)) return(NULL)
+        dom <- gsub("\\d+$", "", comp)
+        num <- gsub("^[A-Z]+", "", comp)
+        pfx <- if (dom == "PBLI") "pbl" else tolower(dom)
+        paste0(pfx, num, "_r", row)
+      }
+      anchors <- list(
+        list(domain="pcmk",    code=input$goal_pcmk,            row=input$goal_level_r_pcmk, level=input$goal_level_pcmk),
+        list(domain="sbppbl",  code=input$goal_sbppbl,          row=input$goal_r_sbppbl,     level=input$goal_level_sbppbl),
+        list(domain="profics", code=input$goal_subcomp_profics, row=input$goal_r_profics,    level=input$goal_level_profics))
+      for (a in anchors) {
+        if (is.null(a$code) || !nzchar(a$code)) next
+        if (is.null(a$row)  || !nzchar(a$row))  next
+        if (is.null(a$level) || !nzchar(a$level)) next
+        fld <- .anchor_field(a$domain, a$code, a$row)
+        if (!is.null(fld)) f[[fld]] <- as.character(a$level)
+      }
       res <- .rc_save(resident_id(),"ilp",as.integer(p),f); ss$ilp <- res
       if (res$success) { .merge_ilp(p,f); .advance_after("ilp") }
     })
@@ -2657,6 +2739,28 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
                                             pir = pir, md = md, peer_med = peer_med,
                                             active_step = active_step_for_render)
 
+      # Completion banner — shown when every section in the active period is
+      # done. Reassures the resident that the work is in and they can revisit
+      # later. Recomputes from the freshly-merged local state so it appears
+      # immediately after the final save.
+      done_ps <- isolate(.period_status(local$seva, local$ilp, local$ms, p, res))
+      complete_banner <- if (mode != "past" &&
+                             isTRUE(done_ps$status == "complete")) {
+        div(class = "d-flex align-items-start gap-3 mb-3 py-3 px-3",
+            style = paste0("background:#e8f5e9; border:1px solid #a5d6a7;",
+                           " border-left:5px solid #2e7d32 !important;",
+                           " border-radius:8px; font-size:0.9rem;"),
+          tags$i(class = "bi bi-check-circle-fill",
+                 style = "color:#2e7d32; font-size:1.4rem; flex-shrink:0; margin-top:2px;"),
+          div(
+            tags$div(style = "font-weight:700; color:#1b5e20; font-size:1rem; margin-bottom:2px;",
+                     paste0(pname, " — All sections complete!")),
+            tags$div(style = "color:#2e7d32; line-height:1.4;",
+                     "Your self-evaluation has been submitted. ",
+                     tags$strong("You can come back any time before this period closes "),
+                     "to revise your answers — just open a section, edit, and click save again.")))
+      } else NULL
+
       # ── Past period: read-only wrapper ──────────────────────────────────────
       # <fieldset disabled> disables every input / textarea / select / button
       # inside, but leaves non-form elements (the collapsible card headers)
@@ -2681,7 +2785,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
             form_ui)
         )
       } else {
-        form_ui
+        tagList(complete_banner, form_ui)
       }
     })
 
@@ -2826,9 +2930,22 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
     prev_level <- .fv(pir, level_fld)
     prev_row   <- .fv(pir, row_fld_map[[domain]])
     if (nzchar(prev_code)) {
-      prev_name <- names(choices)[choices == prev_code]
-      if (length(prev_name) > 0 && nzchar(prev_name[1])) {
-        lv_txt    <- if (nzchar(prev_level)) paste0(", Level ", prev_level) else ""
+      # Prefer the descriptive .SUBCOMP_CHOICES label (e.g.
+      # "PC1 — History-taking / interviewing") over the bare data-dictionary
+      # label ("Patient Care 1") — falls back to whichever lookup yields a
+      # match.
+      sc_choices <- .SUBCOMP_CHOICES[[domain]]
+      rich_name <- if (!is.null(sc_choices)) {
+        rn <- names(sc_choices)[sc_choices == prev_code]
+        if (length(rn) > 0 && nzchar(rn[1])) rn[1] else NULL
+      } else NULL
+      bare_name <- names(choices)[choices == prev_code]
+      prev_name <- if (!is.null(rich_name)) rich_name
+                   else if (length(bare_name) > 0 && nzchar(bare_name[1])) bare_name[1]
+                   else NULL
+      if (!is.null(prev_name) && nzchar(prev_name)) {
+        lv_txt    <- if (nzchar(prev_level)) paste0(" — Level ", prev_level) else ""
+        row_pfx   <- if (nzchar(prev_row))   paste0("Row ", prev_row, ": ")  else ""
         goal_text <- .get_goal_text(domain, prev_code, prev_row, prev_level, dd)
         panels <- c(panels, list(
           div(class = "mb-2 p-2",
@@ -2838,12 +2955,15 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
                    tags$i(class = "bi bi-arrow-counterclockwise me-1"),
                    "Previous goal"),
             tags$p(style = "font-size:0.74rem; color:#5b8ba5; margin:0 0 2px; font-weight:600;",
-                   paste0(prev_name[1], lv_txt)),
+                   paste0(prev_name, lv_txt)),
             if (!is.null(goal_text))
               tags$p(style = "font-size:0.76rem; color:#2c3e50; margin:0; line-height:1.35;
                               font-style:italic;",
                      tags$i(class = "bi bi-quote me-1", style = "opacity:0.4;"),
-                     goal_text))))
+                     paste0(row_pfx, goal_text))
+            else if (nzchar(prev_row) || nzchar(prev_level))
+              tags$p(style = "font-size:0.72rem; color:#9ca3af; margin:0; font-style:italic;",
+                     "(milestone anchor text not recorded)"))))
       }
     }
   }
