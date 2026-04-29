@@ -681,7 +681,7 @@ mod_faculty_eval_server <- function(id, rdm_data, resident_id, faculty_roster_r)
                                       "I did not receive any feedback" = "4"))),
 
           div(class = "mb-3",
-              selectInput(ns("eval_done"),
+              selectInput(ns("eval_done_q"),
                           "Do you know if the attending completed an evaluation for you?",
                           choices = c("Choose\u2026" = "",
                                       "Yes" = "1", "No" = "2", "I don\u2019t know" = "3"))),
@@ -784,7 +784,7 @@ mod_faculty_eval_server <- function(id, rdm_data, resident_id, faculty_roster_r)
                     if (is_short) c("approachability", "ques_clin_des", "feedback")
                     else c("approachability", "respect", "bedside_manner", "time_teaching",
                            "ques_clin_des", "autonomy", "feedback", "organ"))
-      req_sel  <- c("att_give_feed", "eval_done", if (!is_short) "att_ext_tea")
+      req_sel  <- c("att_give_feed", "eval_done_q", if (!is_short) "att_ext_tea")
       all_req  <- c(req_rate, req_sel)
       missing  <- all_req[sapply(all_req, function(f) is.null(input[[f]]) || input[[f]] == "")]
       if (length(missing) > 0) {
@@ -817,7 +817,7 @@ mod_faculty_eval_server <- function(id, rdm_data, resident_id, faculty_roster_r)
           ed$ques_clin_des   <- input$ques_clin_des
           ed$feedback        <- input$feedback
           ed$att_give_feed   <- input$att_give_feed
-          ed$eval_done       <- input$eval_done
+          ed$eval_done       <- input$eval_done_q
           ed$att_overall     <- input$att_overall
           if (!is_short) {
             ed$respect        <- input$respect
