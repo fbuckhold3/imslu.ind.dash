@@ -1231,12 +1231,33 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
     save_debounced <- debounce(save_signal, 2500)
     last_sig <- reactiveVal(NULL)
 
+    # Mirrors thresholds in gmed::mod_miles_rating_server — ratings >= the
+    # period threshold require a written justification before the score is
+    # saved, otherwise the auto-save would persist a high rating with no
+    # description and prematurely advance the section.
+    .ms_thresholds <- list(
+      "Entering Residency" = 3, "Mid Intern" = 4, "End Intern" = 5,
+      "Mid PGY2" = 6, "End PGY2" = 7, "Mid PGY3" = 8, "Graduating" = 9)
+
     observe({
       sig <- save_debounced()
       req(length(sig$scores) > 0,
           !is.null(local$sel_period),
           local$sel_period %in% as.character(c(1:6, 7)),
           period_mode_r() %in% c("active", "unknown"))
+      # Hold the save if any rated milestone needs a justification but doesn't
+      # have one yet — prevents losing focus / advancing the section while the
+      # resident is mid-typing.
+      thr <- .ms_thresholds[[period_name_r() %||% ""]]
+      if (!is.null(thr)) {
+        pending <- vapply(names(sig$scores), function(k) {
+          v <- sig$scores[[k]]
+          if (is.null(v) || is.na(v) || v < thr) return(FALSE)
+          d <- sig$descs[[k]]
+          is.null(d) || !nzchar(trimws(as.character(d)))
+        }, logical(1))
+        if (any(pending)) return()
+      }
       # Skip if this exact payload was just saved
       sig_str <- rlang::hash(list(sig, local$sel_period))
       if (isTRUE(identical(sig_str, isolate(last_sig())))) return()
@@ -1970,10 +1991,17 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       tbl  <- .get_milestone_table(comp, dd)
       if (is.null(tbl) || nrow(tbl) == 0) return(NULL)
 
-      # Prefer live input over saved DB value
+      # Prefer live input over saved DB value, but only fall back to the saved
+      # row/level when the dropdown still points at the same subcompetency
+      # that was saved — picking a different goal invalidates the prior anchor.
+      saved_goal   <- .fv(ir, goal_input_name)
+      goal_changed <- nzchar(saved_goal) && !identical(as.character(val),
+                                                       as.character(saved_goal))
       cur_row   <- if (!is.null(live_row)   && nzchar(live_row))   live_row
+                   else if (goal_changed) ""
                    else .fv(ir, row_field)
       cur_level <- if (!is.null(live_level) && nzchar(live_level)) live_level
+                   else if (goal_changed) ""
                    else .fv(ir, level_field)
 
       lv_styles <- c(
@@ -2055,6 +2083,91 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
     })
     output$ilp_level_profics <- renderUI({
       .ilp_table_ui("profics", "goal_subcomp_profics", "goal_r_profics",    "goal_level_profics")
+    })
+
+    # Live preview of the three goals about to be submitted — gives the user a
+    # clear summary before they click Save. Reads directly from current inputs
+    # so unsaved changes are visible.
+    output$ilp_pending_preview <- renderUI({
+      req(local$sel_period %in% as.character(1:5))
+      dd <- data_dict_r()
+      lv_labels <- c("1"="Novice","2"="Adv Beginner","3"="Competent",
+                     "4"="Proficient","5"="Expert")
+      domains <- list(
+        list(key="pcmk",    title="Patient Care / Med Knowledge",
+             color="#0d6efd", icon="heart-pulse-fill",
+             dd_fld="goal_pcmk",
+             goal=input$goal_pcmk, level=input$goal_level_pcmk,
+             row=input$goal_level_r_pcmk, how=input$how_pcmk),
+        list(key="sbppbl",  title="Systems / Practice-Based Learning",
+             color="#198754", icon="diagram-3-fill",
+             dd_fld="goal_sbppbl",
+             goal=input$goal_sbppbl, level=input$goal_level_sbppbl,
+             row=input$goal_r_sbppbl, how=input$how_sbppbl),
+        list(key="profics", title="Professionalism / Interpersonal",
+             color="#6f42c1", icon="people-fill",
+             dd_fld="goal_subcomp_profics",
+             goal=input$goal_subcomp_profics, level=input$goal_level_profics,
+             row=input$goal_r_profics, how=input$how_profics))
+
+      cards <- lapply(domains, function(d) {
+        ch     <- .dd_select(dd, d$dd_fld, .SUBCOMP_CHOICES[[d$key]])
+        goal_v <- d$goal %||% ""
+        complete <- nzchar(trimws(goal_v))
+        if (complete) {
+          goal_lbl <- if (!is.null(ch)) {
+            nm <- names(ch)[ch == goal_v]
+            if (length(nm)) nm[1] else goal_v
+          } else goal_v
+          lv_v   <- d$level %||% ""
+          lv_txt <- if (nzchar(lv_v) && lv_v %in% names(lv_labels))
+                      paste0("Level ", lv_v, " — ", lv_labels[[lv_v]]) else "Level not set"
+          row_v  <- d$row %||% ""
+          row_txt <- if (nzchar(row_v)) paste0("Row ", row_v) else "Row not set"
+          how_v  <- trimws(d$how %||% "")
+          status_icon <- if (nzchar(lv_v) && nzchar(row_v) && nzchar(how_v))
+                           tags$i(class="bi bi-check-circle-fill me-1",
+                                  style=paste0("color:", d$color, ";"))
+                         else
+                           tags$i(class="bi bi-exclamation-circle-fill me-1",
+                                  style="color:#f59e0b;")
+          div(class="col-md-4",
+            div(style=paste0("border-left:3px solid ", d$color,
+                             "; padding:8px 10px; background:#fff; border-radius:4px;",
+                             " height:100%;"),
+              tags$p(style=paste0("font-size:0.7rem; font-weight:700; color:", d$color,
+                                  "; text-transform:uppercase; letter-spacing:.05em; margin:0 0 4px;"),
+                     status_icon, d$title),
+              tags$p(style="font-size:0.82rem; font-weight:600; margin:0 0 2px; color:#212529;",
+                     goal_lbl),
+              tags$p(style="font-size:0.74rem; color:#495057; margin:0;",
+                     paste0(row_txt, " · ", lv_txt)),
+              if (nzchar(how_v))
+                tags$p(style="font-size:0.74rem; color:#6c757d; margin:4px 0 0; font-style:italic;
+                              white-space:pre-wrap;", how_v)
+              else
+                tags$p(style="font-size:0.72rem; color:#dc3545; margin:4px 0 0;",
+                       tags$i(class="bi bi-exclamation-circle me-1"),
+                       "How / Plan still empty")))
+        } else {
+          div(class="col-md-4",
+            div(style=paste0("border-left:3px dashed #adb5bd; padding:8px 10px;",
+                             " background:#f8f9fa; border-radius:4px; height:100%;"),
+              tags$p(style="font-size:0.7rem; font-weight:700; color:#6c757d;
+                            text-transform:uppercase; letter-spacing:.05em; margin:0 0 4px;",
+                     tags$i(class="bi bi-circle me-1"), d$title),
+              tags$p(style="font-size:0.78rem; color:#adb5bd; margin:0; font-style:italic;",
+                     "No goal selected yet")))
+        }
+      })
+
+      div(class="mt-4 mb-3 p-3",
+          style="background:#f1f3f5; border:1px solid #dee2e6; border-radius:6px;",
+        tags$p(style="font-size:0.75rem; font-weight:700; text-transform:uppercase;
+                      letter-spacing:.05em; color:#495057; margin:0 0 8px;",
+               tags$i(class="bi bi-clipboard-check me-1"),
+               "Goals to be submitted"),
+        div(class="row g-2", cards))
     })
 
     observeEvent(input$save_goals, {
@@ -2168,8 +2281,43 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       res <- .rc_save(resident_id(),"s_eval",as.integer(p),f); ss$feedback <- res
       if (res$success) { .merge_seva(p,f); .advance_after("feedback") }
     })
+    # Grey out the ILP save button until all three domain goals are selected.
+    observe({
+      all_set <- nzchar(trimws(input$goal_pcmk            %||% "")) &&
+                 nzchar(trimws(input$goal_sbppbl          %||% "")) &&
+                 nzchar(trimws(input$goal_subcomp_profics %||% ""))
+      shinyjs::toggleState("save_ilp", condition = all_set)
+    })
+
+    # NOTE: changing a goal dropdown does NOT clear the row/level/how inputs.
+    # Those values stay as pending submission state until the user actively
+    # replaces them by clicking a new anchor cell or editing the How/Plan
+    # textarea. The table-render logic in .ilp_table_ui still suppresses the
+    # highlighted-cell visual when the dropdown points at a different
+    # subcompetency than was last saved, so the user isn't misled into
+    # thinking a stale row applies to the new milestone.
+
     observeEvent(input$save_ilp, {
       p <- local$sel_period; req(p %in% as.character(1:5), period_mode_r() %in% c("active","unknown"))
+      # Require all three domain goals before saving — partial saves used to
+      # advance the section and collapse it, which made in-progress entries
+      # look lost.
+      goal_vals <- list(pcmk    = input$goal_pcmk            %||% "",
+                        sbppbl  = input$goal_sbppbl          %||% "",
+                        profics = input$goal_subcomp_profics %||% "")
+      missing <- names(goal_vals)[!nzchar(trimws(unlist(goal_vals)))]
+      if (length(missing) > 0) {
+        showNotification(
+          paste0("Please select a goal for all three domains before saving",
+                 " (still missing: ",
+                 paste(c(pcmk="Patient Care / Med Knowledge",
+                         sbppbl="Systems / Practice-Based Learning",
+                         profics="Professionalism / Interpersonal")[missing],
+                       collapse = ", "),
+                 ")."),
+          type = "warning", duration = 6)
+        return()
+      }
       f <- list(year_resident        = p,
                 goal_pcmk            = input$goal_pcmk            %||% "",
                 goal_level_pcmk      = input$goal_level_pcmk      %||% "",
@@ -3090,6 +3238,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
               uiOutput(ns("ilp_level_profics")),
               .ta(ns("how_profics"),"How / Plan",.fv(ir,"how_profics"),rows=2))))
       },
+      uiOutput(ns("ilp_pending_preview")),
       .save_btn(ns,"save_ilp","Save ILP Goals"))
   )
 }
