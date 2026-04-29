@@ -206,16 +206,65 @@
     message("[rc_save] record=", record_id, " instrument=", instrument,
             " instance=", instance, " n_fields=", length(fields),
             " status=", status, " body=", substr(body_trim, 1, 120))
-    if (status == 200 && !has_err && !empty_body)
-      list(success = TRUE,
-           ts      = format(Sys.time(), "%b %d %I:%M %p"),
-           body    = substr(body, 1, 200))
-    else
-      list(success = FALSE,
-           message = paste0("REDCap (HTTP ", status, "): ",
-                            if (empty_body) "empty response \u2014 0 records written. "
-                            else "",
-                            substr(body, 1, 500)))
+    initial_ok <- status == 200 && !has_err && !empty_body
+    if (!initial_ok) {
+      return(list(success = FALSE,
+                  message = paste0("REDCap (HTTP ", status, "): ",
+                                   if (empty_body) "empty response \u2014 0 records written. "
+                                   else "",
+                                   substr(body, 1, 500))))
+    }
+
+    # Verification read-back: REDCap can return the record id (so the body
+    # check passes) even when it silently rejected every field \u2014 most
+    # commonly because the instrument isn't enabled as a repeating
+    # instrument in Project Setup. Re-fetch the same instance for one of
+    # the fields we just wrote and confirm at least one non-empty value
+    # round-tripped. If not, surface a real error so the user knows the
+    # save didn't actually land.
+    chk_field <- names(fields)[1]
+    written   <- if (length(chk_field)) as.character(fields[[chk_field]]) else ""
+    if (length(chk_field) && nzchar(chk_field) && nzchar(trimws(written))) {
+      verify <- tryCatch({
+        v_resp <- httr::POST(
+          url  = app_config$redcap_url,
+          body = list(token = app_config$rdm_token, content = "record",
+                      format = "json", type = "flat",
+                      `records[0]` = as.character(record_id),
+                      `fields[0]`  = "record_id",
+                      `fields[1]`  = chk_field,
+                      `forms[0]`   = instrument,
+                      returnFormat = "json"),
+          encode = "form", httr::timeout(30))
+        if (httr::status_code(v_resp) != 200) NULL
+        else jsonlite::fromJSON(
+          httr::content(v_resp, "text", encoding = "UTF-8"),
+          simplifyVector = TRUE)
+      }, error = function(e) NULL)
+      if (!is.null(verify) && is.data.frame(verify) && nrow(verify) > 0 &&
+          chk_field %in% names(verify) &&
+          "redcap_repeat_instance" %in% names(verify)) {
+        match_row <- verify[as.character(verify$redcap_repeat_instance) ==
+                              as.character(instance), , drop = FALSE]
+        landed <- nrow(match_row) > 0 &&
+                  !is.na(match_row[[chk_field]][1]) &&
+                  nzchar(trimws(as.character(match_row[[chk_field]][1])))
+        if (!landed) {
+          message("[rc_save] VERIFY FAILED instrument=", instrument,
+                  " instance=", instance, " field=", chk_field,
+                  " expected=", substr(written, 1, 60))
+          return(list(success = FALSE,
+                      message = paste0(
+                        "REDCap accepted the request but did not store any '",
+                        instrument, "' fields. The instrument may not be ",
+                        "enabled as a repeating instrument in Project Setup, ",
+                        "or the API token lacks write access to that form.")))
+        }
+      }
+    }
+    list(success = TRUE,
+         ts      = format(Sys.time(), "%b %d %I:%M %p"),
+         body    = substr(body, 1, 200))
   }, error = function(e) list(success = FALSE,
                               message = paste("Error:", e$message)))
 }
