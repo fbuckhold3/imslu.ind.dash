@@ -1972,65 +1972,39 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       chief_val <- { v <- input$chief
         if (!is.null(v)&&nzchar(v)) v else get_res("chief") }
 
-      # Level 1: chief?
       chief_ui <- .yn_g("chief", "Are you staying on as Chief Resident?", chief_val)
 
-      # Level 2: grad_next — shown whether chief or not (chief residents still
-      # have post-chief plans). If chief="1" we hide the practice-details block.
-      grad_next_choices <- c("1"="Primary Care","2"="Hospitalist",
-                             "3"="Fellowship","4"="Other")
-      grad_next_val <- { v <- input$s_e_grad_next
-        if (!is.null(v)&&nzchar(v)) v else .fv(sr,"s_e_grad_next") }
+      dd <- data_dict_r()
+      grad_spec_ch <- .dd_choices(dd,"grad_spec")
+      sv <- { v <- input$grad_spec
+        if (!is.null(v)&&nzchar(v)) v else get_res("grad_spec") }
 
-      push_next <- function(v) paste0("Shiny.setInputValue('", ns("s_e_grad_next"),
-                                       "','", v, "',{priority:'event'})")
-      next_ui <- div(class="mt-3",
-        tags$label("What are you doing after residency?",
-                   style="font-size:0.85rem; font-weight:600; color:#003d5c;"),
-        div(class="btn-group btn-group-sm d-flex flex-wrap gap-1 mt-1",
-          lapply(names(grad_next_choices), function(v)
-            tagList(
-              tags$input(type="radio", class="btn-check", name=ns("s_e_grad_next"),
-                         id=paste0(ns("s_e_grad_next"),"_",v), value=v,
-                         checked=if(identical(grad_next_val,v)) NA else NULL),
-              tags$label(class=paste0("btn btn-outline-primary",
-                                      if(identical(grad_next_val,v))" active" else ""),
-                         `for`=paste0(ns("s_e_grad_next"),"_",v),
-                         onclick=push_next(v),
-                         grad_next_choices[[v]])))))
+      grad_spec_label <- if (identical(chief_val,"1")) "Future plans" else "Specialty"
+      grad_spec_ui <- div(class="mt-3",
+        tags$label(grad_spec_label,
+                   style="font-size:0.83rem; font-weight:600;"),
+        if (!is.null(grad_spec_ch))
+          tags$select(id=ns("grad_spec"), class="form-select form-select-sm mt-1",
+                      style="max-width:300px;",
+            tags$option(value="", selected=if(!nzchar(sv)) NA else NULL,
+                        "-- select specialty --"),
+            lapply(names(grad_spec_ch), function(v)
+              tags$option(value=v, selected=if(identical(sv,v)) NA else NULL,
+                          grad_spec_ch[[v]])))
+        else tags$input(type="text", id=ns("grad_spec"),
+                        class="form-control form-control-sm mt-1",
+                        value=sv, placeholder="Specialty"))
 
-      # Level 3: path-specific fields. Chief residents skip this entirely.
-      path_ui <- if (identical(chief_val,"1") || !nzchar(grad_next_val)) {
+      path_ui <- if (!nzchar(chief_val)) {
         NULL
-      } else if (grad_next_val == "3") {
-        # Fellowship → specialty only
-        dd <- data_dict_r()
-        grad_spec_ch <- .dd_choices(dd,"grad_spec")
-        sv <- get_res("grad_spec")
-        div(class="mt-3",
-          tags$label("Post-residency specialty / fellowship",
-                     style="font-size:0.83rem; font-weight:600;"),
-          if (!is.null(grad_spec_ch))
-            tags$select(id=ns("grad_spec"), class="form-select form-select-sm mt-1",
-                        style="max-width:300px;",
-              tags$option(value="", selected=if(!nzchar(sv)) NA else NULL,
-                          "-- select specialty --"),
-              lapply(names(grad_spec_ch), function(v)
-                tags$option(value=v, selected=if(identical(sv,v)) NA else NULL,
-                            grad_spec_ch[[v]])))
-          else tags$input(type="text", id=ns("grad_spec"),
-                          class="form-control form-control-sm mt-1",
-                          value=sv, placeholder="Specialty"))
+      } else if (identical(chief_val,"1")) {
+        # Chief: only ask grad_spec ("Future plans"); ssm/mo_prac/und_urban
+        # auto-set to yes on save.
+        grad_spec_ui
       } else {
-        # Primary Care (1) / Hospitalist (2) / Other (4) — same 6 fields
+        # Non-chief: grad_spec, practice details, then position.
         tagList(
-          div(class="mt-3",
-            tags$label("Current / planned position title",
-                       style="font-size:0.83rem; font-weight:600;"),
-            tags$input(type="text", id=ns("res_alumni_position"),
-                       class="form-control form-control-sm mt-1",
-                       placeholder="e.g., Hospitalist at SSM Health",
-                       value=get_res("res_alumni_position"))),
+          grad_spec_ui,
           div(class="mt-3",
             tags$p(style="font-size:0.78rem; font-weight:700; text-transform:uppercase;
                           letter-spacing:.06em; color:#6c757d; margin-bottom:8px;",
@@ -2039,10 +2013,17 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
             .yn_g("ssm",                "Staying within SSM Health?", get_res("ssm")),
             .yn_g("mo_prac",            "Practicing in Missouri?",    get_res("mo_prac")),
             .yn_g("rural",              "Rural practice setting?",    get_res("rural")),
-            .yn_g("und_urban",          "Underserved / urban setting?", get_res("und_urban"))))
+            .yn_g("und_urban",          "Underserved / urban setting?", get_res("und_urban"))),
+          div(class="mt-3",
+            tags$label("Current / planned position title",
+                       style="font-size:0.83rem; font-weight:600;"),
+            tags$input(type="text", id=ns("res_alumni_position"),
+                       class="form-control form-control-sm mt-1",
+                       placeholder="e.g., Hospitalist at SSM Health",
+                       value=get_res("res_alumni_position"))))
       }
 
-      tagList(chief_ui, next_ui, path_ui, email_phone)
+      tagList(email_phone, chief_ui, path_ui)
     })
 
     # ── ILP milestone tables (period 1-5) ────────────────────────────────────────
@@ -2466,35 +2447,28 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       if (res$success) { .merge_ilp(p,f); .advance_after("ilp") }
     })
     # save_board kept for legacy compatibility but period 6 no longer has a board section
-    # Alumni / graduation data → resident_data (non-repeating) + s_e_grad_next → s_eval
+    # Alumni / graduation data → resident_data (non-repeating)
     observeEvent(input$save_alumni, {
       req(local$sel_period == "6")
-      grad_next_val <- input$s_e_grad_next %||% ""
-      chief_val     <- input$chief         %||% ""
+      chief_val <- input$chief %||% ""
 
-      # s_eval field for grad path choice
-      seva_f <- list(s_e_period="6", s_e_grad_next=grad_next_val)
-      .rc_save(resident_id(), "s_eval", 6L, seva_f)
-      .merge_seva("6", seva_f)
+      rd <- list(chief      = chief_val,
+                 grad_email = input$grad_email %||% "",
+                 grad_phone = input$grad_phone %||% "",
+                 grad_spec  = input$grad_spec  %||% "")
 
-      # resident_data fields — collect based on path
-      rd <- list(chief     = chief_val,
-                 grad_email= input$grad_email %||% "",
-                 grad_phone= input$grad_phone %||% "")
-
-      if (chief_val != "1") {
-        if (grad_next_val %in% c("1","2","4")) {
-          # Primary Care / Hospitalist / Other — same 6 practice fields
-          rd$res_alumni_position <- input$res_alumni_position %||% ""
-          rd$res_alumni_academic <- input$res_alumni_academic %||% ""
-          rd$ssm                 <- input$ssm                 %||% ""
-          rd$mo_prac             <- input$mo_prac             %||% ""
-          rd$rural               <- input$rural               %||% ""
-          rd$und_urban           <- input$und_urban           %||% ""
-        } else if (grad_next_val == "3") {
-          # Fellowship — specialty only
-          rd$grad_spec           <- input$grad_spec           %||% ""
-        }
+      if (identical(chief_val, "1")) {
+        # Chief: auto-set ssm / mo_prac / und_urban to yes.
+        rd$ssm       <- "1"
+        rd$mo_prac   <- "1"
+        rd$und_urban <- "1"
+      } else {
+        rd$res_alumni_academic <- input$res_alumni_academic %||% ""
+        rd$ssm                 <- input$ssm                 %||% ""
+        rd$mo_prac             <- input$mo_prac             %||% ""
+        rd$rural               <- input$rural               %||% ""
+        rd$und_urban           <- input$und_urban           %||% ""
+        rd$res_alumni_position <- input$res_alumni_position %||% ""
       }
 
       res <- .rc_save_resident(resident_id(), rd); ss$alumni <- res
