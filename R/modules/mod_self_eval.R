@@ -2269,6 +2269,11 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       f <- list(s_e_period="7", s_e_ume_goal1=input$s_e_ume_goal1%||%"",
                 s_e_ume_goal2=input$s_e_ume_goal2%||%"",
                 s_e_ume_goal3=input$s_e_ume_goal3%||%"")
+      message("[goals input] rid=", resident_id(),
+              " g1_nchar=", nchar(f$s_e_ume_goal1),
+              " g2_nchar=", nchar(f$s_e_ume_goal2),
+              " g3_nchar=", nchar(f$s_e_ume_goal3),
+              " g1_preview='", substr(f$s_e_ume_goal1, 1, 40), "'")
       res <- .rc_save(resident_id(),"s_eval",7,f); ss$goals <- res
       if (res$success) { .merge_seva(7,f); .advance_after("goals") }
     })
