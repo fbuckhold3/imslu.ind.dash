@@ -426,17 +426,27 @@
 
 # ── UI component helpers ──────────────────────────────────────────────────────
 
-.sec_card <- function(..., title, icon, id = NULL, collapsed = FALSE) {
+.sec_card <- function(..., title, icon, id = NULL, collapsed = FALSE,
+                      saved = FALSE) {
   body_id <- paste0("sc_", gsub("[^a-zA-Z0-9]", "_", tolower(title)))
+  saved_badge <- if (isTRUE(saved))
+    tags$span(class = "badge",
+              style = paste0("background:#d1fae5; color:#065f46;",
+                             " font-size:0.7rem; font-weight:600;",
+                             " padding:3px 8px; border-radius:20px;",
+                             " margin-left:8px;"),
+      tags$i(class = "bi bi-check-circle-fill me-1"),
+      "Previously saved — review and edit") else NULL
   div(class = "card border-0 shadow-sm mb-3", style = "border-radius:8px;", id = id,
     div(class = "card-header border-0 d-flex align-items-center justify-content-between",
         style = "background:#f8fafc; border-radius:8px 8px 0 0; padding:12px 18px; cursor:pointer;",
         `data-bs-toggle` = "collapse",
         `data-bs-target` = paste0("#", body_id),
         `aria-expanded` = tolower(as.character(!collapsed)),
-      div(class = "d-flex align-items-center gap-2",
+      div(class = "d-flex align-items-center gap-2 flex-wrap",
         tags$i(class = paste0("bi bi-", icon), style = "color:#003d5c; font-size:1rem;"),
-        tags$span(style = "font-weight:700; color:#003d5c; font-size:0.95rem;", title)),
+        tags$span(style = "font-weight:700; color:#003d5c; font-size:0.95rem;", title),
+        saved_badge),
       tags$i(class = paste0("bi bi-chevron-", if (collapsed) "down" else "up"),
              style = "color:#adb5bd; font-size:0.8rem; transition:transform .2s;")),
     div(id = body_id,
@@ -3116,6 +3126,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
 
     if (is_locked("goals")) .locked_section("Learning Goals")
     else .sec_card(title="Learning Goals", icon="bullseye", collapsed=col_for("goals"),
+                   saved = .section_complete("goals", sr, ir, ms_data, res),
       tags$p(class="text-muted", style="font-size:0.82rem;",
              "What are your 3 main learning goals entering residency? These will be revisited at each evaluation."),
       .ta(ns("s_e_ume_goal1"),"Goal 1",.fv(sr,"s_e_ume_goal1"),rows=2,
@@ -3141,6 +3152,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       })
       .sec_card(title="Background Questions", icon="geo-alt-fill",
               collapsed=col_for("background"),
+              saved = .section_complete("background", sr, ir, ms_data, res),
         tags$p(class="text-muted mb-3", style="font-size:0.82rem;",
                "Help us track our program's regional reach — answered once."),
         yn_q("hs_mo",     "Did any of your high school education take place in Missouri?",     .fv(res,"hs_mo")),
@@ -3158,6 +3170,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       if (is_locked("career")) .locked_section("Career Planning")
       else .sec_card(title="Career Planning", icon="briefcase-medical",
                      collapsed=col_for("career"),
+                     saved = .section_complete("career", sr, ir, ms_data, res),
         tags$p(class="text-muted mb-3", style="font-size:0.82rem;",
                "Track your career interests entering residency."),
         if (!is.null(cp)) div(class="mb-3",
@@ -3186,6 +3199,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
     if (is_locked("prep")) .locked_section("Preparedness Ratings")
     else .sec_card(title="Preparedness Ratings", icon="clipboard-check",
               collapsed=col_for("prep"),
+              saved = .section_complete("prep", sr, ir, ms_data, res),
       tags$p(class="text-muted mb-3", style="font-size:0.82rem;",
              "Rate yourself honestly on each clinical skill. This is for your benefit."),
       .prep_matrix_ui(ns, sr),
@@ -3193,20 +3207,23 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
 
     if (is_locked("topics")) .locked_section("Topics & Learning Styles")
     else .form_topics_section(ns, sr, dd, tc, sc, sel_t, sel_s, psr,
-                              collapsed=col_for("topics")),
+                              collapsed=col_for("topics"),
+                              saved = .section_complete("topics", sr, ir, ms_data, res)),
 
     # Milestone self-assessment
     if (is_locked("milestones")) .locked_section("Milestone Self-Assessment")
     else .sec_card(title="Milestone Self-Assessment", icon="graph-up-arrow",
               collapsed=FALSE,
+              saved = .section_complete("milestones", sr, ir, ms_data, res),
       div(class="d-flex align-items-center justify-content-between mb-3",
         tags$p(class="text-muted mb-0", style="font-size:0.82rem;",
-               "Rate yourself on each ACGME milestone. Ratings of 4+ require a brief description."),
+               "Rate yourself on each ACGME milestone. Ratings of 4+ require a brief description. Your previously saved ratings will load automatically — review and edit as needed."),
         uiOutput(ns("milestone_save_status"))),
       uiOutput(ns("milestone_ui"))),
 
     # Concerns — optional (not tracked for completion)
     .sec_card(title="Concerns / Additional Notes", icon="chat-text",
+              saved = nzchar(.fv(sr, "s_e_ume_concern")),
       div(class="alert alert-light border mb-3 py-1 px-2",
           style="font-size:0.78rem; border-left:3px solid #6c757d !important;",
           tags$i(class="bi bi-info-circle me-1"),
@@ -3537,8 +3554,10 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
 
 # ── Shared: Topics & Learning Styles (#7 — shows previous selections) ─────────
 
-.form_topics_section <- function(ns, sr, dd, tc, sc, sel_t, sel_s, psr, collapsed = FALSE) {
-  .sec_card(title="Topics & Learning Styles", icon="lightbulb-fill", collapsed=collapsed,
+.form_topics_section <- function(ns, sr, dd, tc, sc, sel_t, sel_s, psr,
+                                 collapsed = FALSE, saved = FALSE) {
+  .sec_card(title="Topics & Learning Styles", icon="lightbulb-fill",
+            collapsed=collapsed, saved=saved,
     div(class="row g-3",
       div(class="col-md-6",
         tags$label("Topics you feel least comfortable with",
