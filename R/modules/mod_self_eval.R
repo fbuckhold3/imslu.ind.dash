@@ -250,9 +250,10 @@
           httr::content(v_resp, "text", encoding = "UTF-8"),
           simplifyVector = TRUE)
       }, error = function(e) NULL)
-      if (!is.null(verify) && is.data.frame(verify) && nrow(verify) > 0 &&
-          chk_field %in% names(verify) &&
-          "redcap_repeat_instance" %in% names(verify)) {
+      verify_ok <- !is.null(verify) && is.data.frame(verify) && nrow(verify) > 0 &&
+                   chk_field %in% names(verify) &&
+                   "redcap_repeat_instance" %in% names(verify)
+      if (verify_ok) {
         match_row <- verify[as.character(verify$redcap_repeat_instance) ==
                               as.character(instance), , drop = FALSE]
         actual <- if (nrow(match_row) > 0)
@@ -270,6 +271,18 @@
                         instrument, "' form (Read-Only or No Access). ",
                         "Update User Rights in REDCap and try again.")))
         }
+      } else {
+        # Verify call returned a shape we can't compare against. Log so we
+        # can tell when REDCap is silently dropping writes vs. actually
+        # persisting them.
+        v_class <- if (is.null(verify)) "NULL" else paste(class(verify), collapse=",")
+        v_n     <- if (is.data.frame(verify)) nrow(verify) else NA_integer_
+        v_names <- if (!is.null(verify) && !is.null(names(verify)))
+                     paste(head(names(verify), 8), collapse=",") else ""
+        message("[rc_save] VERIFY SKIPPED instrument=", instrument,
+                " instance=", instance, " field=", chk_field,
+                " verify_class=", v_class, " nrow=", v_n,
+                " names=", v_names)
       }
     }
     list(success = TRUE,
@@ -1342,11 +1355,19 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
     # Cache merge helpers
     .merge_seva <- function(period, fields) {
       p <- as.character(period); df <- local$seva
+      # Drop any pre-existing s_e_period from fields so we never construct a row
+      # with two s_e_period columns (which would force bind_rows to rename them
+      # and corrupt subsequent filtering on s_e_period).
+      flds <- fields[setdiff(names(fields), "s_e_period")]
       idx <- if (!is.null(df)&&nrow(df)>0) which(as.character(df$s_e_period)==p) else integer(0)
-      if (length(idx)>0) { for (fld in names(fields)) df[idx[1],fld] <- as.character(fields[[fld]]) }
-      else df <- dplyr::bind_rows(df, as.data.frame(c(
-        list(record_id=resident_id(), s_e_period=p, redcap_repeat_instance=p),
-        lapply(fields,as.character)), stringsAsFactors=FALSE, check.names=FALSE))
+      if (length(idx)>0) {
+        df[idx[1], "s_e_period"] <- p
+        for (fld in names(flds)) df[idx[1], fld] <- as.character(flds[[fld]])
+      } else {
+        df <- dplyr::bind_rows(df, as.data.frame(c(
+          list(record_id=resident_id(), s_e_period=p, redcap_repeat_instance=p),
+          lapply(flds, as.character)), stringsAsFactors=FALSE, check.names=FALSE))
+      }
       local$seva <- df
     }
     .merge_ilp <- function(period, fields) {
