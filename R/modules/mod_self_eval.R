@@ -792,6 +792,12 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
 
     output$fac_eval_gate <- renderUI({
       req(local$ready)
+      # Skip the faculty-eval gate for residents eligible for the intern
+      # intro (period 7, Entering Residency) — they haven't had a chance
+      # to complete faculty evaluations yet.
+      pi <- tryCatch(period_info_r(), error = function(e) NULL)
+      if (!is.null(pi) && !is.na(pi$period_number) &&
+          as.character(pi$period_number) == "7") return(NULL)
       s <- tryCatch(fac_eval_status_r(), error = function(e) NULL)
       if (is.null(s)) return(NULL)
 
@@ -2639,7 +2645,10 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       # still review prior entries; future periods already show their own
       # lock panel. Hidden behind isolate() so data merges don't retrigger.
       fstat <- tryCatch(isolate(fac_eval_status_r()), error = function(e) NULL)
-      if (!is.null(fstat) && isTRUE(fstat$blocked) && mode == "active") {
+      # Intern-intro residents (period 7) are exempt from the faculty-eval
+      # hard-block — they haven't had a chance to complete any yet.
+      if (!is.null(fstat) && isTRUE(fstat$blocked) && mode == "active" &&
+          as.character(p) != "7") {
         return(div(class = "text-center py-4 px-4",
           style = paste0("background:#fff5f5; border:1px solid #ffcdd2;",
                          " border-left:5px solid #c62828; border-radius:10px;",
