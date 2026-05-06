@@ -2330,7 +2330,11 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
     })
     observeEvent(input$save_concerns, {
       req(local$sel_period=="7", period_mode_r() %in% c("active","unknown"))
-      f <- list(s_e_period="7", s_e_ume_concern=input$s_e_ume_concern%||%"")
+      # If the resident answered "No" to the toggle, write an empty string
+      # for the concern — explicitly clears any prior text.
+      txt <- if (isTRUE(input$ume_concern_toggle == "1"))
+               input$s_e_ume_concern %||% "" else ""
+      f <- list(s_e_period="7", s_e_ume_concern=txt)
       res <- .rc_save(resident_id(),"s_eval",7,f); ss$concerns <- res
       if (res$success) .merge_seva(7,f)
     })
@@ -3126,7 +3130,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
 
     if (is_locked("goals")) .locked_section("Learning Goals")
     else .sec_card(title="Learning Goals", icon="bullseye", collapsed=col_for("goals"),
-                   saved = .section_complete("goals", sr, ir, ms_data, res),
+                   saved = .section_complete("goals", sr, NULL, md, res),
       tags$p(class="text-muted", style="font-size:0.82rem;",
              "What are your 3 main learning goals entering residency? These will be revisited at each evaluation."),
       .ta(ns("s_e_ume_goal1"),"Goal 1",.fv(sr,"s_e_ume_goal1"),rows=2,
@@ -3152,7 +3156,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       })
       .sec_card(title="Background Questions", icon="geo-alt-fill",
               collapsed=col_for("background"),
-              saved = .section_complete("background", sr, ir, ms_data, res),
+              saved = .section_complete("background", sr, NULL, md, res),
         tags$p(class="text-muted mb-3", style="font-size:0.82rem;",
                "Help us track our program's regional reach — answered once."),
         yn_q("hs_mo",     "Did any of your high school education take place in Missouri?",     .fv(res,"hs_mo")),
@@ -3170,7 +3174,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       if (is_locked("career")) .locked_section("Career Planning")
       else .sec_card(title="Career Planning", icon="briefcase-medical",
                      collapsed=col_for("career"),
-                     saved = .section_complete("career", sr, ir, ms_data, res),
+                     saved = .section_complete("career", sr, NULL, md, res),
         tags$p(class="text-muted mb-3", style="font-size:0.82rem;",
                "Track your career interests entering residency."),
         if (!is.null(cp)) div(class="mb-3",
@@ -3199,7 +3203,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
     if (is_locked("prep")) .locked_section("Preparedness Ratings")
     else .sec_card(title="Preparedness Ratings", icon="clipboard-check",
               collapsed=col_for("prep"),
-              saved = .section_complete("prep", sr, ir, ms_data, res),
+              saved = .section_complete("prep", sr, NULL, md, res),
       tags$p(class="text-muted mb-3", style="font-size:0.82rem;",
              "Rate yourself honestly on each clinical skill. This is for your benefit."),
       .prep_matrix_ui(ns, sr),
@@ -3208,30 +3212,41 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
     if (is_locked("topics")) .locked_section("Topics & Learning Styles")
     else .form_topics_section(ns, sr, dd, tc, sc, sel_t, sel_s, psr,
                               collapsed=col_for("topics"),
-                              saved = .section_complete("topics", sr, ir, ms_data, res)),
+                              saved = .section_complete("topics", sr, NULL, md, res)),
 
     # Milestone self-assessment
     if (is_locked("milestones")) .locked_section("Milestone Self-Assessment")
     else .sec_card(title="Milestone Self-Assessment", icon="graph-up-arrow",
               collapsed=FALSE,
-              saved = .section_complete("milestones", sr, ir, ms_data, res),
+              saved = .section_complete("milestones", sr, NULL, md, res),
       div(class="d-flex align-items-center justify-content-between mb-3",
         tags$p(class="text-muted mb-0", style="font-size:0.82rem;",
                "Rate yourself on each ACGME milestone. Ratings of 4+ require a brief description. Your previously saved ratings will load automatically — review and edit as needed."),
         uiOutput(ns("milestone_save_status"))),
       uiOutput(ns("milestone_ui"))),
 
-    # Concerns — optional (not tracked for completion)
-    .sec_card(title="Concerns / Additional Notes", icon="chat-text",
-              saved = nzchar(.fv(sr, "s_e_ume_concern")),
-      div(class="alert alert-light border mb-3 py-1 px-2",
-          style="font-size:0.78rem; border-left:3px solid #6c757d !important;",
-          tags$i(class="bi bi-info-circle me-1"),
-          "Optional — anything you'd like the program to know before you start."),
-      .ta(ns("s_e_ume_concern"),
-          "Any concerns or questions for the program?",
-          .fv(sr,"s_e_ume_concern"), rows=4),
-      .save_btn(ns,"save_concerns"))
+    # Concerns — optional (not tracked for completion). Yes/No gate so
+    # residents who have nothing to flag can move on without an empty
+    # textarea staring at them.
+    {
+      cur_concern <- .fv(sr, "s_e_ume_concern")
+      has_concern <- nzchar(cur_concern)
+      .sec_card(title="Concerns / Additional Notes", icon="chat-text",
+                saved = has_concern,
+        div(class="alert alert-light border mb-3 py-1 px-2",
+            style="font-size:0.78rem; border-left:3px solid #6c757d !important;",
+            tags$i(class="bi bi-info-circle me-1"),
+            "Optional — anything you'd like the program to know before you start."),
+        yn_q("ume_concern_toggle",
+             "Are there any other comments or concerns about your entry into residency that you would like coaching or specific feedback on?",
+             if (has_concern) "1" else ""),
+        conditionalPanel(
+          condition = sprintf("input['%s'] == '1'", ns("ume_concern_toggle")),
+          .ta(ns("s_e_ume_concern"),
+              "Please describe:",
+              cur_concern, rows=4)),
+        .save_btn(ns,"save_concerns"))
+    }
   )
 }
 
