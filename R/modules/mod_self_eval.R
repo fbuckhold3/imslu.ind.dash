@@ -1096,13 +1096,21 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       df
     }
 
+    # Reload local caches whenever rdm_data() returns a newer fetch — the
+    # per-resident Phase-3 load lands AFTER the initial render, and we need
+    # to swap in its fresh data (which includes saves from any prior
+    # session). Guarded by load_timestamp so in-session .merge_seva updates
+    # don't trigger a re-clobber.
+    last_load_ts <- reactiveVal(NULL)
     observe({
-      req(rdm_data(), resident_id(), !local$ready)
+      rd <- rdm_data(); req(rd, resident_id())
+      ts <- rd$load_timestamp %||% rd$load_ts %||% NA
+      if (!is.null(last_load_ts()) && identical(ts, last_load_ts())) return()
       rid <- resident_id()
-      df_s <- rdm_data()$all_forms$s_eval
-      df_i <- rdm_data()$all_forms$ilp
-      df_m <- rdm_data()$all_forms$milestone_selfevaluation_c33c %||%
-              rdm_data()$milestone_selfevaluation_c33c
+      df_s <- rd$all_forms$s_eval
+      df_i <- rd$all_forms$ilp
+      df_m <- rd$all_forms$milestone_selfevaluation_c33c %||%
+              rd$milestone_selfevaluation_c33c
       # Repair any duplicate column names before filtering. Coalesce the
       # period keys explicitly first (so filtering works), then catch any
       # other duplicated fields (s_e_plus, s_e_delta, etc.).
@@ -1113,6 +1121,11 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       local$ilp   <- if (!is.null(df_i)) df_i[df_i$record_id==rid,] else data.frame()
       local$ms    <- if (!is.null(df_m)) df_m[df_m$record_id==rid,] else data.frame()
       local$ready <- TRUE
+      last_load_ts(ts)
+      message("[self_eval] reloaded caches for rid=", rid,
+              " seva_rows=", nrow(local$seva),
+              " ms_rows=",   nrow(local$ms),
+              " load_ts=",   format(ts))
       pi <- isolate(period_info_r())
       if (!is.null(pi) && !is.na(pi$period_number))
         local$sel_period <- as.character(pi$period_number)
