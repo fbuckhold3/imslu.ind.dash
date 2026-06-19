@@ -933,20 +933,12 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
     #   6=ilp_review 7=scholarship_ack 8=milestones 9=ilp
     progress <- reactiveValues(step = 1L)
 
-    # Scholarship completeness (schol_ps==1 AND schol_rca==1 in any row)
-    .schol_done <- function() {
-      sd_all <- tryCatch(rdm_data()$all_forms$scholarship, error = function(e) NULL)
-      rid    <- tryCatch(resident_id(),                    error = function(e) NULL)
-      if (is.null(sd_all) || is.null(rid) || nrow(sd_all) == 0) return(FALSE)
-      if (!"record_id" %in% names(sd_all)) return(FALSE)
-      sd <- sd_all[as.character(sd_all$record_id) == as.character(rid), , drop = FALSE]
-      if (nrow(sd) == 0) return(FALSE)
-      has_ps  <- "schol_ps"  %in% names(sd) &&
-                 any(as.character(sd$schol_ps)  == "1", na.rm = TRUE)
-      has_rca <- "schol_rca" %in% names(sd) &&
-                 any(as.character(sd$schol_rca) == "1", na.rm = TRUE)
-      has_ps && has_rca
-    }
+    # Scholarship is a soft step — it never blocks progression. Residents who
+    # had not recorded BOTH a patient-safety review (schol_ps==1) AND an RCA
+    # (schol_rca==1) were trapped here and could not reach milestones/ILP, so
+    # this always returns TRUE. The scholarship card, the PS/RCA save, and the
+    # "Go to Scholarship" link still render and work as before.
+    .schol_done <- function() TRUE
 
     # Compute starting step for a period from persisted data. Walks the section
     # sequence in order and stops at the first incomplete section — so the user
