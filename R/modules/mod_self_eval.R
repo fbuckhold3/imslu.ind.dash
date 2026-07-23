@@ -397,6 +397,11 @@
     },
     ilp        = has(ir, "goal_pcmk") && has(ir, "goal_sbppbl") &&
                  has(ir, "goal_subcomp_profics"),
+    # Scholarship is satisfied once the resident has engaged the section for this
+    # period (answered any QI/PS/committee question, or entered current work).
+    # "No" counts as answered, so it never hard-blocks progression.
+    scholarship = has(sr, "s_e_current_work") || has(sr, "s_e_did_qi") ||
+                  has(sr, "s_e_did_ps")       || has(sr, "s_e_did_committee"),
     board      = has(sr, "s_e_step3") || has(sr, "s_e_board_plan"),  # period 6
     alumni     = has(res, "grad_email"),       # in resident_data
     FALSE
@@ -933,12 +938,10 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
     #   6=ilp_review 7=scholarship_ack 8=milestones 9=ilp
     progress <- reactiveValues(step = 1L)
 
-    # Scholarship is a soft step — it never blocks progression. Residents who
-    # had not recorded BOTH a patient-safety review (schol_ps==1) AND an RCA
-    # (schol_rca==1) were trapped here and could not reach milestones/ILP, so
-    # this always returns TRUE. The scholarship card, the PS/RCA save, and the
-    # "Go to Scholarship" link still render and work as before.
-    .schol_done <- function() TRUE
+    # Scholarship section completeness is now handled by .section_complete()
+    # ("scholarship" case) against THIS period's s_eval row — see the helper
+    # above. The old .schol_done() (which required schol_ps==1 AND schol_rca==1
+    # in a scholarship instance) is gone, along with the hard block it caused.
 
     # Compute starting step for a period from persisted data. Walks the section
     # sequence in order and stops at the first incomplete section — so the user
@@ -973,8 +976,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       }
       step <- 1L
       for (s in seq_for) {
-        done <- if (s == "scholarship") .schol_done()
-                else if (s == "ilp_review" && pir_empty) TRUE
+        done <- if (s == "ilp_review" && pir_empty) TRUE
                 else .section_complete(s, sr, ir, md, res)
         if (isTRUE(done)) step <- step + 1L else break
       }
@@ -1044,8 +1046,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       next_step <- idx + 1L
       while (next_step <= length(seq)) {
         s <- seq[[next_step]]
-        done <- if (s == "scholarship") .schol_done()
-                else if (s == "ilp_review" && pir_empty) TRUE
+        done <- if (s == "ilp_review" && pir_empty) TRUE
                 else .section_complete(s, sr, ir, md, res)
         if (!isTRUE(done)) break
         next_step <- next_step + 1L
@@ -1614,140 +1615,172 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
                    value=score_val, placeholder="e.g., 215", min="1", max="999"))
     })
 
-    # ── Scholarship readiness check (PS + RCA) ────────────────────────────────
-    # Checks any existing scholarship rows for schol_ps=="1" / schol_rca=="1".
-    # If both already yes, shows a completed badge. Otherwise shows yes/no
-    # inputs + a save button that writes a new scholarship instance marking
-    # the acknowledged activity. Also renders the "Go to Scholarship" link.
+    # scholarship section (writes to the per-period s_eval instance)
+    # 2026 redesign: the scholarship questions (QI / Patient Safety / Committee /
+    # current work) are stored on the s_eval form for THIS period - they are NOT
+    # minted as separate scholarship instances anymore. QI and PS are optional:
+    # answering "No" (or leaving them) is valid and never blocks progression.
+    # Discrete outputs (posters, papers) live in the Scholarship tab, reached via
+    # the "Go to Scholarship" link at the bottom.
+    .COMMITTEE_CHOICES <- c(
+      "1" = "Program Evaluation Committee",
+      "2" = "Curriculum Committee",
+      "3" = "SLUH Patient Safety and Quality",
+      "4" = "Hospitalist MedEd Committee",
+      "5" = "SLUH Ethics Committee",
+      "6" = "Other"
+    )
+
     output$scholarship_check_ui <- renderUI({
       req(local$sel_period %in% as.character(1:6))
-      # Pull this resident's scholarship rows (if any)
-      sd_all <- tryCatch(rdm_data()$all_forms$scholarship, error=function(e) NULL)
-      rid    <- resident_id()
-      sd     <- if (!is.null(sd_all) && nrow(sd_all)>0 && "record_id" %in% names(sd_all))
-                  sd_all[as.character(sd_all$record_id)==as.character(rid), , drop=FALSE]
-                else data.frame()
-      has_ps  <- if (nrow(sd)>0 && "schol_ps"  %in% names(sd))
-                   any(as.character(sd$schol_ps)  == "1", na.rm=TRUE) else FALSE
-      has_rca <- if (nrow(sd)>0 && "schol_rca" %in% names(sd))
-                   any(as.character(sd$schol_rca) == "1", na.rm=TRUE) else FALSE
+      p <- local$sel_period
 
-      done_badge <- function(label)
-        tags$span(style="background:#198754; color:#fff; border-radius:20px;
-                         padding:2px 10px; font-size:0.75rem; font-weight:600;",
-                  tags$i(class="bi bi-check-circle-fill me-1"), label)
+      # This period's s_eval row (existing answers) + all rows (for persistence)
+      seva_all <- local$seva
+      sr <- if (!is.null(seva_all) && nrow(seva_all) > 0)
+              seva_all[as.character(seva_all$s_e_period) == p, , drop = FALSE] else NULL
 
-      yn <- function(id, label, current=NULL) {
-        div(class="d-flex align-items-center gap-3 mb-2",
-          tags$label(label, style="font-size:0.83rem; color:#2c3e50; min-width:280px; margin:0;"),
-          div(class="btn-group btn-group-sm",
-            tags$input(type="radio", class="btn-check", name=ns(id),
-                       id=paste0(ns(id),"_1"), value="1",
-                       checked=if (identical(current,"1")) NA else NULL),
-            tags$label(class=paste0("btn btn-outline-success",
-                                    if (identical(current,"1")) " active" else ""),
-                       `for`=paste0(ns(id),"_1"),
-                       onclick=paste0("Shiny.setInputValue('",ns(id),"','1',{priority:'event'})"),
-                       "Yes"),
-            tags$input(type="radio", class="btn-check", name=ns(id),
-                       id=paste0(ns(id),"_0"), value="0",
-                       checked=if (identical(current,"0")) NA else NULL),
-            tags$label(class=paste0("btn btn-outline-secondary",
-                                    if (identical(current,"0")) " active" else ""),
-                       `for`=paste0(ns(id),"_0"),
-                       onclick=paste0("Shiny.setInputValue('",ns(id),"','0',{priority:'event'})"),
-                       "No")))
+      # "Once Yes, stays Yes": default a question to Yes if any prior s_eval
+      # instance for this resident answered Yes - unless this period already
+      # has an explicit answer. Editable, not locked.
+      prior_yes <- function(fld) !is.null(seva_all) && nrow(seva_all) > 0 &&
+        fld %in% names(seva_all) && any(as.character(seva_all[[fld]]) == "1", na.rm = TRUE)
+      yn_default <- function(fld) {
+        cur <- .fv(sr, fld)
+        if (nzchar(cur)) cur else if (prior_yes(fld)) "1" else character(0)
       }
 
-      both_done <- has_ps && has_rca
-      body <- if (both_done) {
-        div(class="d-flex flex-wrap gap-2 align-items-center mb-2",
-          done_badge("Patient safety review \u2014 on file"),
-          done_badge("Root cause analysis \u2014 on file"))
-      } else {
-        tagList(
-          tags$p(class="text-muted mb-2", style="font-size:0.82rem;",
-                 "Confirm whether you've completed a real or simulated patient safety review ",
-                 "and/or root cause analysis (RCA). Already-recorded \"Yes\" answers are shown as complete."),
-          div(class="d-flex flex-wrap gap-2 mb-2",
-            if (has_ps)  done_badge("Patient safety review \u2014 on file") else NULL,
-            if (has_rca) done_badge("RCA \u2014 on file") else NULL),
-          if (!has_ps)
-            yn("schol_ps_ack",  "Real or simulated patient safety review completed?",
-               input$schol_ps_ack),
-          if (!has_rca)
-            yn("schol_rca_ack", "Real or simulated root cause analysis (RCA) completed?",
-               input$schol_rca_ack),
-          div(class="mt-2",
-            actionButton(ns("save_schol_ack"), "Save",
-              class="btn btn-sm btn-primary",
-              style="padding:4px 14px; font-size:0.82rem;")),
-          uiOutput(ns("save_schol_ack_status")))
-      }
+      comm_sel_cur <- names(.COMMITTEE_CHOICES)[vapply(names(.COMMITTEE_CHOICES),
+        function(code) identical(.fv(sr, paste0("s_e_committee_select___", code)), "1"),
+        logical(1))]
 
-      # Wrapped card styled like the old scholarship prompt. The "Go to
-      # Scholarship" button sits inline at the bottom of the flow (not floated
-      # to the side) so it reads as the natural next step after the PS / RCA
-      # acknowledgment.
-      div(class="card border-0 mb-3",
-          style="background:linear-gradient(135deg,#f8f4ff 0%,#eef2ff 100%);
-                 border-left:4px solid #6f42c1 !important; border-radius:8px;",
-        div(class="card-body py-3 px-4",
-          # Header — title + helper text, stacked
-          div(class="mb-2",
-            tags$p(style="font-weight:700; color:#4a1d96; font-size:0.9rem; margin:0;",
-                   tags$i(class="bi bi-award-fill me-2"), "Scholarship & Teaching"),
-            tags$p(style="font-size:0.82rem; color:#6c757d; margin:4px 0 0;",
-                   "Log research, presentations, teaching, and academic activities in the Scholarship tab.")),
-          # Body — Q&A / completion badges
-          div(class="mt-2 pt-2", style="border-top:1px dashed #cfc4e5;", body),
-          # Inline call-to-action at the bottom of the flow
-          div(class="mt-3 pt-2 d-flex align-items-center gap-2",
-              style="border-top:1px dashed #cfc4e5;",
-            tags$span(style="font-size:0.82rem; color:#4a1d96;",
-                      tags$i(class="bi bi-arrow-right-circle me-1"),
-                      "Next:"),
-            tags$button(
-              class="btn btn-sm",
-              style="background:#6f42c1; color:#fff; border:none;
-                     padding:6px 18px; font-size:0.85rem; font-weight:600;",
-              onclick="Shiny.setInputValue('nav_block','scholarship',{priority:'event'})",
-              tags$i(class="bi bi-box-arrow-up-right me-1"),
-              "Enter details in the Scholarship section"))))
+      ta <- function(id, value, ph = "", rows = 3)
+        tags$textarea(id = ns(id), class = "form-control",
+                      rows = rows, style = "font-size:0.85rem; resize:vertical;",
+                      placeholder = ph, value)
+
+      yn_radio <- function(id, label, default)
+        div(class = "mb-2",
+          tags$label(label, style = "font-size:0.83rem; color:#2c3e50; font-weight:600; display:block; margin-bottom:4px;"),
+          radioButtons(ns(id), label = NULL, choices = c("Yes" = "1", "No" = "0"),
+                       selected = default, inline = TRUE))
+
+      committee_choices_ui <- setNames(names(.COMMITTEE_CHOICES), unname(.COMMITTEE_CHOICES))
+
+      body <- tagList(
+        yn_radio("s_e_did_qi", "Have you participated in a Quality Improvement (QI) project?",
+                 yn_default("s_e_did_qi")),
+        conditionalPanel("input.s_e_did_qi == '1'", ns = ns,
+          div(class = "mb-3",
+            ta("s_e_qi_description", .fv(sr, "s_e_qi_description"),
+               "Briefly describe the QI project"))),
+
+        yn_radio("s_e_did_ps", "Have you participated in a Patient Safety review?",
+                 yn_default("s_e_did_ps")),
+        conditionalPanel("input.s_e_did_ps == '1'", ns = ns,
+          div(class = "mb-3",
+            ta("s_e_ps_description", .fv(sr, "s_e_ps_description"),
+               "Briefly describe the patient safety review"))),
+
+        yn_radio("s_e_did_committee", "Are you currently serving on a committee?",
+                 yn_default("s_e_did_committee")),
+        conditionalPanel("input.s_e_did_committee == '1'", ns = ns,
+          div(class = "mb-2",
+            tags$label("Which committee(s)?",
+                       style = "font-size:0.83rem; color:#2c3e50; font-weight:600;"),
+            checkboxGroupInput(ns("s_e_committee_select"), label = NULL,
+                               choices = committee_choices_ui, selected = comm_sel_cur)),
+          conditionalPanel("input.s_e_committee_select && input.s_e_committee_select.indexOf('6') > -1",
+            ns = ns,
+            div(class = "mb-2",
+              tags$input(type = "text", id = ns("s_e_committee_other"),
+                         class = "form-control form-control-sm",
+                         placeholder = "If Other, please specify",
+                         value = .fv(sr, "s_e_committee_other")))),
+          div(class = "mb-3",
+            tags$label("Your role on the committee(s)",
+                       style = "font-size:0.83rem; color:#2c3e50; font-weight:600;"),
+            tags$input(type = "text", id = ns("s_e_committee_role"),
+                       class = "form-control form-control-sm",
+                       placeholder = "e.g., Member, Chair, Resident Representative",
+                       value = .fv(sr, "s_e_committee_role")))),
+
+        div(class = "mb-3",
+          tags$label("What scholarly work are you currently working on?",
+                     style = "font-size:0.83rem; color:#2c3e50; font-weight:600; display:block; margin-bottom:4px;"),
+          ta("s_e_current_work", .fv(sr, "s_e_current_work"),
+             "A short status update on ongoing scholarly work (optional)")),
+
+        div(class = "mt-2 d-flex align-items-center gap-2",
+          actionButton(ns("save_schol_ack"), "Save & Continue",
+            class = "btn btn-sm btn-primary",
+            style = "padding:4px 14px; font-size:0.82rem;"),
+          uiOutput(ns("save_schol_ack_status"))))
+
+      div(class = "card border-0 mb-3",
+          style = "background:linear-gradient(135deg,#f8f4ff 0%,#eef2ff 100%);
+                   border-left:4px solid #6f42c1 !important; border-radius:8px;",
+        div(class = "card-body py-3 px-4",
+          div(class = "mb-2",
+            tags$p(style = "font-weight:700; color:#4a1d96; font-size:0.9rem; margin:0;",
+                   tags$i(class = "bi bi-award-fill me-2"), "Scholarship & Teaching"),
+            tags$p(style = "font-size:0.82rem; color:#6c757d; margin:4px 0 0;",
+                   "These questions are optional - answer what applies. Discrete outputs ",
+                   "(posters, presentations, publications) are logged in the Scholarship tab.")),
+          div(class = "mt-2 pt-2", style = "border-top:1px dashed #cfc4e5;", body),
+          div(class = "mt-3 pt-2 d-flex align-items-center gap-2",
+              style = "border-top:1px dashed #cfc4e5;",
+            tags$span(style = "font-size:0.82rem; color:#4a1d96;",
+                      tags$i(class = "bi bi-arrow-right-circle me-1"), "Outputs:"),
+            tags$button(class = "btn btn-sm",
+              style = "background:#6f42c1; color:#fff; border:none;
+                       padding:6px 18px; font-size:0.85rem; font-weight:600;",
+              onclick = "Shiny.setInputValue('nav_block','scholarship',{priority:'event'})",
+              tags$i(class = "bi bi-box-arrow-up-right me-1"),
+              "Go to the Scholarship section"))))
     })
 
-    # Save ack — creates a new scholarship instance with ps/rca flags set.
-    # Reuses an existing instance if the row has no data yet; otherwise adds.
+    # Save - writes the scholarship answers onto THIS period's s_eval instance
+    # (overwrite, like every other s_eval section) and always advances. Every
+    # field is optional; "No" / blank is a valid, complete answer.
     observeEvent(input$save_schol_ack, {
-      ps_ack  <- input$schol_ps_ack  %||% ""
-      rca_ack <- input$schol_rca_ack %||% ""
-      if (!(identical(ps_ack,"1") || identical(rca_ack,"1"))) {
-        output$save_schol_ack_status <- renderUI(
-          tags$span(class="text-muted small",
-                    "Nothing to save — select Yes for at least one item."))
-        return()
-      }
-      sd_all <- tryCatch(rdm_data()$all_forms$scholarship, error=function(e) NULL)
-      rid    <- resident_id()
-      existing <- if (!is.null(sd_all) && nrow(sd_all)>0)
-                    sd_all[as.character(sd_all$record_id)==as.character(rid), , drop=FALSE]
-                  else data.frame()
-      inst <- if (nrow(existing)==0) 1L
-              else as.integer(max(as.integer(existing$redcap_repeat_instance), na.rm=TRUE)) + 1L
-      fields <- list()
-      if (identical(ps_ack, "1"))  fields$schol_ps  <- "1"
-      if (identical(rca_ack,"1"))  fields$schol_rca <- "1"
-      res <- .rc_save(rid, "scholarship", inst, fields)
+      p <- local$sel_period
+      req(p %in% as.character(1:6), period_mode_r() %in% c("active","unknown"))
+
+      qi   <- input$s_e_did_qi           %||% ""
+      ps   <- input$s_e_did_ps           %||% ""
+      comm <- input$s_e_did_committee    %||% ""
+      sel  <- input$s_e_committee_select %||% character(0)
+
+      f <- list(
+        s_e_period          = p,
+        s_e_did_qi          = qi,
+        s_e_qi_description  = if (identical(qi, "1")) input$s_e_qi_description %||% "" else "",
+        s_e_did_ps          = ps,
+        s_e_ps_description  = if (identical(ps, "1")) input$s_e_ps_description %||% "" else "",
+        s_e_did_committee   = comm,
+        s_e_committee_role  = if (identical(comm, "1")) input$s_e_committee_role %||% "" else "",
+        s_e_committee_other = if (identical(comm, "1") && "6" %in% sel)
+                                input$s_e_committee_other %||% "" else "",
+        s_e_current_work    = input$s_e_current_work %||% ""
+      )
+      # Committee checkbox columns - selected -> "1", the rest -> "0" (all
+      # cleared when "currently serving" is not Yes).
+      f <- c(f, .checkbox_fields("s_e_committee_select", .COMMITTEE_CHOICES,
+                                 if (identical(comm, "1")) sel else character(0)))
+
+      res <- .rc_save(resident_id(), "s_eval", as.integer(p), f)
       if (isTRUE(res$success)) {
         output$save_schol_ack_status <- renderUI(
-          tags$span(class="text-success small",
-            tags$i(class="bi bi-check-circle-fill me-1"),
-            paste0("Saved \u2014 scholarship entry #", inst, " (", res$ts, ")")))
+          tags$span(class = "text-success small",
+            tags$i(class = "bi bi-check-circle-fill me-1"),
+            paste0("Saved (", res$ts, ")")))
+        .merge_seva(p, f)
         .advance_after("scholarship")
       } else {
         output$save_schol_ack_status <- renderUI(
-          tags$span(class="text-danger small",
-            tags$i(class="bi bi-exclamation-triangle-fill me-1"),
+          tags$span(class = "text-danger small",
+            tags$i(class = "bi bi-exclamation-triangle-fill me-1"),
             paste0("Save failed: ", res$message %||% "unknown error")))
       }
     })
