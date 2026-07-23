@@ -1,12 +1,51 @@
-# mod_scholarship.R ─ Scholarship & Teaching Portfolio
-# Shows existing scholarship entries in a table and provides an "+ Add Entry"
-# form. Saves to REDCap scholarship instrument (repeating, additive pattern).
+# mod_scholarship.R ─ Scholarship & Teaching Portfolio (orchestrator)
+#
+# Thin composer that wires together two reusable sub-modules:
+#   - mod_scholarship_view  : display of a resident's outputs + per-row actions
+#   - mod_scholarship_entry : the add / edit / recategorize form + save
+#
+# Keeps the original public interface (mod_scholarship_ui / mod_scholarship_server
+# with rdm_data + resident_id) so server.R and ui.R need no changes.
+#
+# Owns the single source of truth — `schol_store` — seeded from REDCap at startup,
+# upserted on save (edit replaces the row, new appends), and pruned on delete, so
+# the view refreshes live without an app restart.
+#
+# Scope note (2026 redesign): scholarship records OUTPUTS only, mirroring the
+# ERAS scholarly-work categories. QI / patient-safety / committee / ongoing-project
+# work lives in the per-period `s_eval` form, not here.
+
+# Delete a single repeating instance from REDCap. The `instrument` +
+# `repeat_instance` params scope the delete to that one instance — WITHOUT them
+# REDCap would delete the entire record, so both are always sent.
+.rc_delete <- function(record_id, instrument, instance) {
+  tryCatch({
+    resp <- httr::POST(
+      url  = app_config$redcap_url,
+      body = list(token = app_config$rdm_token, content = "record", action = "delete",
+                  "records[0]"    = as.character(record_id),
+                  instrument      = instrument,
+                  repeat_instance = as.character(instance),
+                  returnFormat    = "json"),
+      encode = "form", httr::timeout(30))
+    status <- httr::status_code(resp)
+    body   <- httr::content(resp, "text", encoding = "UTF-8")
+    if (status == 200 && !grepl("error", body, ignore.case = TRUE))
+      list(success = TRUE, message = body)
+    else
+      list(success = FALSE, message = paste0("REDCap (HTTP ", status, "): ", substr(body, 1, 300)))
+  }, error = function(e) list(success = FALSE, message = conditionMessage(e)))
+}
 
 mod_scholarship_ui <- function(id) {
   ns <- NS(id)
   tagList(
-    uiOutput(ns("entries_panel")),
-    uiOutput(ns("add_form_panel"))
+    div(class = "d-flex justify-content-end mb-2",
+      downloadButton(ns("dl_cv"), "Download CV (Word)",
+        class = "btn btn-sm btn-outline-primary",
+        style = "font-size:0.82rem;")),
+    mod_scholarship_view_ui(ns("view")),
+    mod_scholarship_entry_ui(ns("entry"))
   )
 }
 
@@ -14,323 +53,111 @@ mod_scholarship_server <- function(id, rdm_data, resident_id) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
-    # ── local cache — starts from loaded data, appended on each save ─────────
-    # (rdm_data() is frozen at startup; this cache stays live)
-    schol_local <- reactiveVal(NULL)
+    # ── single source of truth — seeded once from loaded data ─────────────────
+    schol_store <- reactiveVal(NULL)
 
     observe({
       req(rdm_data(), resident_id())
-      if (!is.null(schol_local())) return()   # already seeded
+      if (!is.null(schol_store())) return()   # already seeded
       schol <- rdm_data()$all_forms$scholarship
       rows  <- if (!is.null(schol) && nrow(schol) > 0)
                  schol[schol$record_id == resident_id(), , drop = FALSE]
                else data.frame()
-      schol_local(rows)
+      schol_store(rows)
     })
 
-    my_scholarship <- reactive({
-      schol_local()
+    # Resident display name (residents$name, as server.R does) for the CV header.
+    resident_name <- reactive({
+      r   <- tryCatch(rdm_data()$residents, error = function(e) NULL)
+      rid <- resident_id()
+      if (is.null(r) || is.null(rid) || !"name" %in% names(r)) return("Resident")
+      row <- r[as.character(r$record_id) == as.character(rid), , drop = FALSE]
+      nm  <- if (nrow(row) > 0) row$name[1] else NA
+      if (is.na(nm) || !nzchar(nm)) "Resident" else nm
     })
 
-    # ── type map ──────────────────────────────────────────────────────────────
-    .TYPE_LABELS <- c(
-      "1" = "QI / Improvement Project",
-      "2" = "Patient Safety",
-      "3" = "Research",
-      "4" = "Presentation",
-      "5" = "Publication",
-      "6" = "Education / Teaching",
-      "7" = "Committee Work"
+    # ── CV (Word) export ──────────────────────────────────────────────────────
+    output$dl_cv <- downloadHandler(
+      filename = function()
+        paste0("Scholarship_CV_", gsub("[^A-Za-z0-9]+", "_", resident_name()), "_",
+               Sys.Date(), ".docx"),
+      content = function(file) {
+        if (!requireNamespace("officer", quietly = TRUE)) {
+          showNotification("CV export needs the 'officer' package installed.", type = "error", duration = 6)
+          stop("officer not installed")
+        }
+        .build_scholarship_cv(schol_store() %||% data.frame(), resident_name(), file)
+      }
     )
 
-    # ── save state ─────────────────────────────────────────────────────────────
-    ss <- reactiveValues(save = NULL)
+    row_by_instance <- function(inst) {
+      st <- schol_store()
+      if (is.null(st) || nrow(st) == 0 || !"redcap_repeat_instance" %in% names(st)) return(NULL)
+      r <- st[as.character(st$redcap_repeat_instance) == as.character(inst), , drop = FALSE]
+      if (nrow(r) == 0) NULL else r
+    }
 
-    # ── show form toggle ───────────────────────────────────────────────────────
-    show_form <- reactiveVal(FALSE)
-    observeEvent(input$btn_add, { show_form(TRUE); ss$save <- NULL })
-    observeEvent(input$btn_cancel, { show_form(FALSE); ss$save <- NULL })
+    # ── entry form (add / edit / recategorize) ────────────────────────────────
+    edit_req_val <- reactiveVal(NULL)
+    saved <- mod_scholarship_entry_server(
+      "entry",
+      resident_id   = resident_id,
+      existing_data = reactive(schol_store()),
+      edit_req      = reactive(edit_req_val())
+    )
 
-    # ── entries table ──────────────────────────────────────────────────────────
-    output$entries_panel <- renderUI({
-      df <- my_scholarship()
+    # ── view (returns per-row actions) ────────────────────────────────────────
+    action <- mod_scholarship_view_server("view", schol_data = reactive(schol_store()))
 
-      table_content <- if (is.null(df) || nrow(df) == 0) {
-        div(class = "text-muted fst-italic", style = "font-size:0.85rem; padding:16px 0;",
-            tags$i(class = "bi bi-inbox me-2"),
-            "No scholarship entries yet — click below to add your first entry.")
+    # Route actions: edit / recategorize open the form prefilled; delete confirms.
+    observeEvent(action(), {
+      a <- action(); req(a, a$action)
+      if (a$action %in% c("edit", "recategorize")) {
+        row <- row_by_instance(a$instance); req(row)
+        edit_req_val(list(mode = a$action, instance = a$instance, row = row, nonce = a$nonce))
+      } else if (a$action == "delete") {
+        row <- row_by_instance(a$instance)
+        lbl <- if (!is.null(row)) {
+          t <- row$schol_title[1]
+          if (is.na(t) || !nzchar(t)) paste0("entry #", a$instance) else t
+        } else paste0("entry #", a$instance)
+        pending_del(a)
+        showModal(modalDialog(
+          title = "Delete this entry?",
+          tags$p("This permanently removes ", tags$strong(lbl),
+                 " from REDCap. This can't be undone."),
+          footer = tagList(
+            modalButton("Cancel"),
+            actionButton(ns("confirm_delete"), "Delete", class = "btn btn-danger btn-sm")),
+          easyClose = TRUE, size = "s"))
+      }
+    }, ignoreNULL = TRUE)
+
+    # ── delete confirmation ───────────────────────────────────────────────────
+    pending_del <- reactiveVal(NULL)
+    observeEvent(input$confirm_delete, {
+      a <- pending_del(); req(a)
+      removeModal()
+      res <- .rc_delete(a$record_id, "scholarship", a$instance)
+      if (isTRUE(res$success)) {
+        st <- schol_store()
+        schol_store(st[as.character(st$redcap_repeat_instance) != as.character(a$instance), , drop = FALSE])
+        showNotification("Entry deleted.", type = "message", duration = 3)
       } else {
-        rows <- lapply(seq_len(nrow(df)), function(i) {
-          row      <- df[i, ]
-          get_fv   <- function(f) if (f %in% names(row)) { v <- row[[f]][1]; if (is.na(v)) "" else as.character(v) } else ""
-          type_val <- get_fv("schol_type")
-          type_lbl <- .TYPE_LABELS[type_val] %||% paste0("Type ", type_val)
-          inst     <- get_fv("redcap_repeat_instance")
-
-          # Description/title: use best available field
-          desc <- get_fv("schol_qi")
-          if (!nzchar(desc)) desc <- get_fv("schol_cit")
-          if (!nzchar(desc)) desc <- get_fv("schol_comm")
-          if (!nzchar(desc)) desc <- get_fv("schol_pres_conf")
-          if (!nzchar(desc)) desc <- get_fv("schol_res")
-          if (nchar(desc) > 80) desc <- paste0(substr(desc, 1, 77), "...")
-
-          # Date: attempt schol_date or fall back to instance#
-          date_val <- get_fv("schol_date")
-          date_lbl <- if (nzchar(date_val)) date_val else paste0("Entry #", inst)
-
-          tags$tr(
-            tags$td(style = "font-size:0.82rem; color:#6c757d; white-space:nowrap;", date_lbl),
-            tags$td(style = "font-size:0.82rem;",
-              tags$span(
-                class = "badge",
-                style = "background:#e3eef8; color:#003d5c; font-size:0.75rem; font-weight:600;",
-                type_lbl)),
-            tags$td(style = "font-size:0.82rem; color:#2c3e50;", desc)
-          )
-        })
-
-        div(class = "table-responsive",
-          tags$table(class = "table table-sm mb-0",
-            tags$thead(
-              tags$tr(
-                tags$th(style = "font-size:0.75rem; color:#6c757d; font-weight:600; width:120px;", "Date / Entry"),
-                tags$th(style = "font-size:0.75rem; color:#6c757d; font-weight:600; width:160px;", "Type"),
-                tags$th(style = "font-size:0.75rem; color:#6c757d; font-weight:600;", "Description / Title")
-              )
-            ),
-            tags$tbody(rows)
-          )
-        )
+        showNotification(paste0("Delete failed: ", res$message), type = "error", duration = 6)
       }
-
-      div(
-        div(class = "card border-0 shadow-sm mb-3",
-            style = "border-radius:8px;",
-          div(class = "card-header border-0 d-flex align-items-center justify-content-between gap-2",
-              style = "background:#f8fafc; border-radius:8px 8px 0 0; padding:12px 18px;",
-            div(class = "d-flex align-items-center gap-2",
-              tags$i(class = "bi bi-award-fill", style = "color:#003d5c; font-size:1rem;"),
-              tags$span(style = "font-weight:700; color:#003d5c; font-size:0.95rem;",
-                        "Scholarship & Teaching Portfolio")),
-            if (!isTRUE(show_form()))
-              actionButton(ns("btn_add"), "+ Add Entry",
-                class = "btn btn-sm",
-                style = "background:#003d5c; color:#fff; border:none; padding:4px 14px; font-size:0.82rem;")),
-          div(class = "card-body", table_content))
-      )
+      pending_del(NULL)
     })
 
-    # ── entry form ─────────────────────────────────────────────────────────────
-    output$add_form_panel <- renderUI({
-      if (!isTRUE(show_form())) return(NULL)
-
-      div(class = "card border-0 shadow-sm mb-3",
-          style = "border-radius:8px;",
-        div(class = "card-header border-0 d-flex align-items-center gap-2",
-            style = "background:#f8fafc; border-radius:8px 8px 0 0; padding:12px 18px;",
-          tags$i(class = "bi bi-plus-circle-fill", style = "color:#003d5c; font-size:1rem;"),
-          tags$span(style = "font-weight:700; color:#003d5c; font-size:0.95rem;",
-                    "Add Scholarship Entry")),
-        div(class = "card-body",
-          tags$p(class = "text-muted mb-3", style = "font-size:0.82rem;",
-                 "Log research, presentations, teaching, and academic activities."),
-
-          # Type selector
-          div(class = "mb-3",
-            tags$label("Activity type", class = "form-label fw-semibold",
-                       style = "font-size:0.85rem; color:#2c3e50;"),
-            selectInput(ns("schol_type"), label = NULL,
-              choices = c("-- select type --" = "",
-                          "QI / Improvement Project" = "1",
-                          "Patient Safety"           = "2",
-                          "Research"                 = "3",
-                          "Presentation"             = "4",
-                          "Publication"              = "5",
-                          "Education / Teaching"     = "6",
-                          "Committee Work"           = "7"),
-              selected = "", selectize = FALSE, width = "100%")),
-
-          # Conditional fields
-          uiOutput(ns("schol_type_fields")),
-
-          # Save / cancel buttons
-          div(class = "d-flex align-items-center gap-2 mt-3",
-            actionButton(ns("btn_save"), "Save Entry",
-              class = "btn btn-sm",
-              style = "background:#003d5c; color:#fff; border:none; padding:6px 18px;"),
-            actionButton(ns("btn_cancel"), "Cancel",
-              class = "btn btn-sm btn-outline-secondary",
-              style = "padding:6px 14px;"),
-            uiOutput(ns("save_status")))
-        )
-      )
-    })
-
-    # ── conditional fields by type ─────────────────────────────────────────────
-    output$schol_type_fields <- renderUI({
-      type_val <- input$schol_type
-      if (is.null(type_val) || !nzchar(type_val)) return(NULL)
-
-      common_desc <- function(field_id, label_text, rows = 3)
-        div(class = "mb-3",
-          tags$label(label_text, class = "form-label fw-semibold",
-                     style = "font-size:0.85rem; color:#2c3e50;"),
-          tags$textarea(id = ns(field_id), class = "form-control",
-                        rows = rows, style = "font-size:0.88rem; resize:vertical;", ""))
-
-      mentor_status <- tagList(
-        div(class = "mb-3",
-          tags$label("Mentor / supervisor", class = "form-label fw-semibold",
-                     style = "font-size:0.85rem; color:#2c3e50;"),
-          tags$input(type = "text", id = ns("schol_res_mentor"),
-                     class = "form-control form-control-sm",
-                     placeholder = "Name of mentor or supervisor")),
-        div(class = "mb-3",
-          tags$label("Project status", class = "form-label fw-semibold",
-                     style = "font-size:0.85rem; color:#2c3e50;"),
-          selectInput(ns("schol_res_status"), label = NULL,
-            choices = c("-- select --" = "",
-                        "Planning"    = "1",
-                        "In Progress" = "2",
-                        "Completed"   = "3",
-                        "Submitted"   = "4",
-                        "Published"   = "5"),
-            selected = "", selectize = FALSE, width = "100%")))
-
-      if (type_val %in% c("1", "2", "3")) {
-        # QI / Safety / Research
-        tagList(
-          common_desc("schol_qi",
-            if (type_val == "1") "Describe the QI / improvement project"
-            else if (type_val == "2") "Describe the patient safety activity"
-            else "Describe the research project"),
-          mentor_status)
-
-      } else if (type_val == "4") {
-        # Presentation
-        tagList(
-          div(class = "mb-3",
-            tags$label("Conference / venue", class = "form-label fw-semibold",
-                       style = "font-size:0.85rem; color:#2c3e50;"),
-            tags$input(type = "text", id = ns("schol_pres_conf"),
-                       class = "form-control form-control-sm",
-                       placeholder = "e.g., ACP National Meeting 2025")),
-          div(class = "mb-3",
-            tags$label("Presentation type", class = "form-label fw-semibold",
-                       style = "font-size:0.85rem; color:#2c3e50;"),
-            selectInput(ns("schol_pres_type"), label = NULL,
-              choices = c("-- select --" = "",
-                          "Poster"       = "1",
-                          "Oral"         = "2",
-                          "Workshop"     = "3",
-                          "Grand Rounds" = "4"),
-              selected = "", selectize = FALSE, width = "100%")),
-          common_desc("schol_qi", "Brief description (optional)", rows = 2))
-
-      } else if (type_val == "5") {
-        # Publication
-        tagList(
-          div(class = "mb-3",
-            tags$label("Full citation", class = "form-label fw-semibold",
-                       style = "font-size:0.85rem; color:#2c3e50;"),
-            tags$textarea(id = ns("schol_cit"), class = "form-control",
-                          rows = 3, style = "font-size:0.88rem; resize:vertical;",
-                          placeholder = "Authors, Title, Journal, Year, Vol(Issue):pages", "")),
-          common_desc("schol_qi", "Additional notes (optional)", rows = 2))
-
-      } else if (type_val == "6") {
-        # Education / Teaching
-        common_desc("schol_qi", "Describe the teaching activity")
-
-      } else if (type_val == "7") {
-        # Committee Work
-        tagList(
-          div(class = "mb-3",
-            tags$label("Committee name", class = "form-label fw-semibold",
-                       style = "font-size:0.85rem; color:#2c3e50;"),
-            tags$input(type = "text", id = ns("schol_comm"),
-                       class = "form-control form-control-sm",
-                       placeholder = "e.g., Patient Safety Committee")),
-          div(class = "mb-3",
-            tags$label("Committee level", class = "form-label fw-semibold",
-                       style = "font-size:0.85rem; color:#2c3e50;"),
-            selectInput(ns("schol_comm_type"), label = NULL,
-              choices = c("-- select --" = "",
-                          "Local"    = "1",
-                          "Regional" = "2",
-                          "National" = "3"),
-              selected = "", selectize = FALSE, width = "100%")),
-          common_desc("schol_qi", "Description / role (optional)", rows = 2))
+    # ── save upsert — edit/recategorize replace the row, new appends ──────────
+    observeEvent(saved(), {
+      nr <- saved(); req(nr)
+      st <- schol_store() %||% data.frame()
+      if (nrow(st) > 0 && "redcap_repeat_instance" %in% names(st)) {
+        st <- st[as.character(st$redcap_repeat_instance) != as.character(nr$redcap_repeat_instance), , drop = FALSE]
       }
-    })
-
-    # ── save status ────────────────────────────────────────────────────────────
-    output$save_status <- renderUI({
-      r <- ss$save
-      if (is.null(r)) return(NULL)
-      if (isTRUE(r$success))
-        tags$span(class = "text-success", style = "font-size:0.8rem;",
-          tags$i(class = "bi bi-check-circle-fill me-1"),
-          paste("Saved", r$ts))
-      else
-        tags$span(class = "text-danger", style = "font-size:0.8rem;",
-          tags$i(class = "bi bi-exclamation-triangle-fill me-1"),
-          r$message)
-    })
-
-    # ── save handler ───────────────────────────────────────────────────────────
-    observeEvent(input$btn_save, {
-      req(resident_id())
-      type_val <- input$schol_type %||% ""
-      if (!nzchar(type_val)) {
-        ss$save <- list(success = FALSE,
-                        message = "Please select an activity type before saving.")
-        return()
-      }
-
-      fv <- function(id) { v <- input[[id]]; if (is.null(v)) "" else as.character(v) }
-
-      fields <- list(
-        schol_type       = type_val,
-        schol_qi         = fv("schol_qi"),
-        schol_res_mentor = fv("schol_res_mentor"),
-        schol_res_status = fv("schol_res_status"),
-        schol_pres_conf  = fv("schol_pres_conf"),
-        schol_pres_type  = fv("schol_pres_type"),
-        schol_cit        = fv("schol_cit"),
-        schol_comm       = fv("schol_comm"),
-        schol_comm_type  = fv("schol_comm_type")
-      )
-
-      # Get next instance number (additive pattern)
-      df <- tryCatch({
-        schol <- rdm_data()$all_forms$scholarship
-        if (!is.null(schol)) schol[schol$record_id == resident_id(), , drop = FALSE]
-        else NULL
-      }, error = function(e) NULL)
-
-      next_inst <- if (!is.null(df) && nrow(df) > 0) {
-        existing_insts <- suppressWarnings(as.integer(df$redcap_repeat_instance))
-        max(existing_insts, na.rm = TRUE) + 1L
-      } else 1L
-
-      result <- .rc_save(resident_id(), "scholarship", next_inst, fields)
-      ss$save <- result
-
-      if (isTRUE(result$success)) {
-        # Append to local cache so table updates immediately (no app restart needed)
-        new_row <- as.data.frame(
-          c(list(record_id               = resident_id(),
-                 redcap_repeat_instrument = "scholarship",
-                 redcap_repeat_instance  = as.character(next_inst),
-                 schol_date              = format(Sys.Date(), "%Y-%m-%d")),
-            lapply(fields, as.character)),
-          stringsAsFactors = FALSE, check.names = FALSE)
-        schol_local(dplyr::bind_rows(schol_local() %||% data.frame(), new_row))
-        show_form(FALSE)
-      }
-    })
+      schol_store(dplyr::bind_rows(st, nr))
+    }, ignoreNULL = TRUE)
 
   }) # end moduleServer
 }
