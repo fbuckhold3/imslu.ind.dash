@@ -106,6 +106,7 @@ resident_nav_blocks <- list(
   list(id = "scholarship",  label = "Scholarship & Teaching", icon = "award-fill",              desc = "Research, teaching & academic portfolio"),
   list(id = "faculty_eval", label = "Faculty Evaluations",    icon = "person-check-fill",       desc = "Evaluations you've completed"),
   list(id = "self_eval",    label = "Self Evaluations",       icon = "person-lines-fill",       desc = "Self-assessments & ILP"),
+  list(id = "attendance",   label = "Noon Conference Attendance", icon = "calendar2-check-fill", desc = "Log or review your conference attendance"),
   list(id = "schedule",     label = "Schedule",               icon = "calendar3-fill",          desc = "Rotation schedule",              disabled = TRUE),
   list(id = "resources",    label = "Program Resources",      icon = "grid-3x3-gap-fill",       desc = "Links, SharePoint & program tools", disabled = TRUE)
 )

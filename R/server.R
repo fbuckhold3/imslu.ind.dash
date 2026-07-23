@@ -198,6 +198,7 @@ server <- function(input, output, session) {
   mod_faculty_eval_server("faculty_eval", rdm_data = rdm_data, resident_id = resident_id,
                           faculty_roster_r = faculty_roster)
   mod_self_eval_server(   "self_eval",    rdm_data = rdm_data, resident_id = resident_id)
+  mod_attendance_server(  "attendance",   rdm_data = rdm_data, resident_id = resident_id)
   mod_schedule_server(    "schedule")
   mod_resources_server(   "resources")
 
@@ -292,6 +293,7 @@ server <- function(input, output, session) {
         scholarship  = mod_scholarship_ui("scholarship"),
         faculty_eval = mod_faculty_eval_ui("faculty_eval"),
         self_eval    = mod_self_eval_ui("self_eval"),
+        attendance   = mod_attendance_ui("attendance"),
         schedule     = mod_schedule_ui("schedule"),
         resources    = mod_resources_ui("resources"),
         div("Unknown section")
