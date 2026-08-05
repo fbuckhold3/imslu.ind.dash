@@ -986,18 +986,18 @@
         "Imports": "dplyr, httr, readr, jsonlite, DT, reactable, htmltools,\nplotly, rlang, config, lubridate, tidyr, shinyjs, shiny, bslib,\ndata.table, tibble, purrr",
         "Author": "First Last [aut, cre]",
         "Maintainer": "First Last <first.last@example.com>",
-        "Built": "R 4.6.0; ; 2026-07-23 22:32:16 UTC; unix",
+        "Built": "R 4.6.0; ; 2026-08-04 22:56:07 UTC; unix",
         "RemoteType": "github",
         "RemoteHost": "api.github.com",
         "RemoteUsername": "fbuckhold3",
         "RemoteRepo": "gmed",
         "RemoteRef": "main",
-        "RemoteSha": "6e1afd1cd0a833a16ce6d1773574c6addf741255",
+        "RemoteSha": "5cecc6ef32011bba87d1ed4de71a89d9dec19e8f",
         "GithubHost": "api.github.com",
         "GithubRepo": "gmed",
         "GithubUsername": "fbuckhold3",
         "GithubRef": "main",
-        "GithubSHA1": "6e1afd1cd0a833a16ce6d1773574c6addf741255"
+        "GithubSHA1": "5cecc6ef32011bba87d1ed4de71a89d9dec19e8f"
       }
     },
     "gtable": {
@@ -2977,6 +2977,9 @@
     "app.R": {
       "checksum": "ee3b1518474e22037fc00eecd25b8356"
     },
+    "CLAUDE.md": {
+      "checksum": "fbd8b52b20a0e5606dc9f9ec1e8a6ef2"
+    },
     "R/global.R": {
       "checksum": "4e1d24c724477c26dd5631ab1bc0d446"
     },
@@ -3023,7 +3026,7 @@
       "checksum": "7948a05d06ffef8a43edc92c08bd5e27"
     },
     "R/ui.R": {
-      "checksum": "79e9a7b2414a1e7b6d32d635db3708da"
+      "checksum": "a4f5dfe026634799f85188f465e3ff89"
     },
     "scripts/make_fake_2042.R": {
       "checksum": "286c3a399c6981dbe5f9694b8eda534b"

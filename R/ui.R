@@ -16,7 +16,9 @@ ui <- gmed_page(
     tags$link(rel = "stylesheet", type = "text/css", href = "milestone_dashboard.css"),
     tags$script(src = "app.js"),
 
-    # Inline overrides — guaranteed to load last and win
+    # Font sizes for .gmed-nav-block-icon/-label/-desc now live in
+    # gmed-themes.css (shared with imslu.ccc.dashboard, which used this same
+    # tile layout). Only this app's own grid column count stays local.
     tags$style(HTML("
       .gmed-nav-grid {
         display: grid !important;
@@ -31,19 +33,6 @@ ui <- gmed_page(
         min-height: 240px !important;
         padding: 40px 28px !important;
         gap: 0 !important;
-      }
-      .gmed-nav-block-icon {
-        font-size: 3.6rem !important;
-        padding-top: 0 !important;
-        margin-bottom: 20px !important;
-      }
-      .gmed-nav-block-label {
-        font-size: 1.15rem !important;
-        margin-bottom: 8px !important;
-      }
-      .gmed-nav-block-desc {
-        font-size: 0.84rem !important;
-        line-height: 1.45 !important;
       }
       @media (max-width: 992px) {
         .gmed-nav-grid { grid-template-columns: repeat(2, 1fr) !important; }
