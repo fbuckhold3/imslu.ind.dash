@@ -494,7 +494,7 @@
   div(class="mb-3",
     if (!is.null(label) && nzchar(label))
       tags$label(label, class="form-label fw-semibold",
-                 style="font-size:0.85rem; color:#2c3e50;"),
+                 style="font-size:0.85rem; color:var(--gmed-text-primary);"),
     tags$textarea(id=inputId, class="form-control", rows=rows,
                   placeholder=placeholder,
                   style="font-size:0.88rem; resize:vertical;", value))
@@ -540,7 +540,7 @@
         tags$span(style=paste0("flex-shrink:0; width:22px; height:22px; border-radius:50%; ",
                                "background:#e9ecef; color:#495057; font-size:0.72rem; font-weight:700; ",
                                "display:inline-flex; align-items:center; justify-content:center;"), n),
-        tags$span(style="font-size:0.88rem; color:#2c3e50; font-weight:500;", .PREP_LABELS[[n]])),
+        tags$span(style="font-size:0.88rem; color:var(--gmed-text-primary); font-weight:500;", .PREP_LABELS[[n]])),
       div(class="btn-group w-100", role="group",
           `aria-label`=paste("Rating for", .PREP_LABELS[[n]]),
           btns),
@@ -593,7 +593,7 @@
   mksap_ch <- .dd_choices(dd, "s_e_mksap_comp")
   yn_row <- function(id, label, val) {
     div(class="mb-2 d-flex align-items-center gap-3",
-      tags$label(label, style="font-size:0.83rem; color:#2c3e50; min-width:280px; margin:0;"),
+      tags$label(label, style="font-size:0.83rem; color:var(--gmed-text-primary); min-width:280px; margin:0;"),
       div(class="btn-group btn-group-sm",
         tags$input(type="radio", class="btn-check", name=ns(id),
                    id=paste0(ns(id),"_1"), value="1",
@@ -619,7 +619,7 @@
           .fv(sr,"s_e_board_discu"), rows=2)),
     if (!is.null(mksap_ch)) div(class="mb-2",
       tags$label("MKSAP completion",
-                 style="font-size:0.83rem; color:#2c3e50; font-weight:600;"),
+                 style="font-size:0.83rem; color:var(--gmed-text-primary); font-weight:600;"),
       tags$select(id=ns("s_e_mksap_comp"), class="form-select form-select-sm",
                   style="max-width:340px;",
         tags$option(value="", if(.fv(sr,"s_e_mksap_comp")=="") "-- select --"),
@@ -875,10 +875,10 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
           tags$i(class=paste0("bi bi-", spec$icon),
                  style=sprintf("font-size:1.6rem; color:%s; flex-shrink:0;", spec$ic_col)),
           div(style="flex:1;",
-            tags$div(style="font-weight:700; font-size:1.1rem; color:#1a2e42;", spec$head),
-            tags$div(style="font-size:0.98rem; color:#2c3e50; margin-top:4px;", spec$body),
+            tags$div(style="font-weight:700; font-size:1.1rem; color:var(--gmed-primary);", spec$head),
+            tags$div(style="font-size:0.98rem; color:var(--gmed-text-primary); margin-top:4px;", spec$body),
             bar,
-            tags$div(style="display:flex; justify-content:space-between; font-size:0.85rem; color:#546e7a;",
+            tags$div(style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--gmed-text-secondary);",
               tags$span(sprintf("Completed: %d", s$done)),
               tags$span(sprintf("Expected by today: %d", s$expected)),
               tags$span(sprintf("Annual goal: %d", s$goal))),
@@ -1483,7 +1483,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       # Bootstrap btn-check hides the input visually; label click is what the user sees.
       yn_row <- function(id, label, val)
         div(class="mb-2 d-flex align-items-center gap-3",
-          tags$label(label, style="font-size:0.83rem; color:#2c3e50; min-width:280px; margin:0;"),
+          tags$label(label, style="font-size:0.83rem; color:var(--gmed-text-primary); min-width:280px; margin:0;"),
           div(class="btn-group btn-group-sm",
             tags$input(type="radio", class="btn-check", name=ns(id),
                        id=paste0(ns(id),"_1"), value="1",
@@ -1538,7 +1538,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
           tagList(
             div(class="mt-2 mb-2",
               tags$label("USMLE Step 3 or COMLEX Level 3?",
-                         style="font-size:0.83rem; font-weight:600; color:#2c3e50;"),
+                         style="font-size:0.83rem; font-weight:600; color:var(--gmed-text-primary);"),
               div(class="btn-group btn-group-sm",
                 tags$input(type="radio", class="btn-check", name=ns("step3_exam_type"),
                            id=paste0(ns("step3_exam_type"),"_usmle"), value="usmle",
@@ -1564,7 +1564,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
             yn_row("s_e_step3_date_set", "Have you set a Step 3 exam date?", date_set_val),
             if (isTRUE(date_set_val=="1"))
               div(class="mt-2",
-                tags$label("Scheduled exam date", style="font-size:0.83rem; color:#2c3e50;"),
+                tags$label("Scheduled exam date", style="font-size:0.83rem; color:var(--gmed-text-primary);"),
                 tags$input(type="date", id=ns("s_e_step3_date"),
                            class="form-control form-control-sm", style="max-width:200px;",
                            value=.fv(sr,"s_e_step3_date"))))
@@ -1591,7 +1591,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
         if (!is.null(mksap_ch))
           div(class="mb-2",
             tags$label("MKSAP completion",
-                       style="font-size:0.83rem; color:#2c3e50; font-weight:600;"),
+                       style="font-size:0.83rem; color:var(--gmed-text-primary); font-weight:600;"),
             selectInput(ns("s_e_mksap_comp"), label=NULL,
               choices=c("-- select --"="", mksap_ch),
               selected=.fv(sr,"s_e_mksap_comp"),
@@ -1609,7 +1609,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       score_val <- if (exam_type=="usmle") usmle_s else if (exam_type=="comlex") comlex_s else ""
       div(class="mt-2",
         tags$label(paste0(if(exam_type=="usmle")"USMLE Step 3" else "COMLEX Level 3", " Score"),
-                   style="font-size:0.83rem; color:#2c3e50;"),
+                   style="font-size:0.83rem; color:var(--gmed-text-primary);"),
         tags$input(type="number", id=ns("step3_score_val"),
                    class="form-control form-control-sm", style="max-width:140px;",
                    value=score_val, placeholder="e.g., 215", min="1", max="999"))
@@ -1661,7 +1661,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
 
       yn_radio <- function(id, label, default)
         div(class = "mb-2",
-          tags$label(label, style = "font-size:0.83rem; color:#2c3e50; font-weight:600; display:block; margin-bottom:4px;"),
+          tags$label(label, style = "font-size:0.83rem; color:var(--gmed-text-primary); font-weight:600; display:block; margin-bottom:4px;"),
           radioButtons(ns(id), label = NULL, choices = c("Yes" = "1", "No" = "0"),
                        selected = default, inline = TRUE))
 
@@ -1687,7 +1687,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
         conditionalPanel("input.s_e_did_committee == '1'", ns = ns,
           div(class = "mb-2",
             tags$label("Which committee(s)?",
-                       style = "font-size:0.83rem; color:#2c3e50; font-weight:600;"),
+                       style = "font-size:0.83rem; color:var(--gmed-text-primary); font-weight:600;"),
             checkboxGroupInput(ns("s_e_committee_select"), label = NULL,
                                choices = committee_choices_ui, selected = comm_sel_cur)),
           conditionalPanel("input.s_e_committee_select && input.s_e_committee_select.indexOf('6') > -1",
@@ -1699,7 +1699,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
                          value = .fv(sr, "s_e_committee_other")))),
           div(class = "mb-3",
             tags$label("Your role on the committee(s)",
-                       style = "font-size:0.83rem; color:#2c3e50; font-weight:600;"),
+                       style = "font-size:0.83rem; color:var(--gmed-text-primary); font-weight:600;"),
             tags$input(type = "text", id = ns("s_e_committee_role"),
                        class = "form-control form-control-sm",
                        placeholder = "e.g., Member, Chair, Resident Representative",
@@ -1707,7 +1707,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
 
         div(class = "mb-3",
           tags$label("What scholarly work are you currently working on?",
-                     style = "font-size:0.83rem; color:#2c3e50; font-weight:600; display:block; margin-bottom:4px;"),
+                     style = "font-size:0.83rem; color:var(--gmed-text-primary); font-weight:600; display:block; margin-bottom:4px;"),
           ta("s_e_current_work", .fv(sr, "s_e_current_work"),
              "A short status update on ongoing scholarly work (optional)")),
 
@@ -1867,7 +1867,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
             tags$p(style = "font-size:0.78rem; color:#5b6e84; margin:0 0 2px; font-weight:600;",
                    paste0(rich_name, lv_txt)),
             if (!is.null(goal_text))
-              tags$p(style = "font-size:0.82rem; color:#2c3e50; margin:0; line-height:1.4;
+              tags$p(style = "font-size:0.82rem; color:var(--gmed-text-primary); margin:0; line-height:1.4;
                               font-style:italic;",
                      tags$i(class = "bi bi-quote me-1", style = "opacity:0.4;"),
                      paste0(row_txt, goal_text))
@@ -1878,7 +1878,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
           # Achievement yes/no — onclick on LABEL (visible click target in btn-check)
           div(class = "mb-2 d-flex align-items-center gap-3",
             tags$label("Did you reach this goal?",
-                       style = "font-size:0.83rem; color:#2c3e50; min-width:200px; margin:0;"),
+                       style = "font-size:0.83rem; color:var(--gmed-text-primary); min-width:200px; margin:0;"),
             div(class = "btn-group btn-group-sm",
               tags$input(type="radio", class="btn-check", name=ns(prior_fld),
                          id=paste0(ns(prior_fld),"_1"), value="1",
@@ -1999,7 +1999,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
         push <- function(v) paste0("Shiny.setInputValue('", ns(id), "','", v,
                                    "',{priority:'event'})")
         div(class="mb-2 d-flex align-items-center gap-3",
-          tags$label(label, style="font-size:0.83rem; color:#2c3e50; min-width:280px; margin:0;"),
+          tags$label(label, style="font-size:0.83rem; color:var(--gmed-text-primary); min-width:280px; margin:0;"),
           div(class="btn-group btn-group-sm",
             tags$input(type="radio", class="btn-check", name=ns(id),
                        id=paste0(ns(id),"_1"), value="1",
@@ -2301,7 +2301,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
               tags$p(style="font-size:0.74rem; color:#495057; margin:0;",
                      paste0(row_txt, " · ", lv_txt)),
               if (!is.null(anchor_text) && nzchar(anchor_text))
-                tags$p(style="font-size:0.74rem; color:#2c3e50; margin:4px 0 0;
+                tags$p(style="font-size:0.74rem; color:var(--gmed-text-primary); margin:4px 0 0;
                               line-height:1.35; font-style:italic;",
                        tags$i(class="bi bi-quote me-1", style="opacity:0.4;"),
                        anchor_text),
@@ -2642,7 +2642,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
           div(style="flex:1; min-width:0;",
             tags$span(style=paste0("font-size:0.87rem; font-weight:",
                                    if(is_sel||is_act)"700" else "500",
-                                   "; color:", if(is_sel)"var(--gmed-primary)" else if(is_future)"#90a4ae" else "#2c3e50"),
+                                   "; color:", if(is_sel)"var(--gmed-primary)" else if(is_future)"#90a4ae" else "var(--gmed-text-primary)"),
               period_names[[p_str]]),
             if (is_act) tags$span(style="font-size:0.68rem; background:var(--gmed-secondary); color:#fff;
                                         border-radius:10px; padding:1px 7px; margin-left:6px;",
@@ -2684,11 +2684,11 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
         ),
 
         # ── Completion overview panel ──────────────────────────────────────────
-        div(style=paste0("background:#1a2e42; border-radius:10px 10px 0 0;",
+        div(style=paste0("background:var(--gmed-primary); border-radius:10px 10px 0 0;",
                          " padding:14px 18px 10px;"),
           div(
             tags$p(style="margin:0; font-size:0.72rem; font-weight:700; letter-spacing:.1em;
-                         color:#7fb3d3; text-transform:uppercase;",
+                         color:#8fd4da; text-transform:uppercase;",
                    "Self-Evaluation"),
             tags$p(style="margin:0; font-size:1.05rem; font-weight:700; color:#ffffff;",
                    "Completion Overview"))),
@@ -2749,7 +2749,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
                          " border-radius:10px; margin-top:8px;"),
           tags$i(class = "bi bi-lock-fill",
                  style = "font-size:2.2rem; color:#b0bec5; display:block; margin-bottom:10px;"),
-          tags$p(style = "font-weight:700; color:#546e7a; font-size:1rem; margin:0 0 4px;",
+          tags$p(style = "font-weight:700; color:var(--gmed-text-secondary); font-size:1rem; margin:0 0 4px;",
                  paste0(pname, " \u2014 Not Yet Available")),
           tags$p(style = "color:#9e9e9e; font-size:0.83rem; max-width:420px; margin:0 auto;",
                  "This evaluation period hasn\u2019t opened yet. ",
@@ -2913,7 +2913,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
 .ilp_goal_select <- function(ns, field, label, choices, existing_val) {
   matched <- nzchar(existing_val) && existing_val %in% choices
   tagList(
-    tags$label(label, class="form-label fw-semibold", style="font-size:0.82rem; color:#2c3e50;"),
+    tags$label(label, class="form-label fw-semibold", style="font-size:0.82rem; color:var(--gmed-text-primary);"),
     selectInput(ns(field), label=NULL,
       choices=c("-- select --"="", choices),
       selected=if(matched) existing_val else "",
@@ -3010,15 +3010,15 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
         goal_text <- .get_goal_text(domain, prev_code, prev_row, prev_level, dd)
         panels <- c(panels, list(
           div(class = "mb-2 p-2",
-              style = "background:#eef4f8; border-radius:6px; border-left:3px solid #7fb3d3;",
-            tags$p(style = "font-size:0.68rem; font-weight:700; color:#5b8ba5;
+              style = "background:#e5f2f3; border-radius:6px; border-left:3px solid #8fd4da;",
+            tags$p(style = "font-size:0.68rem; font-weight:700; color:var(--gmed-secondary);
                             text-transform:uppercase; letter-spacing:.05em; margin:0 0 2px;",
                    tags$i(class = "bi bi-arrow-counterclockwise me-1"),
                    "Previous goal"),
-            tags$p(style = "font-size:0.74rem; color:#5b8ba5; margin:0 0 2px; font-weight:600;",
+            tags$p(style = "font-size:0.74rem; color:var(--gmed-secondary); margin:0 0 2px; font-weight:600;",
                    paste0(prev_name, lv_txt)),
             if (!is.null(goal_text))
-              tags$p(style = "font-size:0.76rem; color:#2c3e50; margin:0; line-height:1.35;
+              tags$p(style = "font-size:0.76rem; color:var(--gmed-text-primary); margin:0; line-height:1.35;
                               font-style:italic;",
                      tags$i(class = "bi bi-quote me-1", style = "opacity:0.4;"),
                      paste0(row_pfx, goal_text))
@@ -3125,7 +3125,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
   yn_q <- function(id, label, val) {
     cur <- as.character(val %||% "")
     div(class="mb-2 d-flex align-items-center gap-3 flex-wrap",
-      tags$label(label, style="font-size:0.84rem; color:#2c3e50; min-width:320px; margin:0;"),
+      tags$label(label, style="font-size:0.84rem; color:var(--gmed-text-primary); min-width:320px; margin:0;"),
       div(class="btn-group btn-group-sm",
         tags$input(type="radio", class="btn-check", name=ns(id),
                    id=paste0(ns(id),"_1"), value="1",
@@ -3186,7 +3186,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
             style="font-size:0.84rem; border-left:4px solid #198754;",
           tags$i(class="bi bi-check-circle-fill me-2", style="color:#198754;"),
           tags$strong("Saved. "),
-          tags$span(style="color:#2c3e50;",
+          tags$span(style="color:var(--gmed-text-primary);",
             "HS in MO: ",       tags$b(yn(.fv(res,"hs_mo"))),      " \u2022 ",
             "College in MO: ",  tags$b(yn(.fv(res,"college_mo"))), " \u2022 ",
             "Med school in MO: ",tags$b(yn(.fv(res,"med_mo"))),     " \u2022 ",

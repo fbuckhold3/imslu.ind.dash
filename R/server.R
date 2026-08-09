@@ -279,7 +279,7 @@ server <- function(input, output, session) {
             style = "text-align:right; font-size:0.875rem; line-height:1.4;",
             tags$div(style = "font-weight:600; color:var(--ssm-primary-blue);", res_name),
             if (!is.null(coach_name))
-              tags$div(style = "font-size:0.8rem; color:#546e7a;", paste0("Coach: ", coach_name))
+              tags$div(style = "font-size:0.8rem; color:var(--gmed-text-secondary);", paste0("Coach: ", coach_name))
           ),
           sign_out_btn
         )

@@ -119,7 +119,7 @@ mod_scholarship_entry_server <- function(id, resident_id, existing_data,
       }
 
       lbl <- function(text)
-        tags$label(text, class = "form-label fw-semibold", style = "font-size:0.92rem; color:#2c3e50;")
+        tags$label(text, class = "form-label fw-semibold", style = "font-size:0.92rem; color:var(--gmed-text-primary);")
       txt <- function(fid, ph = "")
         tags$input(type = "text", id = ns(fid), class = "form-control",
                    style = "font-size:0.92rem;", placeholder = ph, value = iv(fid))
@@ -221,7 +221,7 @@ mod_scholarship_entry_server <- function(id, resident_id, existing_data,
             tags$input(type = "checkbox", class = "form-check-input", id = ns("schol_meaningful"),
                        checked = if (identical(iv("schol_meaningful"), "1")) NA else NULL),
             tags$label(class = "form-check-label", `for` = ns("schol_meaningful"),
-                       style = "font-size:0.9rem; color:#2c3e50;",
+                       style = "font-size:0.9rem; color:var(--gmed-text-primary);",
                        "Mark as one of my ", tags$strong("most meaningful"), " works (max 3)")),
 
           div(class = "d-flex align-items-center gap-2 mt-3",

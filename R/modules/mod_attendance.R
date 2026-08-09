@@ -194,7 +194,7 @@ mod_attendance_server <- function(id, rdm_data, resident_id) {
       if (!form_open()) return(NULL)
 
       lbl <- function(text)
-        tags$label(text, class = "form-label fw-semibold", style = "font-size:0.92rem; color:#2c3e50;")
+        tags$label(text, class = "form-label fw-semibold", style = "font-size:0.92rem; color:var(--gmed-text-primary);")
 
       div(class = "card border-0 shadow-sm mb-3", style = "border-radius:8px;",
         div(class = "card-header border-0 d-flex align-items-center gap-2",

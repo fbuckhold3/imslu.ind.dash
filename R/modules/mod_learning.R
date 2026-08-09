@@ -211,7 +211,7 @@ mod_learning_server <- function(id, rdm_data, resident_id) {
               style = "display:flex; align-items:center; gap:10px; margin-bottom:5px;",
               tags$span(style = paste0("min-width:10px; width:10px; height:10px; border-radius:50%;",
                                        " background:", col, "; display:inline-block; flex-shrink:0;")),
-              tags$span(style = "font-size:0.88rem; color:#2c3e50; flex:1;", lbl_t),
+              tags$span(style = "font-size:0.88rem; color:var(--gmed-text-primary); flex:1;", lbl_t),
               tags$span(style = paste0("font-size:0.75rem; font-weight:600; color:", col, ";",
                                        " white-space:nowrap;"), lbl_v)
             )
@@ -237,7 +237,7 @@ mod_learning_server <- function(id, rdm_data, resident_id) {
             div(class = "mb-3",
               sec_lbl("bullseye", "Learning Goals (Entering Residency)"),
               tags$ol(class = "mb-0 ps-4",
-                style = "font-size:0.95rem; color:#2c3e50; line-height:1.8;",
+                style = "font-size:0.95rem; color:var(--gmed-text-primary); line-height:1.8;",
                 lapply(goals, function(g) tags$li(as.character(g))))
             )
           else
@@ -318,7 +318,7 @@ mod_learning_server <- function(id, rdm_data, resident_id) {
               tags$p(style=paste0("font-size:0.72rem; font-weight:700; text-transform:uppercase;",
                                   " letter-spacing:.07em; color:",cfg$color,"; margin-bottom:8px;"),
                 tags$i(class=paste0("bi bi-",cfg$icon," me-1")), cfg$label),
-              if (has_g) tags$p(style="font-size:0.93rem; font-weight:600; color:#2c3e50; margin-bottom:6px;",
+              if (has_g) tags$p(style="font-size:0.93rem; font-weight:600; color:var(--gmed-text-primary); margin-bottom:6px;",
                                 as.character(g_val)),
               if (has_h) tags$p(style="font-size:0.87rem; color:#5d6d7e; line-height:1.6; margin:0;",
                 tags$strong("Plan: "), as.character(h_val))
@@ -832,7 +832,7 @@ mod_learning_server <- function(id, rdm_data, resident_id) {
                       pct   <- round(cnt / max_cnt * 100)
                       div(style="display:flex; align-items:center; gap:10px; margin-bottom:6px;",
                         tags$span(style=paste0("min-width:130px; font-size:0.85rem;",
-                                               " font-weight:600; color:#2c3e50;"), rname),
+                                               " font-weight:600; color:var(--gmed-text-primary);"), rname),
                         div(style=paste0("flex:1; background:#e9ecef; border-radius:4px; height:16px;",
                                          " overflow:hidden;"),
                           div(style=paste0("width:",pct,"%; height:100%;",

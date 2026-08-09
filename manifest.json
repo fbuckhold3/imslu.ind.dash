@@ -986,18 +986,18 @@
         "Config/roxygen2/version": "8.0.0",
         "Author": "First Last [aut, cre]",
         "Maintainer": "First Last <first.last@example.com>",
-        "Built": "R 4.6.0; ; 2026-08-09 14:43:05 UTC; unix",
+        "Built": "R 4.6.0; ; 2026-08-09 19:49:31 UTC; unix",
         "RemoteType": "github",
         "RemoteHost": "api.github.com",
         "RemoteUsername": "fbuckhold3",
         "RemoteRepo": "gmed",
         "RemoteRef": "main",
-        "RemoteSha": "21cd27b5e18a958064ad2a64790ab6616acbffc9",
+        "RemoteSha": "51ed7b35560d583219ec8a1355f9d5adf372c6b4",
         "GithubHost": "api.github.com",
         "GithubRepo": "gmed",
         "GithubUsername": "fbuckhold3",
         "GithubRef": "main",
-        "GithubSHA1": "21cd27b5e18a958064ad2a64790ab6616acbffc9"
+        "GithubSHA1": "51ed7b35560d583219ec8a1355f9d5adf372c6b4"
       }
     },
     "gtable": {
@@ -2984,22 +2984,22 @@
       "checksum": "4e1d24c724477c26dd5631ab1bc0d446"
     },
     "R/modules/mod_attendance.R": {
-      "checksum": "a0444deb00197dd973e2adbf21368573"
+      "checksum": "88e12f71f938978dc844b8c652babfd6"
     },
     "R/modules/mod_auth_ui.R": {
-      "checksum": "7aa6b6254ee73379993a2938a0f1c1a1"
+      "checksum": "5553019c24cbb068b63a1b15e5eba491"
     },
     "R/modules/mod_evaluations.R": {
-      "checksum": "41bf5d0f5f5570035ad950fcdc783450"
+      "checksum": "a6445100cc1eb198d6bacf436ccdd491"
     },
     "R/modules/mod_faculty_eval.R": {
-      "checksum": "716b83079f517e634422ff69424d50a8"
+      "checksum": "a789716f5e29c2bc9e379b7b828f2dc3"
     },
     "R/modules/mod_learning.R": {
-      "checksum": "10088c5c6862e2eafc30c24cb9413082"
+      "checksum": "b84bcf6ece9c64e380fed736bfe218ff"
     },
     "R/modules/mod_milestones.R": {
-      "checksum": "2855fb37b29b569f26ac05c30a1bc55b"
+      "checksum": "fe83b30f2caf9fc75300a1d0d66943e1"
     },
     "R/modules/mod_resources.R": {
       "checksum": "a8297a8481fd790af9e578cb750d41f0"
@@ -3011,22 +3011,22 @@
       "checksum": "f876f225b387444c97a1224899e180e0"
     },
     "R/modules/mod_scholarship_entry.R": {
-      "checksum": "ca7c6f7b50476b6df4f9d22afc2f4293"
+      "checksum": "b7525c76952d58f9a29b8f25b9d410bd"
     },
     "R/modules/mod_scholarship_view.R": {
-      "checksum": "cbc2624d64c9b31b8277b474582e0bb1"
+      "checksum": "045ace5210f4c55abc39a01a5e5d973a"
     },
     "R/modules/mod_scholarship.R": {
       "checksum": "b6b78b4a4a0713cfa95dab5578f8f40e"
     },
     "R/modules/mod_self_eval.R": {
-      "checksum": "a9232cb1040a87f441d646d6c5e3b5d7"
+      "checksum": "a26b03bf58f62b1c076759beb84415f0"
     },
     "R/server.R": {
-      "checksum": "7948a05d06ffef8a43edc92c08bd5e27"
+      "checksum": "3bb3885415fd21dee9a4d4206aa2178e"
     },
     "R/ui.R": {
-      "checksum": "a4f5dfe026634799f85188f465e3ff89"
+      "checksum": "3c61ea11c175930a0affb3221a75829b"
     },
     "scripts/make_fake_2042.R": {
       "checksum": "286c3a399c6981dbe5f9694b8eda534b"
@@ -3035,7 +3035,7 @@
       "checksum": "6faae7282eac00ca112713183aa014b1"
     },
     "www/milestone_dashboard.css": {
-      "checksum": "5b0b35c9dee0ce283fef53158665ce29"
+      "checksum": "2b92c9b9685d2fd70568a85dacbecf7b"
     },
     "www/ssm_slucare.png": {
       "checksum": "21837d5f0acec6e2271035b719e17724"
