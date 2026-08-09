@@ -8,9 +8,15 @@
 mod_auth_page_ui <- function() {
   tagList(
 
-    # Full-width brand header
+    # Full-width brand header \u2014 includes a slow, looping "pulse trace" line,
+    # on-brand with the vitals-monitor palette story (see gmed's Restrained
+    # theme) rather than decoration for its own sake. Respects
+    # prefers-reduced-motion (see milestone_dashboard.css).
     div(
       class = "login-brand-header",
+      tags$svg(class = "pulse-trace", viewBox = "0 0 400 46", preserveAspectRatio = "none",
+        tags$path(d = "M0,23 L120,23 L136,23 L146,4 L158,42 L170,14 L180,23 L400,23")
+      ),
       div(class = "login-brand-badge", "GME TOOLS"),
       tags$h1("IMSLU Resident Dashboard", class = "login-brand-title"),
       div(class = "login-brand-sub",
@@ -23,16 +29,18 @@ mod_auth_page_ui <- function() {
       div(
         class = "col-lg-6 col-md-8 col-12",
         div(
-          class = "gmed-card",
+          class = "gmed-card card-entrance",
 
           # Welcome header
           div(
             class = "text-center mb-4",
             tags$h2(
               class = "mb-2",
-              style = "color: var(--gmed-primary); font-weight: 700;",
-              tags$i(class = "bi bi-person-circle me-2", style = "color: var(--gmed-secondary);"),
-              "Welcome"
+              style = "display:flex; align-items:center; justify-content:center; gap:10px;",
+              div(class = "icon-glow",
+                tags$i(class = "bi bi-person-circle", style = "color: var(--gmed-secondary); font-size:1.6rem;")
+              ),
+              tags$span(style = "color: var(--gmed-primary); font-weight: 700;", "Welcome")
             ),
             tags$p(
               style = "font-size:1rem; color:var(--gmed-text-secondary); margin-bottom:0;",

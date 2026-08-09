@@ -65,7 +65,9 @@
 
 /* ── Login page ──────────────────────────────────────────────────────────────── */
 .login-brand-header {
-  background: var(--gmed-primary);
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--gmed-primary) 0%, var(--gmed-secondary) 100%);
   color: white;
   padding: 18px 32px;
   display: flex;
@@ -74,7 +76,27 @@
   margin: -24px -24px 40px -24px;
 }
 
+/* Slow, looping pulse-trace — on-brand with the vitals-monitor palette
+   story, not decoration for its own sake. Disabled under reduced-motion. */
+.pulse-trace {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 46px;
+  width: 100%; opacity: 0.4; pointer-events: none;
+}
+.pulse-trace path {
+  fill: none; stroke: white; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: 340; stroke-dashoffset: 340;
+  animation: pulse-draw 3.2s ease-in-out infinite;
+}
+@keyframes pulse-draw {
+  0%   { stroke-dashoffset: 340; opacity: 0; }
+  8%   { opacity: 0.9; }
+  55%  { stroke-dashoffset: 0; opacity: 0.9; }
+  75%  { opacity: 0; }
+  100% { stroke-dashoffset: 0; opacity: 0; }
+}
+
 .login-brand-badge {
+  position: relative; z-index: 1;
   background: rgba(255, 255, 255, 0.15);
   font-size: 0.68rem;
   font-weight: 700;
@@ -85,6 +107,7 @@
 }
 
 .login-brand-title {
+  position: relative; z-index: 1;
   margin: 0;
   font-size: 1.2rem;
   font-weight: 700;
@@ -92,9 +115,34 @@
 }
 
 .login-brand-sub {
+  position: relative; z-index: 1;
   margin-left: auto;
   font-size: 0.82rem;
   color: rgba(255, 255, 255, 0.72);
+}
+
+/* Soft glow behind the Welcome icon */
+.icon-glow {
+  position: relative; width: 34px; height: 34px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.icon-glow::before {
+  content: ''; position: absolute; inset: -8px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(15,138,148,0.22) 0%, rgba(15,138,148,0) 70%);
+}
+
+/* Gentle entrance for the login/welcome card */
+.card-entrance {
+  animation: card-in 0.5s cubic-bezier(0.16,1,0.3,1) both;
+}
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse-trace path { animation: none; opacity: 0.55; stroke-dashoffset: 0; }
+  .card-entrance { animation: none; }
 }
 
 .login-disclaimer {
@@ -127,6 +175,19 @@
   font-family: inherit;
   cursor: pointer;
   border-radius: 8px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+/* A livelier hover just for this one-off login moment — gmed's default
+   .btn-gmed-primary:hover is intentionally flat for buttons used
+   repeatedly in dense daily-use screens; this login button isn't one. */
+.login-submit-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(12, 88, 96, 0.28);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-submit-btn:hover { transform: none; }
 }
 
 /* ── Collapsible info notes ──────────────────────────────────────────────────── */
