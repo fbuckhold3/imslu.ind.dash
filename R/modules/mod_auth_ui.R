@@ -8,14 +8,20 @@
 mod_auth_page_ui <- function() {
   tagList(
 
-    # Full-width brand header \u2014 includes a slow, looping "pulse trace" line,
-    # on-brand with the vitals-monitor palette story (see gmed's Restrained
-    # theme) rather than decoration for its own sake. Respects
-    # prefers-reduced-motion (see milestone_dashboard.css).
+    # Full-width brand header \u2014 includes a slow, looping EKG (Lead II)
+    # trace, on-brand with the vitals-monitor palette story (see gmed's
+    # Restrained theme) rather than decoration for its own sake. One
+    # PQRST cycle (rounded P wave -> sharp QRS spike -> rounded T wave ->
+    # flat diastolic baseline), repeated 3x. Respects prefers-reduced-motion
+    # (see milestone_dashboard.css).
     div(
       class = "login-brand-header",
       tags$svg(class = "pulse-trace", viewBox = "0 0 400 46", preserveAspectRatio = "none",
-        tags$path(d = "M0,23 L120,23 L136,23 L146,4 L158,42 L170,14 L180,23 L400,23")
+        tags$path(d = paste0(
+          "M0,23 L4,23 Q8,8 12,23 L16,23 L18,26 L20,3 L23,30 L26,23 L34,23 Q44,10 54,23 L130,23 ",
+          "L134,23 Q138,8 142,23 L146,23 L148,26 L150,3 L153,30 L156,23 L164,23 Q174,10 184,23 L260,23 ",
+          "L264,23 Q268,8 272,23 L276,23 L278,26 L280,3 L283,30 L286,23 L294,23 Q304,10 314,23 L390,23"
+        ))
       ),
       div(class = "login-brand-badge", "GME TOOLS"),
       tags$h1("IMSLU Resident Dashboard", class = "login-brand-title"),

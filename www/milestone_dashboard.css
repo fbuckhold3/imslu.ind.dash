@@ -84,14 +84,18 @@
 }
 .pulse-trace path {
   fill: none; stroke: white; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
-  stroke-dasharray: 340; stroke-dashoffset: 340;
-  animation: pulse-draw 3.2s ease-in-out infinite;
+  /* Path is 3 PQRST cycles; the QRS spikes and P/T arcs add real length
+     beyond the ~390 horizontal units, so this is a deliberate overestimate
+     — safer than underestimating, which would make the line visibly jump
+     when the dash runs out before dashoffset reaches 0. */
+  stroke-dasharray: 620; stroke-dashoffset: 620;
+  animation: pulse-draw 4.4s ease-in-out infinite;
 }
 @keyframes pulse-draw {
-  0%   { stroke-dashoffset: 340; opacity: 0; }
-  8%   { opacity: 0.9; }
-  55%  { stroke-dashoffset: 0; opacity: 0.9; }
-  75%  { opacity: 0; }
+  0%   { stroke-dashoffset: 620; opacity: 0; }
+  6%   { opacity: 0.9; }
+  62%  { stroke-dashoffset: 0; opacity: 0.9; }
+  80%  { opacity: 0; }
   100% { stroke-dashoffset: 0; opacity: 0; }
 }
 
