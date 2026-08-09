@@ -99,7 +99,7 @@ mod_scholarship_entry_server <- function(id, resident_id, existing_data,
       if (!is.null(form_mode())) return(NULL)
       div(class = "mb-3",
         actionButton(ns("btn_add"), "+ Add Entry", class = "btn btn-sm",
-          style = "background:#003d5c; color:#fff; border:none; padding:4px 14px; font-size:0.85rem;"))
+          style = "background:var(--gmed-primary); color:#fff; border:none; padding:4px 14px; font-size:0.85rem;"))
     })
 
     # ── entry form ─────────────────────────────────────────────────────────────
@@ -135,8 +135,8 @@ mod_scholarship_entry_server <- function(id, resident_id, existing_data,
       div(class = "card border-0 shadow-sm mb-3", style = "border-radius:8px;",
         div(class = "card-header border-0 d-flex align-items-center gap-2",
             style = "background:#f8fafc; border-radius:8px 8px 0 0; padding:12px 18px;",
-          tags$i(class = "bi bi-plus-circle-fill", style = "color:#003d5c; font-size:1rem;"),
-          tags$span(style = "font-weight:700; color:#003d5c; font-size:0.95rem;", hdr)),
+          tags$i(class = "bi bi-plus-circle-fill", style = "color:var(--gmed-primary); font-size:1rem;"),
+          tags$span(style = "font-weight:700; color:var(--gmed-primary); font-size:0.95rem;", hdr)),
         div(class = "card-body",
           if (fm$mode == "recategorize" && nzchar(fm$ref %||% ""))
             div(class = "alert alert-secondary py-2 px-3 mb-3", style = "font-size:0.85rem;",
@@ -227,7 +227,7 @@ mod_scholarship_entry_server <- function(id, resident_id, existing_data,
           div(class = "d-flex align-items-center gap-2 mt-3",
             actionButton(ns("btn_save"), if (fm$mode == "new") "Save Entry" else "Save Changes",
               class = "btn btn-sm",
-              style = "background:#003d5c; color:#fff; border:none; padding:6px 18px;"),
+              style = "background:var(--gmed-primary); color:#fff; border:none; padding:6px 18px;"),
             actionButton(ns("btn_cancel"), "Cancel",
               class = "btn btn-sm btn-outline-secondary", style = "padding:6px 14px;"),
             uiOutput(ns("save_status")))

@@ -97,7 +97,7 @@ mod_scholarship_view_server <- function(id, schol_data,
               tags$i(class = "bi bi-collection me-1"), coll)),
           div(class = "d-flex align-items-start gap-1",
             act_btn("edit",   inst, rid, "bi-pencil", "Edit",   "#0d6efd"),
-            act_btn("delete", inst, rid, "bi-trash",  "Delete", "#dc3545"))))
+            act_btn("delete", inst, rid, "bi-trash",  "Delete", "var(--gmed-error-red)"))))
     }
 
     output$entries_panel <- renderUI({
@@ -123,7 +123,7 @@ mod_scholarship_view_server <- function(id, schol_data,
       render_group <- function(rows, heading, upper = TRUE) {
         rows <- sort_starred(rows)
         div(class = "mb-3",
-          div(style = paste0("font-weight:700; color:#003d5c; font-size:0.86rem; ",
+          div(style = paste0("font-weight:700; color:var(--gmed-primary); font-size:0.86rem; ",
                       if (upper) "text-transform:uppercase; letter-spacing:0.03em; " else "", "margin-bottom:4px;"),
               heading,
               tags$span(style = "color:#adb5bd; font-weight:500;", paste0(" (", nrow(rows), ")"))),
@@ -164,7 +164,7 @@ mod_scholarship_view_server <- function(id, schol_data,
                 style = "background:#fff3cd; color:#664d03; font-size:0.72rem; font-weight:600;",
                 tags$i(class = "bi bi-exclamation-triangle me-1"), "Needs review"),
               act_btn("recategorize", li, lrid, "bi-arrow-repeat", "Recategorize", "#6f42c1"),
-              act_btn("delete",       li, lrid, "bi-trash",        "Delete",       "#dc3545")))
+              act_btn("delete",       li, lrid, "bi-trash",        "Delete",       "var(--gmed-error-red)")))
         })
         div(class = "mt-3 pt-2", style = "border-top:1px dashed #dee2e6;",
           div(style = "font-weight:700; color:#8a6d3b; font-size:0.85rem; margin-bottom:4px;",
@@ -196,12 +196,12 @@ mod_scholarship_view_server <- function(id, schol_data,
       div(class = "card border-0 shadow-sm mb-3", style = "border-radius:8px;",
         div(class = "card-header border-0 d-flex align-items-center gap-2",
             style = "background:#f8fafc; border-radius:8px 8px 0 0; padding:12px 18px;",
-          tags$i(class = "bi bi-award-fill", style = "color:#003d5c; font-size:1rem;"),
-          tags$span(style = "font-weight:700; color:#003d5c; font-size:0.95rem;", title)),
+          tags$i(class = "bi bi-award-fill", style = "color:var(--gmed-primary); font-size:1rem;"),
+          tags$span(style = "font-weight:700; color:var(--gmed-primary); font-size:0.95rem;", title)),
         div(class = "card-body",
           if (isTRUE(show_intro))
             div(class = "mb-3 px-3 py-2",
-                style = "background:#f8fafc; border-left:3px solid #003d5c; border-radius:4px;",
+                style = "background:#f8fafc; border-left:3px solid var(--gmed-primary); border-radius:4px;",
               tags$p(class = "mb-2", style = "font-size:0.85rem; color:#495057;",
                 "Log your scholarly ", tags$strong("outputs"), " here — grouped by the ERAS ",
                 "categories so entries copy straight into your application. Use ",
@@ -222,7 +222,7 @@ mod_scholarship_view_server <- function(id, schol_data,
                 tags$li(
                   tags$i(class = "bi bi-pencil", style = "color:#0d6efd;"), tags$strong(" Edit"),
                   " and ",
-                  tags$i(class = "bi bi-trash", style = "color:#dc3545;"), tags$strong(" Delete"),
+                  tags$i(class = "bi bi-trash", style = "color:var(--gmed-error-red);"), tags$strong(" Delete"),
                   " sit on each entry — deleting is permanent. ",
                   tags$i(class = "bi bi-arrow-repeat", style = "color:#6f42c1;"),
                   tags$strong(" Recategorize"),

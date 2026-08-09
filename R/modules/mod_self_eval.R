@@ -449,8 +449,8 @@
         `data-bs-target` = paste0("#", body_id),
         `aria-expanded` = tolower(as.character(!collapsed)),
       div(class = "d-flex align-items-center gap-2 flex-wrap",
-        tags$i(class = paste0("bi bi-", icon), style = "color:#003d5c; font-size:1rem;"),
-        tags$span(style = "font-weight:700; color:#003d5c; font-size:0.95rem;", title),
+        tags$i(class = paste0("bi bi-", icon), style = "color:var(--gmed-primary); font-size:1rem;"),
+        tags$span(style = "font-weight:700; color:var(--gmed-primary); font-size:0.95rem;", title),
         saved_badge),
       tags$i(class = paste0("bi bi-chevron-", if (collapsed) "down" else "up"),
              style = "color:#adb5bd; font-size:0.8rem; transition:transform .2s;")),
@@ -477,7 +477,7 @@
 .save_btn <- function(ns, id, label="Save Section")
   div(class="d-flex align-items-center gap-2 mt-3",
     actionButton(ns(id), label, class="btn btn-sm",
-      style="background:#003d5c; color:#fff; border:none; padding:6px 18px;"),
+      style="background:var(--gmed-primary); color:#fff; border:none; padding:6px 18px;"),
     uiOutput(ns(paste0(id,"_status"))))
 
 .save_status_ui <- function(result) {
@@ -573,7 +573,7 @@
                     paste0(round(ite_pct,1),"%")),
           tags$p(style="font-size:0.68rem; color:#6c757d; margin:0;", "ITE % correct")),
         div(style="flex:1;",
-          tags$p(style="margin:0; font-weight:600; font-size:0.85rem; color:#003d5c;",
+          tags$p(style="margin:0; font-weight:600; font-size:0.85rem; color:var(--gmed-primary);",
                  paste0("PGY", pgy, " ACP ITE Score")),
           if (!is.na(prob))
             tags$p(style="margin:0; font-size:0.78rem; color:#6c757d;",
@@ -632,7 +632,7 @@
 
 .section_hdr <- function(icon, title, subtitle=NULL)
   div(class="mb-3",
-    tags$h6(style="color:#003d5c; font-weight:700; margin-bottom:2px;",
+    tags$h6(style="color:var(--gmed-primary); font-weight:700; margin-bottom:2px;",
       tags$i(class=paste0("bi bi-",icon," me-2")), title),
     if (!is.null(subtitle))
       tags$p(class="text-muted", style="font-size:0.8rem; margin:0;", subtitle))
@@ -1462,7 +1462,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
                         paste0(round(ite_pct,1),"%")),
               tags$p(style="font-size:0.68rem; color:#6c757d; margin:0;", "ITE % correct")),
             div(style="flex:1;",
-              tags$p(style="margin:0; font-weight:600; font-size:0.85rem; color:#003d5c;",
+              tags$p(style="margin:0; font-weight:600; font-size:0.85rem; color:var(--gmed-primary);",
                      paste0("PGY", pgy, " ACP ITE Score")),
               if (!is.na(prob))
                 tags$p(style="margin:0; font-size:0.78rem; color:#6c757d;",
@@ -2309,7 +2309,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
                 tags$p(style="font-size:0.74rem; color:#6c757d; margin:4px 0 0; font-style:italic;
                               white-space:pre-wrap;", how_v)
               else
-                tags$p(style="font-size:0.72rem; color:#dc3545; margin:4px 0 0;",
+                tags$p(style="font-size:0.72rem; color:var(--gmed-error-red); margin:4px 0 0;",
                        tags$i(class="bi bi-exclamation-circle me-1"),
                        "How / Plan still empty")))
         } else {
@@ -2624,8 +2624,8 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
         badge_txt <- if (is_future) "" else if (ps$total>0) paste0(ps$done,"/",ps$total) else ""
 
         row_bg      <- if (is_sel) "#e3eef8" else status_col$bg
-        row_border  <- if (is_sel) "#0066a1" else status_col$border
-        row_outline <- if (is_sel) "2px solid #0066a1" else "1px solid #e8e8e8"
+        row_border  <- if (is_sel) "var(--gmed-secondary)" else status_col$border
+        row_outline <- if (is_sel) "2px solid var(--gmed-secondary)" else "1px solid #e8e8e8"
         row_cursor  <- if (is_future) "not-allowed" else "pointer"
 
         div(style=paste0("cursor:", row_cursor, "; display:flex; align-items:center; gap:10px;",
@@ -2642,9 +2642,9 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
           div(style="flex:1; min-width:0;",
             tags$span(style=paste0("font-size:0.87rem; font-weight:",
                                    if(is_sel||is_act)"700" else "500",
-                                   "; color:", if(is_sel)"#003d5c" else if(is_future)"#90a4ae" else "#2c3e50"),
+                                   "; color:", if(is_sel)"var(--gmed-primary)" else if(is_future)"#90a4ae" else "#2c3e50"),
               period_names[[p_str]]),
-            if (is_act) tags$span(style="font-size:0.68rem; background:#0066a1; color:#fff;
+            if (is_act) tags$span(style="font-size:0.68rem; background:var(--gmed-secondary); color:#fff;
                                         border-radius:10px; padding:1px 7px; margin-left:6px;",
                                   "Current"),
             if (is_future) tags$span(style="font-size:0.68rem; background:#eceff1; color:#78909c;
@@ -2883,7 +2883,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
 
     div(class="mb-3 pb-2", style="border-bottom:1px solid #eef0f3;",
       tags$p(class="mb-1",
-             style="font-size:0.72rem; font-weight:700; color:#003d5c; text-transform:uppercase; letter-spacing:.05em;",
+             style="font-size:0.72rem; font-weight:700; color:var(--gmed-primary); text-transform:uppercase; letter-spacing:.05em;",
              paste(meta_parts, collapse=" · ")),
       if (nzchar(plus))
         div(class="mb-1 d-flex gap-2",
@@ -2901,7 +2901,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
   shown <- min(5, total)
   tags$details(
     tags$summary(
-      style="cursor:pointer; font-size:0.82rem; color:#0066a1; font-weight:600; padding:8px 0; list-style:none;",
+      style="cursor:pointer; font-size:0.82rem; color:var(--gmed-secondary); font-weight:600; padding:8px 0; list-style:none;",
       tags$i(class="bi bi-clipboard2-check me-1"),
       sprintf("Review recent evaluations — %d shown of %d total (click to expand)", shown, total)),
     div(class="mt-2 ps-2 pe-1 py-1",
@@ -3068,7 +3068,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       desc_trim <- if (nchar(desc_full) > 22) paste0(substr(desc_full, 1, 20), "\u2026") else desc_full
       is_top    <- i %in% top_idx
       bg   <- if (is_top) "#fce8e8" else "#f0e6ff"
-      bord <- if (is_top) "#dc3545" else "#7c3aed"
+      bord <- if (is_top) "var(--gmed-error-red)" else "#7c3aed"
       col  <- if (is_top) "#b02a37" else "#5b21b6"
       js   <- click_js(code)
       tags$span(

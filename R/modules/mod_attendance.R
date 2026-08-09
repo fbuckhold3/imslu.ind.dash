@@ -141,7 +141,7 @@ mod_attendance_ui <- function(id) {
     uiOutput(ns("attendance_overview")),
     uiOutput(ns("add_button_panel")),
     uiOutput(ns("add_form_panel")),
-    h6(class = "mt-4 mb-2", style = "color:#003d5c; font-weight:700; font-size:0.95rem;",
+    h6(class = "mt-4 mb-2", style = "color:var(--gmed-primary); font-weight:700; font-size:0.95rem;",
        "Your Attendance History"),
     DT::dataTableOutput(ns("history_dt"))
   )
@@ -187,7 +187,7 @@ mod_attendance_server <- function(id, rdm_data, resident_id) {
       if (form_open()) return(NULL)
       div(class = "mb-3",
         actionButton(ns("btn_add"), "+ Log Attendance", class = "btn btn-sm",
-          style = "background:#003d5c; color:#fff; border:none; padding:4px 14px; font-size:0.85rem;"))
+          style = "background:var(--gmed-primary); color:#fff; border:none; padding:4px 14px; font-size:0.85rem;"))
     })
 
     output$add_form_panel <- renderUI({
@@ -199,8 +199,8 @@ mod_attendance_server <- function(id, rdm_data, resident_id) {
       div(class = "card border-0 shadow-sm mb-3", style = "border-radius:8px;",
         div(class = "card-header border-0 d-flex align-items-center gap-2",
             style = "background:#f8fafc; border-radius:8px 8px 0 0; padding:12px 18px;",
-          tags$i(class = "bi bi-calendar2-plus-fill", style = "color:#003d5c; font-size:1rem;"),
-          tags$span(style = "font-weight:700; color:#003d5c; font-size:0.95rem;",
+          tags$i(class = "bi bi-calendar2-plus-fill", style = "color:var(--gmed-primary); font-size:1rem;"),
+          tags$span(style = "font-weight:700; color:var(--gmed-primary); font-size:0.95rem;",
                      "Log Attendance After the Fact")),
         div(class = "card-body",
           div(class = "mb-3", lbl("Conference date"),
@@ -216,7 +216,7 @@ mod_attendance_server <- function(id, rdm_data, resident_id) {
           uiOutput(ns("dup_warning")),
           div(class = "d-flex align-items-center gap-2 mt-3",
             actionButton(ns("btn_save"), "Save", class = "btn btn-sm",
-              style = "background:#003d5c; color:#fff; border:none; padding:6px 18px;"),
+              style = "background:var(--gmed-primary); color:#fff; border:none; padding:6px 18px;"),
             actionButton(ns("btn_cancel"), "Cancel",
               class = "btn btn-sm btn-outline-secondary", style = "padding:6px 14px;"),
             uiOutput(ns("save_status")))
@@ -343,7 +343,7 @@ mod_attendance_server <- function(id, rdm_data, resident_id) {
             div(
               div(style = "font-size:0.78rem; color:#6c757d;",
                   paste0("Noon Conference + Grand Rounds — since ", format(st$july1, "%b %d"))),
-              div(style = "font-size:1.8rem; font-weight:700; color:#003d5c; line-height:1.2;",
+              div(style = "font-size:1.8rem; font-weight:700; color:var(--gmed-primary); line-height:1.2;",
                 paste0(st$pct, "%"),
                 tags$span(style = "font-size:0.85rem; font-weight:400; color:#6c757d; margin-left:6px;",
                           paste0("(", st$n_attended, " of ", st$n_weekdays, " weekdays)")))
@@ -351,7 +351,7 @@ mod_attendance_server <- function(id, rdm_data, resident_id) {
             div(
               div(style = "font-size:0.78rem; color:#6c757d;",
                   paste0("Afternoon School — since ", format(st$july1, "%b %d"))),
-              div(style = "font-size:1.8rem; font-weight:700; color:#003d5c; line-height:1.2;",
+              div(style = "font-size:1.8rem; font-weight:700; color:var(--gmed-primary); line-height:1.2;",
                   st$afternoon_count)
             )
           ),

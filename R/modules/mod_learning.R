@@ -145,8 +145,8 @@ mod_learning_server <- function(id, rdm_data, resident_id) {
       div(class = "card-header border-0 d-flex align-items-center gap-2",
           style = "background:#f8fafc; border-radius:8px 8px 0 0; padding:14px 18px;",
           tags$i(class = paste0("bi bi-", ic),
-                 style = "color:#003d5c; font-size:1.1rem;"),
-          tags$span(style = "font-weight:700; color:#003d5c; font-size:1rem;", title),
+                 style = "color:var(--gmed-primary); font-size:1.1rem;"),
+          tags$span(style = "font-weight:700; color:var(--gmed-primary); font-size:1rem;", title),
           extra)
 
     info_banner <- function(...)
@@ -154,7 +154,7 @@ mod_learning_server <- function(id, rdm_data, resident_id) {
           style = "font-size:0.82rem; border-left:4px solid #0d6efd;",
           tags$i(class = "bi bi-info-circle me-1"), ...)
 
-    period_badge <- function(code, bg = "#e8f0f7", col = "#003d5c")
+    period_badge <- function(code, bg = "#e5eef0", col = "var(--gmed-primary)")
       div(class = "mb-3",
           tags$span(style = paste0("background:", bg, "; color:", col,
                                    "; border-radius:20px; padding:3px 12px;",
@@ -422,7 +422,7 @@ mod_learning_server <- function(id, rdm_data, resident_id) {
             ),
             div(class="col-md-6",
               sec_lbl("star-fill", "Preferred Learning Experiences", "0.78rem"),
-              mk_chips(styles_labels, "#0066a1", "check-circle-fill")
+              mk_chips(styles_labels, "var(--gmed-secondary)", "check-circle-fill")
             )
           )
         )
@@ -760,7 +760,7 @@ mod_learning_server <- function(id, rdm_data, resident_id) {
       div(class="card border-0 shadow-sm", style="border-radius:8px;",
         card_hdr("journal-text", "Daily Question Log",
           tags$span(class="ms-auto badge",
-            style=paste0("background:#e8f0f7; color:#003d5c; font-size:0.75rem;",
+            style=paste0("background:#e5eef0; color:var(--gmed-primary); font-size:0.75rem;",
                          " font-weight:600; border-radius:20px; padding:4px 10px;"),
             paste0(format(n_q, big.mark=","), " entries"))),
         div(class="card-body",
@@ -800,7 +800,7 @@ mod_learning_server <- function(id, rdm_data, resident_id) {
                   tags$i(class=paste0("bi bi-",ic),
                          style=paste0("font-size:1.3rem; color:",col,"; opacity:0.85;")),
                   tags$p(class="mb-0 mt-1",
-                    style="font-size:1.8rem; font-weight:700; color:var(--ssm-primary-blue);",
+                    style="font-size:1.8rem; font-weight:700; color:var(--gmed-primary);",
                     val),
                   tags$p(class="mb-0",
                     style="font-size:0.72rem; text-transform:uppercase; letter-spacing:.07em; color:#6c757d;",
@@ -815,9 +815,9 @@ mod_learning_server <- function(id, rdm_data, resident_id) {
               # Stat strip
               div(class="row g-3 mb-4",
                 stat_card(format(rate_pw, nsmall=1), "Per Week Avg",
-                          "bar-chart-fill", "#003d5c"),
+                          "bar-chart-fill", "var(--gmed-primary)"),
                 stat_card(last_mo_n, "Last 30 Days",
-                          "calendar-month-fill", "#0066a1"),
+                          "calendar-month-fill", "var(--gmed-secondary)"),
                 stat_card(yr_n, "This Acad. Year",
                           "calendar-check-fill", "#27ae60")
               ),
@@ -836,7 +836,7 @@ mod_learning_server <- function(id, rdm_data, resident_id) {
                         div(style=paste0("flex:1; background:#e9ecef; border-radius:4px; height:16px;",
                                          " overflow:hidden;"),
                           div(style=paste0("width:",pct,"%; height:100%;",
-                                           " background:#0066a1; border-radius:4px;",
+                                           " background:var(--gmed-secondary); border-radius:4px;",
                                            " transition:width .3s;"))),
                         tags$span(style="font-size:0.83rem; color:#6c757d; min-width:24px;",
                                   cnt)

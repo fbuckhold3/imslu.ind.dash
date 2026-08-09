@@ -377,7 +377,7 @@
       x         = x_all,
       y         = rep(7, length(x_all)),
       type      = "scatter", mode = "lines",
-      line      = list(color = "#dc3545", width = 1.5, dash = "dash"),
+      line      = list(color = "#dc2626", width = 1.5, dash = "dash"),
       name      = "Graduation Target (Level 7)",
       showlegend = TRUE,
       hoverinfo  = "skip"
@@ -432,7 +432,7 @@ mod_milestones_ui <- function(id) {
     div(
       class = "d-flex align-items-center gap-2 mb-3 flex-wrap",
       tags$span("Assessment period:",
-                style = "font-size:0.9rem; font-weight:600; color:#003d5c; white-space:nowrap;"),
+                style = "font-size:0.9rem; font-weight:600; color:var(--gmed-primary); white-space:nowrap;"),
       uiOutput(ns("period_pills"))
     ),
 
@@ -497,7 +497,7 @@ mod_milestones_ui <- function(id) {
         div(
           class = "d-flex align-items-center flex-wrap gap-3 mb-2",
           tags$span("Individual Progression",
-                    style = "font-weight:700; font-size:0.9rem; color:#003d5c;"),
+                    style = "font-weight:700; font-size:0.9rem; color:var(--gmed-primary);"),
           div(
             class = "ms-auto d-flex align-items-center flex-wrap gap-3",
             div(
@@ -732,9 +732,9 @@ mod_milestones_server <- function(id, rdm_data, resident_id) {
             col     = self_col,
             system  = "rep",
             label   = "Self-Evaluation",
-            color   = "#003d5c",
-            rgba_rb = "rgba(0,61,92,0.12)",
-            rgba_pr = "rgba(0,61,92,0.45)"
+            color   = "#0c5860",
+            rgba_rb = "rgba(12,88,96,0.12)",
+            rgba_pr = "rgba(12,88,96,0.45)"
           )
       }
 

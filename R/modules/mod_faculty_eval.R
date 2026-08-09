@@ -179,9 +179,9 @@ mod_faculty_eval_ui <- function(id) {
           var b = document.getElementById(qId + '_b' + i);
           if (!b) continue;
           var on = (i === val);
-          b.style.background  = on ? '#0066a1' : 'white';
+          b.style.background  = on ? 'var(--gmed-secondary)' : 'white';
           b.style.color       = on ? 'white'   : '#2d3748';
-          b.style.borderColor = on ? '#0066a1' : '#dde5ed';
+          b.style.borderColor = on ? 'var(--gmed-secondary)' : 'var(--gmed-border)';
         }
         var h = document.getElementById(qId);
         if (h) h.value = val;
@@ -373,7 +373,7 @@ mod_faculty_eval_server <- function(id, rdm_data, resident_id, faculty_roster_r)
       cols <- c(
         sapply(seq_along(wins), function(i) {
           if (counts[i] >= goal)             "#2e7d32"
-          else if (wins[[i]]$pgy == cur_pgy) "#0066a1"
+          else if (wins[[i]]$pgy == cur_pgy) "#0f8a94"
           else                               "#adb5bd"
         }),
         if (n_historical > 0) "#c8a97e" else character(0)   # warm tan for historical
@@ -428,12 +428,12 @@ mod_faculty_eval_server <- function(id, rdm_data, resident_id, faculty_roster_r)
       div(lapply(nms, function(nm) {
         cnt <- sum(df$fac_fell_name == nm, na.rm = TRUE)
         tags$span(
-          style = "display:inline-block; background:#e8f0f7; color:#003d5c;
+          style = "display:inline-block; background:#e5eef0; color:var(--gmed-primary);
                    border-radius:20px; padding:4px 14px; font-size:0.8rem;
                    font-weight:600; margin:3px;",
           nm,
           if (cnt > 1) tags$span(
-            style = "margin-left:5px; background:#b8d0e8; color:#003d5c;
+            style = "margin-left:5px; background:#a8d4d8; color:var(--gmed-primary);
                      border-radius:10px; padding:1px 7px;
                      font-size:0.68rem; font-weight:700; vertical-align:middle;",
             paste0(cnt, "\u00d7")

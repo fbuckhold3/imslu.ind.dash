@@ -70,7 +70,7 @@ mod_evaluations_server <- function(id, rdm_data, resident_id) {
           div(style = "margin-top:6px;",
             lapply(names(tbl), function(yr)
               tags$span(
-                style = paste0("display:inline-block; background:#e8f0f7; color:#003d5c;",
+                style = paste0("display:inline-block; background:#e5eef0; color:var(--gmed-primary);",
                                "border-radius:20px; padding:3px 12px; font-size:0.78rem;",
                                "font-weight:600; margin:2px;"),
                 paste0(yr, ": ", tbl[[yr]])
