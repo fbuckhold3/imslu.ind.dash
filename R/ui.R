@@ -48,7 +48,7 @@ ui <- gmed_page(
     id = "loading_overlay",
     div(
       class = "loading-brand",
-      div(class = "loading-brand-badge", "SSM HEALTH \u00b7 SLUCARE"),
+      div(class = "loading-brand-badge", "GME TOOLS"),
       tags$h1(class = "loading-brand-title", "IMSLU Resident Dashboard")
     ),
     div(

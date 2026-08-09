@@ -65,7 +65,7 @@
 
 /* ── Login page ──────────────────────────────────────────────────────────────── */
 .login-brand-header {
-  background: #003d5c;
+  background: var(--gmed-primary);
   color: white;
   padding: 18px 32px;
   display: flex;
@@ -99,8 +99,8 @@
 
 .login-disclaimer {
   background: #f8fafc;
-  border: 1px solid #dde5ed;
-  border-left: 4px solid #0066a1;
+  border: 1px solid var(--gmed-border);
+  border-left: 4px solid var(--gmed-secondary);
   border-radius: 6px;
   padding: 14px 16px;
   font-size: 0.875rem;
@@ -112,7 +112,7 @@
 .login-code-input {
   width: 100%;
   padding: 10px 14px;
-  border: 1.5px solid #cdd5df;
+  border: 1.5px solid var(--gmed-border-input);
   border-radius: 6px;
   font-size: 1rem;
   letter-spacing: 0.08em;
@@ -132,7 +132,7 @@
 /* ── Collapsible info notes ──────────────────────────────────────────────────── */
 .info-note {
   font-size: 0.82rem;
-  color: #546e7a;
+  color: var(--gmed-text-secondary);
   margin-bottom: 0.75rem;
   border-left: 3px solid #b0c4d8;
   padding-left: 10px;
@@ -141,7 +141,7 @@
 .info-note summary {
   cursor: pointer;
   font-weight: 600;
-  color: #0066a1;
+  color: var(--gmed-secondary);
   list-style: none;
   display: inline-flex;
   align-items: center;
@@ -190,7 +190,7 @@
 }
 
 .loading-brand-badge {
-  background: #003d5c;
+  background: var(--gmed-primary);
   color: white;
   font-size: 0.65rem;
   font-weight: 700;
@@ -203,7 +203,7 @@
 .loading-brand-title {
   font-size: 1.15rem;
   font-weight: 700;
-  color: #003d5c;
+  color: var(--gmed-primary);
   margin: 0;
   letter-spacing: 0.01em;
 }
@@ -219,8 +219,8 @@
 .loading-ring {
   width: 48px;
   height: 48px;
-  border: 4px solid #dde5ed;
-  border-top-color: #0066a1;
+  border: 4px solid var(--gmed-border);
+  border-top-color: var(--gmed-secondary);
   border-radius: 50%;
   animation: loading-spin 0.85s linear infinite;
 }
@@ -231,7 +231,7 @@
 
 .loading-label {
   font-size: 0.88rem;
-  color: #546e7a;
+  color: var(--gmed-text-secondary);
   font-weight: 500;
   letter-spacing: 0.01em;
 }

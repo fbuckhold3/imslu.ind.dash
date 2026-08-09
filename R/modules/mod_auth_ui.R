@@ -11,7 +11,7 @@ mod_auth_page_ui <- function() {
     # Full-width brand header
     div(
       class = "login-brand-header",
-      div(class = "login-brand-badge", "SSM HEALTH \u00b7 SLUCARE"),
+      div(class = "login-brand-badge", "GME TOOLS"),
       tags$h1("IMSLU Resident Dashboard", class = "login-brand-title"),
       div(class = "login-brand-sub",
           "Internal Medicine \u00b7 Saint Louis University")
@@ -30,12 +30,12 @@ mod_auth_page_ui <- function() {
             class = "text-center mb-4",
             tags$h2(
               class = "mb-2",
-              style = "color: #003d5c; font-weight: 700;",
-              tags$i(class = "bi bi-person-circle me-2", style = "color: #0066a1;"),
+              style = "color: var(--gmed-primary); font-weight: 700;",
+              tags$i(class = "bi bi-person-circle me-2", style = "color: var(--gmed-secondary);"),
               "Welcome"
             ),
             tags$p(
-              style = "font-size:1rem; color:#546e7a; margin-bottom:0;",
+              style = "font-size:1rem; color:var(--gmed-text-secondary); margin-bottom:0;",
               "Access your evaluations, milestones, learning plan, and more."
             ),
             tags$hr(style = "margin-top:1rem;")
