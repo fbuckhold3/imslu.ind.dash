@@ -233,8 +233,11 @@ server <- function(input, output, session) {
 
       return(tagList(
         div(class = "d-flex justify-content-end mb-n2", sign_out_btn),
-        gmed_nav_blocks(
-          blocks   = resident_nav_blocks,
+        # roundsui-integration-test branch: gmed_nav_blocks() -> roundsui_nav_blocks(),
+        # resident_nav_blocks_roundsui (Font Awesome icons) instead of the
+        # Bootstrap Icons resident_nav_blocks used elsewhere in this file.
+        roundsui::roundsui_nav_blocks(
+          blocks   = resident_nav_blocks_roundsui,
           title    = paste0("Welcome, ", res_name),
           subtitle = paste0("Internal Medicine \u00b7 Saint Louis University", level_str, coach_str),
           input_id = "nav_block"
