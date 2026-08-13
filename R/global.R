@@ -13,6 +13,7 @@ library(jsonlite)
 library(gmed)
 library(future)
 library(promises)
+library(roundsui) # roundsui-integration-test branch only - not merged to main
 
 # Background workers for async Phase 2 data load
 plan(multisession)
@@ -109,6 +110,26 @@ resident_nav_blocks <- list(
   list(id = "attendance",   label = "Noon Conference Attendance", icon = "calendar2-check-fill", desc = "Log or review your conference attendance"),
   list(id = "schedule",     label = "Schedule",               icon = "calendar3-fill",          desc = "Rotation schedule",              disabled = TRUE),
   list(id = "resources",    label = "Program Resources",      icon = "grid-3x3-gap-fill",       desc = "Links, SharePoint & program tools", disabled = TRUE)
+)
+
+# roundsui-integration-test branch only - roundsui_nav_blocks() standardizes
+# on Font Awesome (already bundled by Shiny/bslib, no extra CDN dependency,
+# unlike this app's Bootstrap Icons CDN link in ui.R). Same ids/labels/descs
+# as resident_nav_blocks above, only icon names translated - each verified
+# to actually exist in the bundled Font Awesome Free set via the
+# `fontawesome` R package's own icon table before use (the family-3 lesson:
+# an icon name that looks plausible but isn't in the Free set renders
+# invisible with zero error).
+resident_nav_blocks_roundsui <- list(
+  list(id = "evaluations",  label = "My Evaluations",         icon = "clipboard-check", desc = "Evaluations received & feedback"),
+  list(id = "learning",     label = "My Learning",            icon = "graduation-cap",  desc = "Goals, learning topics & exam prep"),
+  list(id = "milestones",   label = "Milestones",             icon = "chart-line",      desc = "Competency progress & curves"),
+  list(id = "scholarship",  label = "Scholarship & Teaching", icon = "award",           desc = "Research, teaching & academic portfolio"),
+  list(id = "faculty_eval", label = "Faculty Evaluations",    icon = "user-check",      desc = "Evaluations you've completed"),
+  list(id = "self_eval",    label = "Self Evaluations",       icon = "user-pen",        desc = "Self-assessments & ILP"),
+  list(id = "attendance",   label = "Noon Conference Attendance", icon = "calendar-check", desc = "Log or review your conference attendance"),
+  list(id = "schedule",     label = "Schedule",               icon = "calendar-days",   desc = "Rotation schedule",              disabled = TRUE),
+  list(id = "resources",    label = "Program Resources",      icon = "table-cells",     desc = "Links, SharePoint & program tools", disabled = TRUE)
 )
 
 # ── Faculty roster loader (IMSLUFaculty REDCap project via FAC_TOKEN) ─────────

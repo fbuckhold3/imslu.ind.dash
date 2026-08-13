@@ -1,11 +1,21 @@
 # ui.R ─ IMSLU Resident Dashboard
 # Thin shell — all content is driven by server-side nav state.
+# roundsui-integration-test branch: gmed_page()/loading overlay swapped for
+# roundsui equivalents to verify the port against this app's real code and
+# real TEST-project data. Not merged to main.
 
-ui <- gmed_page(
-  title         = "IMSLU Resident Dashboard",
-  theme_variant = "slucare",
+ui <- roundsui::roundsui_page(
+  title = "IMSLU Resident Dashboard",
 
   useShinyjs(),
+
+  # roundsui_page() doesn't load gmed's CSS the way gmed_page() did -
+  # this app's own milestone_dashboard.css (login screen, EKG animation)
+  # reads --gmed-* custom properties directly, so it still needs gmed's
+  # stylesheet loaded alongside roundsui's. Non-colliding token prefixes
+  # (--gmed-*/--roundsui-*) by design - this is the documented supported
+  # way to run both during a migration, not a workaround.
+  gmed::load_gmed_styles(),
 
   tags$head(
     # Bootstrap Icons
@@ -44,18 +54,11 @@ ui <- gmed_page(
   uiOutput("overlay_hide"),
 
   # Startup loading overlay — hidden by server once data_ready() fires
-  div(
+  # (server.R's overlay_hide targets #loading_overlay by id; unchanged)
+  roundsui::roundsui_loading_overlay(
     id = "loading_overlay",
-    div(
-      class = "loading-brand",
-      div(class = "loading-brand-badge", "GME TOOLS"),
-      tags$h1(class = "loading-brand-title", "IMSLU Resident Dashboard")
-    ),
-    div(
-      class = "loading-spinner-wrap",
-      div(class = "loading-ring"),
-      div(class = "loading-label", "Loading\u2026")
-    )
+    brand = "IMSLU Resident Dashboard",
+    message = "Loading…"
   ),
 
   # Single content area — server renders login | home | section

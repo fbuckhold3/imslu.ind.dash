@@ -637,6 +637,11 @@ mod_milestones_server <- function(id, rdm_data, resident_id) {
     }
 
     # ── Self spider ───────────────────────────────────────────────────────────
+    # roundsui-integration-test branch: piped through roundsui_plotly_layout()
+    # for consistent font/hoverlabel/legend chrome. Note: this is a polar
+    # (radar) chart and roundsui_plotly_layout() only themes xaxis/yaxis so
+    # far - the radial gridlines/ticks create_enhanced_milestone_spider_plot()
+    # sets stay as they were. Real partial improvement, not a full re-theme.
     output$spider_self <- renderPlotly({
       req(self_data_r(), resident_id(), selected_period())
       pd <- .filter_period(self_data_r(), selected_period())
@@ -648,7 +653,7 @@ mod_milestones_server <- function(id, rdm_data, resident_id) {
           period_text    = selected_period(),
           milestone_type = "self",
           resident_data  = rdm_data()$residents
-        ),
+        ) |> roundsui::roundsui_plotly_layout(),
         error = function(e)
           section_placeholder("exclamation-triangle",
                                paste("Radar unavailable:", e$message))
@@ -667,7 +672,7 @@ mod_milestones_server <- function(id, rdm_data, resident_id) {
           period_text    = selected_period(),
           milestone_type = "acgme",
           resident_data  = rdm_data()$residents
-        ),
+        ) |> roundsui::roundsui_plotly_layout(),
         error = function(e)
           section_placeholder("exclamation-triangle",
                                paste("Radar unavailable:", e$message))
