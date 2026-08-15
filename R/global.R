@@ -108,7 +108,7 @@ resident_nav_blocks <- list(
   list(id = "faculty_eval", label = "Faculty Evaluations",    icon = "person-check-fill",       desc = "Evaluations you've completed"),
   list(id = "self_eval",    label = "Self Evaluations",       icon = "person-lines-fill",       desc = "Self-assessments & ILP"),
   list(id = "attendance",   label = "Noon Conference Attendance", icon = "calendar2-check-fill", desc = "Log or review your conference attendance"),
-  list(id = "schedule",     label = "Schedule",               icon = "calendar3-fill",          desc = "Rotation schedule",              disabled = TRUE),
+  list(id = "schedule",     label = "Schedule",               icon = "calendar3-fill",          desc = "Rotation days vs. your class average"),
   list(id = "resources",    label = "Program Resources",      icon = "grid-3x3-gap-fill",       desc = "Links, SharePoint & program tools", disabled = TRUE)
 )
 
@@ -128,7 +128,7 @@ resident_nav_blocks_roundsui <- list(
   list(id = "faculty_eval", label = "Faculty Evaluations",    icon = "user-check",      desc = "Evaluations you've completed"),
   list(id = "self_eval",    label = "Self Evaluations",       icon = "user-pen",        desc = "Self-assessments & ILP"),
   list(id = "attendance",   label = "Noon Conference Attendance", icon = "calendar-check", desc = "Log or review your conference attendance"),
-  list(id = "schedule",     label = "Schedule",               icon = "calendar-days",   desc = "Rotation schedule",              disabled = TRUE),
+  list(id = "schedule",     label = "Schedule",               icon = "calendar-days",   desc = "Rotation days vs. your class average"),
   list(id = "resources",    label = "Program Resources",      icon = "table-cells",     desc = "Links, SharePoint & program tools", disabled = TRUE)
 )
 

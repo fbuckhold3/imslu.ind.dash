@@ -199,7 +199,7 @@ server <- function(input, output, session) {
                           faculty_roster_r = faculty_roster)
   mod_self_eval_server(   "self_eval",    rdm_data = rdm_data, resident_id = resident_id)
   mod_attendance_server(  "attendance",   rdm_data = rdm_data, resident_id = resident_id)
-  mod_schedule_server(    "schedule")
+  mod_schedule_server(    "schedule",     resident_id = resident_id)
   mod_resources_server(   "resources")
 
   # ── Main view ──────────────────────────────────────────────────────────────

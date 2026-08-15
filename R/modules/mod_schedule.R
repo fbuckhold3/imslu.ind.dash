@@ -1,23 +1,21 @@
 # mod_schedule.R ─ Schedule
-# Placeholder — rotation schedule display.
-# TODO: connect to scheduling system / data source (TBD).
+# Rotation-days-by-category vs. class average, via amiontools::mod_rotation_summary.
+# amiontools must be installed (renv::install("fbuckhold3/amiontools")) —
+# see the repo's own CLAUDE.md for why this app can't locally build packages.
 
 mod_schedule_ui <- function(id) {
-  ns <- NS(id)
-  div(class = "gmed-card",
-    div(
-      class = "card-body d-flex flex-column align-items-center justify-content-center py-5",
-      tags$i(class = "bi bi-calendar3-fill",
-             style = "font-size:3rem; color:var(--ssm-secondary-blue); opacity:0.4; margin-bottom:16px;"),
-      tags$p("Schedule", style = "font-weight:700; font-size:1.1rem; color:var(--ssm-primary-blue); margin-bottom:8px;"),
-      tags$p("Rotation schedule integration coming soon.",
-             style = "font-size:0.88rem; color:var(--ssm-text-muted); margin:0;")
-    )
-  )
+  amiontools::mod_rotation_summary_ui(id)
 }
 
-mod_schedule_server <- function(id) {
-  moduleServer(id, function(input, output, session) {
-    # No data dependencies yet
-  })
+mod_schedule_server <- function(id, resident_id) {
+  # Thin passthrough — NOT wrapped in its own moduleServer(id, ...). amiontools'
+  # mod_rotation_summary_server() already calls moduleServer(id, ...) internally,
+  # so wrapping it here again would double-namespace and break the id match
+  # against mod_schedule_ui()'s direct (unwrapped) call to the amiontools UI.
+  amiontools::mod_rotation_summary_server(
+    id,
+    resident_id = resident_id,
+    rdm_token   = app_config$rdm_token,
+    redcap_url  = app_config$redcap_url
+  )
 }
