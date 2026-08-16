@@ -67,7 +67,7 @@
 .login-brand-header {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, var(--gmed-primary) 0%, var(--gmed-secondary) 100%);
+  background: linear-gradient(135deg, var(--roundsui-accent) 0%, var(--roundsui-accent) 100%);
   color: white;
   padding: 18px 32px;
   display: flex;
@@ -132,7 +132,7 @@
 }
 .icon-glow::before {
   content: ''; position: absolute; inset: -8px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(15,138,148,0.22) 0%, rgba(15,138,148,0) 70%);
+  background: radial-gradient(circle, rgba(51,85,216,0.22) 0%, rgba(51,85,216,0) 70%);
 }
 
 /* Gentle entrance for the login/welcome card */
@@ -151,12 +151,12 @@
 
 .login-disclaimer {
   background: #f8fafc;
-  border: 1px solid var(--gmed-border);
-  border-left: 4px solid var(--gmed-secondary);
+  border: 1px solid var(--roundsui-border);
+  border-left: 4px solid var(--roundsui-accent);
   border-radius: 6px;
   padding: 14px 16px;
   font-size: 0.875rem;
-  color: var(--gmed-text-secondary);
+  color: var(--roundsui-ink-muted);
   line-height: 1.7;
   margin-bottom: 24px;
 }
@@ -164,7 +164,7 @@
 .login-code-input {
   width: 100%;
   padding: 10px 14px;
-  border: 1.5px solid var(--gmed-border-input);
+  border: 1.5px solid var(--roundsui-border-strong);
   border-radius: 6px;
   font-size: 1rem;
   letter-spacing: 0.08em;
@@ -182,12 +182,10 @@
   transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
 
-/* A livelier hover just for this one-off login moment — gmed's default
-   .btn-gmed-primary:hover is intentionally flat for buttons used
-   repeatedly in dense daily-use screens; this login button isn't one. */
+/* A livelier hover just for this one-off login moment. */
 .login-submit-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(12, 88, 96, 0.28);
+  box-shadow: 0 6px 18px rgba(51, 85, 216, 0.28);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -197,7 +195,7 @@
 /* ── Collapsible info notes ──────────────────────────────────────────────────── */
 .info-note {
   font-size: 0.82rem;
-  color: var(--gmed-text-secondary);
+  color: var(--roundsui-ink-muted);
   margin-bottom: 0.75rem;
   border-left: 3px solid #b0c4d8;
   padding-left: 10px;
@@ -206,7 +204,7 @@
 .info-note summary {
   cursor: pointer;
   font-weight: 600;
-  color: var(--gmed-secondary);
+  color: var(--roundsui-accent);
   list-style: none;
   display: inline-flex;
   align-items: center;
@@ -229,74 +227,13 @@
   margin-bottom: 4px;
 }
 
-/* ── Startup loading overlay ─────────────────────────────────────────────────── */
-#loading_overlay {
-  position: fixed;
-  inset: 0;
-  background: #f3f6fa;
-  z-index: 9999;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 28px;
-  transition: opacity 0.4s ease;
-}
-
-#loading_overlay.fadeout {
-  opacity: 0;
-  pointer-events: none;
-}
-
-.loading-brand {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.loading-brand-badge {
-  background: var(--gmed-primary);
-  color: white;
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  padding: 4px 10px;
-  border-radius: 3px;
-  white-space: nowrap;
-}
-
-.loading-brand-title {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: var(--gmed-primary);
-  margin: 0;
-  letter-spacing: 0.01em;
-}
-
-.loading-spinner-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-}
-
-/* SSM-branded ring spinner — pure CSS, no extra packages */
-.loading-ring {
-  width: 48px;
-  height: 48px;
-  border: 4px solid var(--gmed-border);
-  border-top-color: var(--gmed-secondary);
-  border-radius: 50%;
-  animation: loading-spin 0.85s linear infinite;
-}
-
-@keyframes loading-spin {
-  to { transform: rotate(360deg); }
-}
-
-.loading-label {
-  font-size: 0.88rem;
-  color: var(--gmed-text-secondary);
-  font-weight: 500;
-  letter-spacing: 0.01em;
-}
+/* ── Startup loading overlay ──────────────────────────────────────────────────
+   Dead CSS removed here (was #loading_overlay / .loading-brand* / .loading-ring
+   / .loading-label): the markup they styled was replaced when ui.R switched to
+   roundsui::roundsui_loading_overlay(), which renders its own .roundsui-loading-
+   overlay* classes from roundsui-shell.css. Worse than just unused: #loading_overlay
+   is an ID selector (specificity 100), which was beating roundsui's
+   .roundsui-loading-overlay class selector (specificity 10) in the cascade -
+   this app's overlay had actually been rendering with the old hardcoded
+   #f3f6fa background and 28px gap instead of the intended roundsui tokens the
+   whole time, not just carrying inert dead code. */
