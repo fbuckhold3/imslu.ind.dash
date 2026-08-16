@@ -1,8 +1,8 @@
 # mod_schedule.R ─ Schedule
 # Category-level rotation days (mod_rotation_summary) + a team-level
-# drill-down (mod_team_summary) + a time-allocation chart (mod_time_
-# allocation) — all from amiontools, all additive layers in the same tab,
-# not replacements of each other.
+# drill-down incl. off-days (mod_team_summary) + a time-allocation chart
+# (mod_time_allocation) + a day-by-day detail log (mod_daily_detail) — all
+# from amiontools, all additive layers in the same tab.
 # amiontools must be installed (renv::install("fbuckhold3/amiontools")) —
 # see the repo's own CLAUDE.md for why this app can't locally build packages.
 
@@ -13,22 +13,21 @@ mod_schedule_ui <- function(id) {
     tags$hr(style = "margin: 24px 0;"),
     amiontools::mod_team_summary_ui(ns("team")),
     tags$hr(style = "margin: 24px 0;"),
-    amiontools::mod_time_allocation_ui(ns("allocation"))
+    amiontools::mod_time_allocation_ui(ns("allocation")),
+    tags$hr(style = "margin: 24px 0;"),
+    amiontools::mod_daily_detail_ui(ns("daily"))
   )
 }
 
 mod_schedule_server <- function(id, resident_id) {
-  # Outer moduleServer() needed - three child modules each need their own
+  # Outer moduleServer() needed - four child modules each need their own
   # sub-namespace beneath "schedule". Verified via headless test (ids render
-  # as schedule-category-*/schedule-team-*/schedule-allocation-*, not
-  # double-nested).
+  # as schedule-category-*/schedule-team-*/schedule-allocation-*/
+  # schedule-daily-*, not double-nested).
   moduleServer(id, function(input, output, session) {
 
-    # Shared fetch (2026-08-16): all three sections used to independently
-    # re-fetch the same RDM crosswalk + full-year Amion data - measured
-    # ~4x redundant fetches, roughly doubling load time. use_amion_data()
-    # fetches once; each module reuses it via crosswalk_r/amion_r. Measured
-    # 3.2x speedup (24.4s -> 7.6s) with byte-identical results.
+    # Shared fetch: RDM crosswalk + Amion data fetched ONCE, reused by all
+    # four sections instead of each re-fetching independently.
     shared <- amiontools::use_amion_data(
       rdm_token  = app_config$rdm_token,
       redcap_url = app_config$redcap_url
@@ -52,6 +51,14 @@ mod_schedule_server <- function(id, resident_id) {
     )
     amiontools::mod_time_allocation_server(
       "allocation",
+      resident_id = resident_id,
+      rdm_token   = app_config$rdm_token,
+      redcap_url  = app_config$redcap_url,
+      crosswalk_r = shared$crosswalk,
+      amion_r     = shared$amion
+    )
+    amiontools::mod_daily_detail_server(
+      "daily",
       resident_id = resident_id,
       rdm_token   = app_config$rdm_token,
       redcap_url  = app_config$redcap_url,
