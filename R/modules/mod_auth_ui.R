@@ -9,8 +9,8 @@ mod_auth_page_ui <- function() {
   tagList(
 
     # Full-width brand header \u2014 includes a slow, looping EKG (Lead II)
-    # trace, on-brand with the vitals-monitor palette story (see gmed's
-    # Restrained theme) rather than decoration for its own sake. One
+    # trace, on-brand with the vitals-monitor palette story (see roundsui's
+    # "Ward Notes" Restrained theme) rather than decoration for its own sake. One
     # PQRST cycle (rounded P wave -> sharp QRS spike -> rounded T wave ->
     # flat diastolic baseline), repeated 3x. Respects prefers-reduced-motion
     # (see milestone_dashboard.css).
@@ -34,8 +34,11 @@ mod_auth_page_ui <- function() {
       class = "row justify-content-center",
       div(
         class = "col-lg-6 col-md-8 col-12",
-        div(
-          class = "gmed-card card-entrance",
+        # roundsui::roundsui_card() instead of the raw gmed-card CSS class -
+        # dogfooding the same component gmed_card() call sites elsewhere in
+        # the ecosystem are migrating to.
+        roundsui::roundsui_card(
+          class = "card-entrance",
 
           # Welcome header
           div(
@@ -44,12 +47,12 @@ mod_auth_page_ui <- function() {
               class = "mb-2",
               style = "display:flex; align-items:center; justify-content:center; gap:10px;",
               div(class = "icon-glow",
-                tags$i(class = "bi bi-person-circle", style = "color: var(--gmed-secondary); font-size:1.6rem;")
+                tags$i(class = "bi bi-person-circle", style = "color: var(--roundsui-accent); font-size:1.6rem;")
               ),
-              tags$span(style = "color: var(--gmed-primary); font-weight: 700;", "Welcome")
+              tags$span(style = "color: var(--roundsui-accent); font-weight: 700;", "Welcome")
             ),
             tags$p(
-              style = "font-size:1rem; color:var(--gmed-text-secondary); margin-bottom:0;",
+              style = "font-size:1rem; color:var(--roundsui-ink-muted); margin-bottom:0;",
               "Access your evaluations, milestones, learning plan, and more."
             ),
             tags$hr(style = "margin-top:1rem;")
@@ -85,7 +88,7 @@ mod_auth_page_ui <- function() {
               class        = "login-code-input"
             ),
             tags$button(
-              class   = "btn-gmed-primary login-submit-btn",
+              class   = "btn btn-primary login-submit-btn",
               onclick = "Shiny.setInputValue('auth-access_code_btn', Math.random(), {priority:'event'})",
               tags$i(class = "bi bi-box-arrow-in-right me-2"), "Sign In"
             ),

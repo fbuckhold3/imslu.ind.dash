@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "www/milestone_dashboard.css"
+        ],
+        "createdAt": "2026-08-16T23:37:29.937Z",
+        "reason": "User confirmed intentional - login-disclaimer mirrors ccc.dashboard's already-shipped login screen border-left accent for cross-app consistency; info-note is pre-existing, unrelated to this task"
+      }
+    ]
+  }
+}

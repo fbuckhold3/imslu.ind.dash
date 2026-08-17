@@ -17,3 +17,4 @@ renv/cellar/
 # macOS
 .DS_Store
 **/.DS_Store
+.impeccable/hook.cache.json
