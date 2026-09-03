@@ -26,37 +26,72 @@ mod_schedule_server <- function(id, resident_id) {
   # schedule-daily-*, not double-nested).
   moduleServer(id, function(input, output, session) {
 
-    # Shared fetch: RDM crosswalk + Amion data fetched ONCE, reused by all
-    # four sections instead of each re-fetching independently.
+    # Shared live-fetch reactives: defined unconditionally, but Shiny
+    # reactives are lazy -- wiring these costs nothing until something
+    # actually calls shared$crosswalk()/shared$amion(). mod_daily_detail
+    # always needs them (its data is deliberately excluded from the REDCap
+    # cache -- ~12 MB, blows the field-size ceiling -- so it's always a
+    # live fetch); the 3 aggregate modules below only fall through to them
+    # on a cache miss, so this stays a single live fetch either way, never
+    # a redundant second one.
     shared <- amiontools::use_amion_data(
       rdm_token  = app_config$rdm_token,
       redcap_url = app_config$redcap_url
     )
 
-    amiontools::mod_rotation_summary_server(
-      "category",
-      resident_id = resident_id,
-      rdm_token   = app_config$rdm_token,
-      redcap_url  = app_config$redcap_url,
-      crosswalk_r = shared$crosswalk,
-      amion_r     = shared$amion
+    # Cache-first for the 3 aggregate sections: try the REDCap app_cache
+    # record (written weekly by rdm-data-refresh's refresh_amion.qmd)
+    # before touching Amion/RDM live. NULL on a cache miss/stale/malformed
+    # payload -> fall back to the shared live-fetch path, unchanged from
+    # before this caching work.
+    cached <- amiontools::use_amion_data_cached(
+      rdm_token  = app_config$rdm_token,
+      redcap_url = app_config$redcap_url
     )
-    amiontools::mod_team_summary_server(
-      "team",
-      resident_id = resident_id,
-      rdm_token   = app_config$rdm_token,
-      redcap_url  = app_config$redcap_url,
-      crosswalk_r = shared$crosswalk,
-      amion_r     = shared$amion
-    )
-    amiontools::mod_time_allocation_server(
-      "allocation",
-      resident_id = resident_id,
-      rdm_token   = app_config$rdm_token,
-      redcap_url  = app_config$redcap_url,
-      crosswalk_r = shared$crosswalk,
-      amion_r     = shared$amion
-    )
+
+    if (!is.null(cached)) {
+      amiontools::mod_rotation_summary_server(
+        "category", resident_id = resident_id,
+        rdm_token = app_config$rdm_token, redcap_url = app_config$redcap_url,
+        summary_r = cached$rotation
+      )
+      amiontools::mod_team_summary_server(
+        "team", resident_id = resident_id,
+        rdm_token = app_config$rdm_token, redcap_url = app_config$redcap_url,
+        summary_r = cached$team
+      )
+      amiontools::mod_time_allocation_server(
+        "allocation", resident_id = resident_id,
+        rdm_token = app_config$rdm_token, redcap_url = app_config$redcap_url,
+        summary_r = cached$talloc
+      )
+    } else {
+      amiontools::mod_rotation_summary_server(
+        "category",
+        resident_id = resident_id,
+        rdm_token   = app_config$rdm_token,
+        redcap_url  = app_config$redcap_url,
+        crosswalk_r = shared$crosswalk,
+        amion_r     = shared$amion
+      )
+      amiontools::mod_team_summary_server(
+        "team",
+        resident_id = resident_id,
+        rdm_token   = app_config$rdm_token,
+        redcap_url  = app_config$redcap_url,
+        crosswalk_r = shared$crosswalk,
+        amion_r     = shared$amion
+      )
+      amiontools::mod_time_allocation_server(
+        "allocation",
+        resident_id = resident_id,
+        rdm_token   = app_config$rdm_token,
+        redcap_url  = app_config$redcap_url,
+        crosswalk_r = shared$crosswalk,
+        amion_r     = shared$amion
+      )
+    }
+
     amiontools::mod_daily_detail_server(
       "daily",
       resident_id = resident_id,
