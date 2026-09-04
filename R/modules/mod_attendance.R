@@ -55,15 +55,20 @@
 )
 
 .att_conference_type_choices <- c(
-  "SLUH Noon Conference" = "1",
-  "VA Noon Conference"   = "2",
-  "Afternoon School"     = "3",
-  "SLUH Grand Rounds"    = "4"
+  "SLUH Noon Conference"       = "1",
+  "VA Noon Conference"         = "2",
+  "Afternoon School"           = "3",
+  "SLUH Grand Rounds"          = "4",
+  "Other/Specialty Conference" = "5"
 )
 
 # Conference types that count toward the July-1 attendance percentage.
 # Afternoon School is tracked separately as a simple counter, not a rate.
-.att_percentage_conference_types <- c("1", "2", "4")
+# "5" (Other/Specialty Conference, added 2026-09-04) counts too -- the
+# whole point of that choice is a resident attending an alternate
+# conference (e.g. Hem/Onc clinic's own conference) still counts as real
+# attendance, per Fred's original ask.
+.att_percentage_conference_types <- c("1", "2", "4", "5")
 
 # Team/rotation question is hidden entirely for Afternoon School ("3").
 .att_rotation_choices_for_conference <- function(conf_code) {
