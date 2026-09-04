@@ -201,18 +201,18 @@
         "Config/roxygen2/version": "8.0.0",
         "Author": "Fred Buckhold [aut, cre]",
         "Maintainer": "Fred Buckhold <fbuckhold3@icloud.com>",
-        "Built": "R 4.6.0; ; 2026-09-04 14:12:48 UTC; unix",
+        "Built": "R 4.6.0; ; 2026-09-04 17:24:47 UTC; unix",
         "RemoteType": "github",
         "RemoteHost": "api.github.com",
         "RemoteUsername": "fbuckhold3",
         "RemoteRepo": "amiontools",
         "RemoteRef": "main",
-        "RemoteSha": "3f2b10122327bfe29d809259bb8e05929f02ab03",
+        "RemoteSha": "6d37078067c7468aef3450af14e13866a3a915c3",
         "GithubHost": "api.github.com",
         "GithubRepo": "amiontools",
         "GithubUsername": "fbuckhold3",
         "GithubRef": "main",
-        "GithubSHA1": "3f2b10122327bfe29d809259bb8e05929f02ab03"
+        "GithubSHA1": "6d37078067c7468aef3450af14e13866a3a915c3"
       }
     },
     "askpass": {
@@ -1112,19 +1112,19 @@
         "Config/roxygen2/version": "8.0.0",
         "Author": "First Last [aut, cre]",
         "Maintainer": "First Last <first.last@example.com>",
-        "Built": "R 4.6.0; ; 2026-09-04 14:12:45 UTC; unix",
+        "Built": "R 4.6.0; ; 2026-09-04 17:24:44 UTC; unix",
         "RemoteType": "github",
         "Remotes": "fbuckhold3/roundsui",
         "RemoteHost": "api.github.com",
         "RemoteUsername": "fbuckhold3",
         "RemoteRepo": "gmed",
         "RemoteRef": "main",
-        "RemoteSha": "6e929f90f3beaaeb612c908e8b65f7d8cca6fefa",
+        "RemoteSha": "6df2786c71baf5219a84965f15204cf4929d62a7",
         "GithubHost": "api.github.com",
         "GithubRepo": "gmed",
         "GithubUsername": "fbuckhold3",
         "GithubRef": "main",
-        "GithubSHA1": "6e929f90f3beaaeb612c908e8b65f7d8cca6fefa"
+        "GithubSHA1": "6df2786c71baf5219a84965f15204cf4929d62a7"
       }
     },
     "gtable": {
@@ -3183,7 +3183,7 @@
       "checksum": "7c2480ed1d0301c27da27ee4484ad336"
     },
     "R/modules/mod_attendance.R": {
-      "checksum": "88e12f71f938978dc844b8c652babfd6"
+      "checksum": "288fb4d4fb8fd19ad8205e74e51c19ab"
     },
     "R/modules/mod_auth_ui.R": {
       "checksum": "d684a35929c578bfa1af8653b7ecca94"
@@ -3204,7 +3204,7 @@
       "checksum": "a8297a8481fd790af9e578cb750d41f0"
     },
     "R/modules/mod_schedule.R": {
-      "checksum": "2995658d1cebf27e84db0771b79b5a46"
+      "checksum": "0097c943e50a0ffb2345bcde39c25ea1"
     },
     "R/modules/mod_scholarship_cv.R": {
       "checksum": "f876f225b387444c97a1224899e180e0"
@@ -3222,7 +3222,7 @@
       "checksum": "a26b03bf58f62b1c076759beb84415f0"
     },
     "R/server.R": {
-      "checksum": "7a7ea921c5d16fdbd772d305fcfd96ca"
+      "checksum": "782a4d256de428dcadc3085646decd72"
     },
     "R/ui.R": {
       "checksum": "a2c241d2036380d851ad4d8007b10060"
