@@ -198,7 +198,8 @@ server <- function(input, output, session) {
   mod_faculty_eval_server("faculty_eval", rdm_data = rdm_data, resident_id = resident_id,
                           faculty_roster_r = faculty_roster)
   mod_self_eval_server(   "self_eval",    rdm_data = rdm_data, resident_id = resident_id)
-  mod_attendance_server(  "attendance",   rdm_data = rdm_data, resident_id = resident_id)
+  mod_attendance_server(  "attendance",   rdm_data = rdm_data, resident_id = resident_id,
+                          rdm_token = app_config$rdm_token, redcap_url = app_config$redcap_url)
   mod_schedule_server(    "schedule",     resident_id = resident_id)
   mod_resources_server(   "resources")
 

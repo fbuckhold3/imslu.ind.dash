@@ -17,8 +17,19 @@
 # rdm_data() is only refreshed on login (Phase 2/3 load) — it does not
 # automatically pick up a row just written via .rc_save(). display_data()
 # below patches in rows saved earlier in the current session so the
-# overview stats, heatmap, and history table update immediately without
-# waiting for a full reload.
+# overview stats update immediately without waiting for a full reload.
+#
+# Calendar redesign (Fred, 2026-09-04): the old .att_build_heatmap()
+# (attended/no-entry/upcoming, day-rows/week-columns) and the raw "Your
+# Attendance History" DT table are BOTH replaced by
+# amiontools::mod_conference_calendar — weeks-as-rows, 4-color status
+# (green=on-time, yellow=late, red=missing, black=not expected), hover
+# tooltip showing the actual scheduled activity. That module pulls Amion
+# data itself (this app didn't need it before), so mod_attendance_server()
+# now also takes resident_id-driven Amion access — see server() below.
+# imslu.at.noon's own copy of the OLD heatmap is untouched for now —
+# extending it needs new dependencies (amiontools/gmed) that app doesn't
+# have yet, deliberately deferred as a separate follow-up (Fred, 2026-09-04).
 
 .att_sluh_rotation_choices <- c(
   "Red" = "1",
@@ -69,66 +80,6 @@
   if (mo >= 7) as.Date(paste0(yr, "-07-01")) else as.Date(paste0(yr - 1, "-07-01"))
 }
 
-# Small calendar-heatmap: rows = Mon-Fri, columns = the last `n_weeks`
-# weeks (oldest -> newest, ending this week). Attended weekdays get a
-# filled checkmark cell so the status isn't color-only; upcoming weekdays
-# are outlined/blank; everything else is a muted "no entry" cell.
-.att_build_heatmap <- function(attended_dates, today, n_weeks = 9) {
-  iso_wday <- as.integer(format(today, "%u"))  # Mon=1..Sun=7
-  monday_this_week <- today - (iso_wday - 1)
-  week_starts <- monday_this_week - 7 * seq(n_weeks - 1, 0)
-  day_labels <- c("Mon", "Tue", "Wed", "Thu", "Fri")
-  attended_chr <- format(attended_dates, "%Y-%m-%d")
-
-  month_cells <- lapply(seq_along(week_starts), function(i) {
-    ws <- week_starts[i]
-    show_label <- i == 1 || format(ws, "%m") != format(week_starts[i - 1], "%m")
-    tags$td(style = "font-size:0.65rem; color:#6c757d; text-align:center; padding-bottom:2px;",
-            if (show_label) format(ws, "%b") else "")
-  })
-
-  day_rows <- lapply(seq_along(day_labels), function(wd_i) {
-    row_cells <- lapply(seq_along(week_starts), function(i) {
-      d <- week_starts[i] + (wd_i - 1)
-      if (d > today) {
-        cell <- div(style = "width:18px; height:18px; border-radius:3px; background:#ffffff; border:1px dashed #dee2e6;",
-                     title = paste(format(d, "%a, %b %d"), "— upcoming"))
-      } else if (format(d, "%Y-%m-%d") %in% attended_chr) {
-        cell <- div(style = "width:18px; height:18px; border-radius:3px; background:#198754; display:flex; align-items:center; justify-content:center;",
-                     title = paste(format(d, "%a, %b %d"), "— attended"),
-                     tags$span(style = "color:#fff; font-size:10px; line-height:1;", "✓"))
-      } else {
-        cell <- div(style = "width:18px; height:18px; border-radius:3px; background:#e9ecef;",
-                     title = paste(format(d, "%a, %b %d"), "— no entry"))
-      }
-      tags$td(style = "padding:2px;", cell)
-    })
-    tags$tr(
-      tags$td(style = "font-size:0.7rem; color:#6c757d; padding-right:6px; text-align:right; white-space:nowrap;", day_labels[wd_i]),
-      row_cells
-    )
-  })
-
-  legend <- div(style = "display:flex; flex-wrap:wrap; gap:16px; margin-top:10px; font-size:0.78rem; color:#6c757d;",
-    div(style = "display:flex; align-items:center; gap:5px;",
-      div(style = "width:14px; height:14px; border-radius:3px; background:#198754; display:flex; align-items:center; justify-content:center;",
-          tags$span(style = "color:#fff; font-size:9px;", "✓")),
-      "Attended (Noon Conference / Grand Rounds)"),
-    div(style = "display:flex; align-items:center; gap:5px;",
-      div(style = "width:14px; height:14px; border-radius:3px; background:#e9ecef;"), "No entry"),
-    div(style = "display:flex; align-items:center; gap:5px;",
-      div(style = "width:14px; height:14px; border-radius:3px; background:#fff; border:1px dashed #dee2e6;"), "Upcoming")
-  )
-
-  tagList(
-    div(style = "overflow-x:auto;",
-      tags$table(style = "border-collapse:collapse;",
-        tags$tbody(tags$tr(tags$td(""), month_cells), day_rows))
-    ),
-    legend
-  )
-}
-
 mod_attendance_ui <- function(id) {
   ns <- NS(id)
   tagList(
@@ -142,15 +93,19 @@ mod_attendance_ui <- function(id) {
     uiOutput(ns("add_button_panel")),
     uiOutput(ns("add_form_panel")),
     h6(class = "mt-4 mb-2", style = "color:var(--gmed-primary); font-weight:700; font-size:0.95rem;",
-       "Your Attendance History"),
-    DT::dataTableOutput(ns("history_dt"))
+       "Attendance Calendar"),
+    tags$p(class = "text-muted mb-2", style = "font-size:0.85rem;",
+           "Hover any day for the scheduled activity."),
+    amiontools::mod_conference_calendar_ui(ns("calendar"))
   )
 }
 
 # rdm_data    : reactive() -> list with $all_forms$questions (all residents or
 #               this resident's rows, depending on load phase)
 # resident_id : reactive() -> record_id to save under / filter history by
-mod_attendance_server <- function(id, rdm_data, resident_id) {
+# rdm_token, redcap_url : passed through to amiontools::mod_conference_calendar
+#               (new Amion dependency this module didn't need before 2026-09-04)
+mod_attendance_server <- function(id, rdm_data, resident_id, rdm_token, redcap_url) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -354,39 +309,16 @@ mod_attendance_server <- function(id, rdm_data, resident_id) {
               div(style = "font-size:1.8rem; font-weight:700; color:var(--gmed-primary); line-height:1.2;",
                   st$afternoon_count)
             )
-          ),
-          .att_build_heatmap(st$attended_dates, st$today)
+          )
         )
       )
     })
 
-    output$history_dt <- DT::renderDataTable({
-      df <- display_data()
-      rot_labels <- c(.att_sluh_rotation_choices, .att_va_rotation_choices)
-      rot_labels <- setNames(names(rot_labels), unname(rot_labels))
-      conf_labels <- setNames(names(.att_conference_type_choices), unname(.att_conference_type_choices))
-
-      if (is.null(df)) {
-        show_df <- data.frame(Date = character(0), Conference = character(0),
-                               Team = character(0), Logged = character(0),
-                               stringsAsFactors = FALSE)
-      } else {
-        show_df <- data.frame(
-          Date       = df$q_date,
-          Conference = unname(ifelse(df$q_conference_type %in% names(conf_labels),
-                                      conf_labels[df$q_conference_type], "—")),
-          Team       = unname(ifelse(df$q_rotation %in% names(rot_labels),
-                                      rot_labels[df$q_rotation], ifelse(nzchar(df$q_rotation %||% ""), df$q_rotation, "—"))),
-          Logged     = if ("q_entry_timestamp" %in% names(df)) df$q_entry_timestamp else "—",
-          stringsAsFactors = FALSE
-        )
-        show_df <- show_df[order(show_df$Date, decreasing = TRUE), , drop = FALSE]
-      }
-
-      DT::datatable(
-        show_df, rownames = FALSE, options = list(pageLength = 10, dom = "tp"),
-        class = "compact stripe"
-      )
-    })
+    amiontools::mod_conference_calendar_server(
+      "calendar",
+      resident_id = resident_id,
+      rdm_token   = rdm_token,
+      redcap_url  = redcap_url
+    )
   })
 }
