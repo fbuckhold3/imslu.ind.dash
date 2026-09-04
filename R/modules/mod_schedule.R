@@ -2,8 +2,10 @@
 # Category-level rotation days (mod_rotation_summary) + the same, broken out
 # by training year actually lived (mod_rotation_by_year) + a team-level
 # drill-down incl. off-days (mod_team_summary) + a time-allocation chart
-# (mod_time_allocation) + a day-by-day detail log (mod_daily_detail) — all
-# from amiontools, all additive layers in the same tab.
+# (mod_time_allocation) + conference attendance reconciliation
+# (mod_attendance_reconciliation) + a day-by-day detail log
+# (mod_daily_detail) — all from amiontools, all additive layers in the same
+# tab.
 # amiontools must be installed (renv::install("fbuckhold3/amiontools")) —
 # see the repo's own CLAUDE.md for why this app can't locally build packages.
 
@@ -18,15 +20,18 @@ mod_schedule_ui <- function(id) {
     tags$hr(style = "margin: 24px 0;"),
     amiontools::mod_time_allocation_ui(ns("allocation")),
     tags$hr(style = "margin: 24px 0;"),
+    amiontools::mod_attendance_reconciliation_ui(ns("attendance")),
+    tags$hr(style = "margin: 24px 0;"),
     amiontools::mod_daily_detail_ui(ns("daily"))
   )
 }
 
 mod_schedule_server <- function(id, resident_id) {
-  # Outer moduleServer() needed - five child modules each need their own
+  # Outer moduleServer() needed - six child modules each need their own
   # sub-namespace beneath "schedule". Verified via headless test (ids render
   # as schedule-category-*/schedule-team-*/schedule-allocation-*/
-  # schedule-daily-*/schedule-by_year-*, not double-nested).
+  # schedule-daily-*/schedule-by_year-*/schedule-attendance-*, not
+  # double-nested).
   moduleServer(id, function(input, output, session) {
 
     # Shared live-fetch reactives: defined unconditionally, but Shiny
@@ -97,6 +102,20 @@ mod_schedule_server <- function(id, resident_id) {
 
     amiontools::mod_daily_detail_server(
       "daily",
+      resident_id = resident_id,
+      rdm_token   = app_config$rdm_token,
+      redcap_url  = app_config$redcap_url,
+      crosswalk_r = shared$crosswalk,
+      amion_r     = shared$amion
+    )
+
+    # Brand new (2026-09-04), not yet cache-fed on either side (Amion/RDM
+    # or the "questions" attendance log -- see mod_attendance_
+    # reconciliation.R for why the log specifically stays live forever).
+    # Reuses the shared live fetch for its Amion/RDM side, same as
+    # mod_daily_detail.
+    amiontools::mod_attendance_reconciliation_server(
+      "attendance",
       resident_id = resident_id,
       rdm_token   = app_config$rdm_token,
       redcap_url  = app_config$redcap_url,
