@@ -112,6 +112,7 @@ mod_attendance_server <- function(id, rdm_data, resident_id, rdm_token, redcap_u
     ss             <- reactiveValues(save = NULL)
     form_open      <- reactiveVal(FALSE)
     local_new_rows <- reactiveVal(NULL)  # rows saved this session, ahead of the next full reload
+    clicked_context <- reactiveVal(NULL)  # detail_text of the calendar day that opened the form, if any
 
     base_data <- reactive({
       req(resident_id())
@@ -135,8 +136,8 @@ mod_attendance_server <- function(id, rdm_data, resident_id, rdm_token, redcap_u
       rbind(base[cols], extra[cols])
     })
 
-    observeEvent(input$btn_add,    { form_open(TRUE);  ss$save <- NULL })
-    observeEvent(input$btn_cancel, { form_open(FALSE); ss$save <- NULL })
+    observeEvent(input$btn_add,    { form_open(TRUE);  ss$save <- NULL; clicked_context(NULL) })
+    observeEvent(input$btn_cancel, { form_open(FALSE); ss$save <- NULL; clicked_context(NULL) })
 
     output$add_button_panel <- renderUI({
       if (form_open()) return(NULL)
@@ -158,6 +159,9 @@ mod_attendance_server <- function(id, rdm_data, resident_id, rdm_token, redcap_u
           tags$span(style = "font-weight:700; color:var(--gmed-primary); font-size:0.95rem;",
                      "Log Attendance After the Fact")),
         div(class = "card-body",
+          if (!is.null(clicked_context()))
+            div(class = "alert alert-secondary py-2 px-3 mb-3", style = "font-size:0.85rem;",
+              tags$i(class = "bi bi-calendar-event me-1"), "Scheduled that day: ", clicked_context()),
           div(class = "mb-3", lbl("Conference date"),
             dateInput(ns("att_date"), label = NULL, value = Sys.Date() - 1, max = Sys.Date(),
                       daysofweekdisabled = c(0, 6), width = "200px")),
@@ -314,11 +318,27 @@ mod_attendance_server <- function(id, rdm_data, resident_id, rdm_token, redcap_u
       )
     })
 
-    amiontools::mod_conference_calendar_server(
+    calendar <- amiontools::mod_conference_calendar_server(
       "calendar",
       resident_id = resident_id,
       rdm_token   = rdm_token,
       redcap_url  = redcap_url
     )
+
+    # Click-to-log (Fred, 2026-09-04): clicking a calendar day opens this
+    # same form, pre-filled with that date and (if the day was expected at
+    # a specific site) the matching conference type. Not-expected days
+    # still open the form with no conference preselected -- a resident may
+    # genuinely have attended something unusual on an off day.
+    observeEvent(calendar$clicked(), {
+      info <- calendar$clicked()
+      req(info)
+      form_open(TRUE)
+      ss$save <- NULL
+      clicked_context(info$detail_text)
+      updateDateInput(session, "att_date", value = info$date)
+      conf_code <- switch(info$expected, "SLUH" = "1", "VA" = "2", "")
+      updateSelectInput(session, "att_conference_type", selected = conf_code)
+    })
   })
 }
