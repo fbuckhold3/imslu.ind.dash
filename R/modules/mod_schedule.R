@@ -1,5 +1,6 @@
 # mod_schedule.R ─ Schedule
-# Category-level rotation days (mod_rotation_summary) + a team-level
+# Category-level rotation days (mod_rotation_summary) + the same, broken out
+# by training year actually lived (mod_rotation_by_year) + a team-level
 # drill-down incl. off-days (mod_team_summary) + a time-allocation chart
 # (mod_time_allocation) + a day-by-day detail log (mod_daily_detail) — all
 # from amiontools, all additive layers in the same tab.
@@ -11,6 +12,8 @@ mod_schedule_ui <- function(id) {
   tagList(
     amiontools::mod_rotation_summary_ui(ns("category")),
     tags$hr(style = "margin: 24px 0;"),
+    amiontools::mod_rotation_by_year_ui(ns("by_year")),
+    tags$hr(style = "margin: 24px 0;"),
     amiontools::mod_team_summary_ui(ns("team")),
     tags$hr(style = "margin: 24px 0;"),
     amiontools::mod_time_allocation_ui(ns("allocation")),
@@ -20,10 +23,10 @@ mod_schedule_ui <- function(id) {
 }
 
 mod_schedule_server <- function(id, resident_id) {
-  # Outer moduleServer() needed - four child modules each need their own
+  # Outer moduleServer() needed - five child modules each need their own
   # sub-namespace beneath "schedule". Verified via headless test (ids render
   # as schedule-category-*/schedule-team-*/schedule-allocation-*/
-  # schedule-daily-*, not double-nested).
+  # schedule-daily-*/schedule-by_year-*, not double-nested).
   moduleServer(id, function(input, output, session) {
 
     # Shared live-fetch reactives: defined unconditionally, but Shiny
@@ -99,6 +102,22 @@ mod_schedule_server <- function(id, resident_id) {
       redcap_url  = app_config$redcap_url,
       crosswalk_r = shared$crosswalk,
       amion_r     = shared$amion
+    )
+
+    # The current AY's contribution to this table is literally the same
+    # data as `cached$rotation` above -- feed it straight in and this
+    # section costs nothing extra on a cache hit (no live fetch, no
+    # recompute). Falls back to the shared live crosswalk/amion (same ones
+    # mod_daily_detail uses, so still never a second live fetch) on a
+    # cache miss.
+    amiontools::mod_rotation_by_year_server(
+      "by_year",
+      resident_id = resident_id,
+      rdm_token   = app_config$rdm_token,
+      redcap_url  = app_config$redcap_url,
+      crosswalk_r = shared$crosswalk,
+      amion_r     = shared$amion,
+      cached_rotation_r = if (!is.null(cached)) cached$rotation else NULL
     )
   })
 }
