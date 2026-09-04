@@ -57,6 +57,13 @@ mod_schedule_server <- function(id, resident_id) {
       redcap_url = app_config$redcap_url
     )
 
+    # Same cache-first pattern, separate cache field -- the expected-
+    # conference calendar the attendance-reconciliation section needs.
+    cached_calendar <- amiontools::use_expected_calendar_cached(
+      rdm_token  = app_config$rdm_token,
+      redcap_url = app_config$redcap_url
+    )
+
     if (!is.null(cached)) {
       amiontools::mod_rotation_summary_server(
         "category", resident_id = resident_id,
@@ -109,18 +116,18 @@ mod_schedule_server <- function(id, resident_id) {
       amion_r     = shared$amion
     )
 
-    # Brand new (2026-09-04), not yet cache-fed on either side (Amion/RDM
-    # or the "questions" attendance log -- see mod_attendance_
-    # reconciliation.R for why the log specifically stays live forever).
-    # Reuses the shared live fetch for its Amion/RDM side, same as
-    # mod_daily_detail.
+    # Amion/RDM side is cache-fed when available (the questions log stays
+    # live regardless -- see mod_attendance_reconciliation.R for why).
+    # Falls back to the shared live fetch (same one mod_daily_detail uses,
+    # so never a redundant second fetch) on a cache miss.
     amiontools::mod_attendance_reconciliation_server(
       "attendance",
       resident_id = resident_id,
       rdm_token   = app_config$rdm_token,
       redcap_url  = app_config$redcap_url,
       crosswalk_r = shared$crosswalk,
-      amion_r     = shared$amion
+      amion_r     = shared$amion,
+      expected_calendar_r = cached_calendar
     )
 
     # The current AY's contribution to this table is literally the same

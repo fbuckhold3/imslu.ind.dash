@@ -318,11 +318,21 @@ mod_attendance_server <- function(id, rdm_data, resident_id, rdm_token, redcap_u
       )
     })
 
+    # Cache-first for the Amion/RDM side (the "questions" attendance log
+    # stays live regardless -- see amiontools' attendance_reconciliation.R
+    # header for why). NULL on a cache miss -> the module falls back to
+    # its own live fetch unchanged.
+    cached_calendar <- amiontools::use_expected_calendar_cached(
+      rdm_token  = rdm_token,
+      redcap_url = redcap_url
+    )
+
     calendar <- amiontools::mod_conference_calendar_server(
       "calendar",
       resident_id = resident_id,
       rdm_token   = rdm_token,
-      redcap_url  = redcap_url
+      redcap_url  = redcap_url,
+      expected_calendar_r = cached_calendar
     )
 
     # Click-to-log (Fred, 2026-09-04): clicking a calendar day opens this
