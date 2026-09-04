@@ -201,18 +201,18 @@
         "Config/roxygen2/version": "8.0.0",
         "Author": "Fred Buckhold [aut, cre]",
         "Maintainer": "Fred Buckhold <fbuckhold3@icloud.com>",
-        "Built": "R 4.6.0; ; 2026-08-17 01:06:29 UTC; unix",
+        "Built": "R 4.6.0; ; 2026-09-04 14:12:48 UTC; unix",
         "RemoteType": "github",
         "RemoteHost": "api.github.com",
         "RemoteUsername": "fbuckhold3",
         "RemoteRepo": "amiontools",
         "RemoteRef": "main",
-        "RemoteSha": "c4d0c30f10d0d893348e9ef645e9e97f636463e7",
+        "RemoteSha": "3f2b10122327bfe29d809259bb8e05929f02ab03",
         "GithubHost": "api.github.com",
         "GithubRepo": "amiontools",
         "GithubUsername": "fbuckhold3",
         "GithubRef": "main",
-        "GithubSHA1": "c4d0c30f10d0d893348e9ef645e9e97f636463e7"
+        "GithubSHA1": "3f2b10122327bfe29d809259bb8e05929f02ab03"
       }
     },
     "askpass": {
@@ -1106,26 +1106,25 @@
         "License": "MIT + file LICENSE",
         "Encoding": "UTF-8",
         "Roxygen": "list(markdown = TRUE)",
-        "Suggests": "knitr, rmarkdown, testthat (>= 3.0.0)",
+        "Suggests": "knitr,\nrmarkdown,\ntestthat (>= 3.0.0)",
         "Config/testthat/edition": "3",
         "Imports": "dplyr, httr, readr, jsonlite, DT, reactable, htmltools,\nplotly, rlang, config, lubridate, tidyr, shinyjs, shiny, bslib,\ndata.table, tibble, purrr, roundsui",
-        "Remotes": "fbuckhold3/roundsui",
         "Config/roxygen2/version": "8.0.0",
+        "Author": "First Last [aut, cre]",
+        "Maintainer": "First Last <first.last@example.com>",
+        "Built": "R 4.6.0; ; 2026-09-04 14:12:45 UTC; unix",
         "RemoteType": "github",
+        "Remotes": "fbuckhold3/roundsui",
         "RemoteHost": "api.github.com",
-        "RemoteRepo": "gmed",
         "RemoteUsername": "fbuckhold3",
+        "RemoteRepo": "gmed",
         "RemoteRef": "main",
-        "RemoteSha": "8fca17f81a1747832c9ae8f8716e321f43f02201",
+        "RemoteSha": "6e929f90f3beaaeb612c908e8b65f7d8cca6fefa",
+        "GithubHost": "api.github.com",
         "GithubRepo": "gmed",
         "GithubUsername": "fbuckhold3",
         "GithubRef": "main",
-        "GithubSHA1": "8fca17f81a1747832c9ae8f8716e321f43f02201",
-        "NeedsCompilation": "no",
-        "Packaged": "2026-08-15 00:59:09 UTC; home_base",
-        "Author": "First Last [aut, cre]",
-        "Maintainer": "First Last <first.last@example.com>",
-        "Built": "R 4.6.0; ; 2026-08-15 00:59:10 UTC; unix"
+        "GithubSHA1": "6e929f90f3beaaeb612c908e8b65f7d8cca6fefa"
       }
     },
     "gtable": {
@@ -3205,7 +3204,7 @@
       "checksum": "a8297a8481fd790af9e578cb750d41f0"
     },
     "R/modules/mod_schedule.R": {
-      "checksum": "cdd950d068661b6f70a614cb0f975fe0"
+      "checksum": "2995658d1cebf27e84db0771b79b5a46"
     },
     "R/modules/mod_scholarship_cv.R": {
       "checksum": "f876f225b387444c97a1224899e180e0"
