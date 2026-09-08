@@ -201,6 +201,7 @@ server <- function(input, output, session) {
   mod_attendance_server(  "attendance",   rdm_data = rdm_data, resident_id = resident_id,
                           rdm_token = app_config$rdm_token, redcap_url = app_config$redcap_url)
   mod_schedule_server(    "schedule",     resident_id = resident_id)
+  mod_duty_hours_server(  "duty_hours",   resident_id = resident_id)
   mod_resources_server(   "resources")
 
   # ── Main view ──────────────────────────────────────────────────────────────
@@ -299,6 +300,7 @@ server <- function(input, output, session) {
         self_eval    = mod_self_eval_ui("self_eval"),
         attendance   = mod_attendance_ui("attendance"),
         schedule     = mod_schedule_ui("schedule"),
+        duty_hours   = mod_duty_hours_ui("duty_hours"),
         resources    = mod_resources_ui("resources"),
         div("Unknown section")
       )
