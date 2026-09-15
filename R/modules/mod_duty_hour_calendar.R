@@ -1,33 +1,53 @@
 # mod_duty_hour_calendar.R ─ Duty Hours: calendar grid (Phase 2)
 #
-# Month-at-a-time grid, one cell per day, color-coded by status. Clicking a
-# day cell sets the shared `selected_date` reactiveVal (owned by the parent
-# orchestrator, mod_duty_hours.R) so mod_duty_hour_confirm shows/edits that
-# specific date instead of the queue's oldest. Own month-navigation state
-# is local (not shared — no other module needs to know which month is
-# displayed).
+# Month-at-a-time grid, one cell per day. Clicking a day cell sets the
+# shared `selected_date` reactiveVal (owned by the parent orchestrator,
+# mod_duty_hours.R) so mod_duty_hour_confirm shows/edits that specific
+# date instead of the queue's oldest. Own month-navigation state is local
+# (not shared — no other module needs to know which month is displayed).
 #
-# Click wiring uses a plain onchange/onclick -> Shiny.setInputValue()
-# pattern (one shared input id for every cell, the clicked date as the
-# value) rather than one actionButton per day — registering up to 31
-# separate observeEvent()s per month, recreated on every render, would be
-# fragile (duplicate-firing / cleanup risk); one observer on one input
-# handles every cell regardless of how many days are in the month.
+# Color scheme (Fred 2026-09-15, matches the weekly chart exactly — same
+# amiontools::DUTY_HOUR_CATEGORY_COLORS palette):
+#   hue      = rotation super-category (Inpatient/Continuity Clinic/
+#              Ambulatory/etc.) — what kind of day it is
+#   opacity  = verified (full) vs. anticipated (light) — whether the
+#              resident has actually confirmed/entered that day, not
+#              whether the date itself is past or future
+#   dashed red border = needs entry (no Amion default AND no saved entry —
+#              actionable, distinct from "anticipated")
+#   very light gray, no border = no data at all (outside Amion's pull
+#              range, or genuinely unmatched)
+# A native `title` attribute gives every cell a hover tooltip (date,
+# category, hours, status) — no JS/library needed for that.
 #
-# Status colors (legend rendered in the UI):
-#   green  = saved entry exists (confirmed or entered)
-#   blue   = Amion default available, not yet confirmed
-#   red    = no Amion default AND no saved entry (needs manual entry)
-#   gray   = off/vacation/jeopardy (0h by design, not a to-do item)
-#   faded  = future date (nothing to confirm yet) or no data at all
+# Click wiring uses a plain onclick -> Shiny.setInputValue() pattern (one
+# shared input id for every cell, the clicked date as the value) rather
+# than one actionButton per day — registering up to 31 separate
+# observeEvent()s per month, recreated on every render, would be fragile
+# (duplicate-firing / cleanup risk); one observer on one input handles
+# every cell regardless of how many days are in the month.
 
-.DH_CAL_COLORS <- c(
-  confirmed = "#2e9e5b", unconfirmed = "#2a78d6",
-  needs_entry = "#c0392b", off = "#ccd3d4", future = "#eef2f3"
-)
+.DH_CAL_NO_DATA_COLOR <- "#eef2f3"
+.DH_CAL_NEEDS_ENTRY_BORDER <- "#c0392b"
+.DH_CAL_VERIFIED_ALPHA    <- 1
+.DH_CAL_ANTICIPATED_ALPHA <- 0.30
+
+.dh_cal_hex_to_rgba <- function(hex, alpha) {
+  rgb <- grDevices::col2rgb(hex)
+  sprintf("rgba(%d,%d,%d,%.2f)", rgb[1, ], rgb[2, ], rgb[3, ], alpha)
+}
 
 mod_duty_hour_calendar_ui <- function(id) {
   ns <- NS(id)
+  cats <- names(amiontools::DUTY_HOUR_CATEGORY_COLORS)
+  legend_items <- lapply(cats, function(cc) {
+    tags$span(
+      tags$span(style = sprintf(
+        "display:inline-block;width:10px;height:10px;background:%s;border-radius:2px;margin-right:4px;",
+        unname(amiontools::DUTY_HOUR_CATEGORY_COLORS[[cc]])
+      )), cc
+    )
+  })
   tagList(
     div(class = "d-flex justify-content-between align-items-center mb-2",
       actionButton(ns("prev_month"), "‹ Prev", class = "btn btn-sm btn-outline-secondary"),
@@ -35,11 +55,10 @@ mod_duty_hour_calendar_ui <- function(id) {
       actionButton(ns("next_month"), "Next ›", class = "btn btn-sm btn-outline-secondary")
     ),
     uiOutput(ns("grid")),
-    div(class = "d-flex gap-3 mt-2 small text-muted flex-wrap",
-      tags$span(tags$span(style = sprintf("display:inline-block;width:10px;height:10px;background:%s;border-radius:2px;margin-right:4px;", .DH_CAL_COLORS[["unconfirmed"]])), "Unconfirmed (Amion default)"),
-      tags$span(tags$span(style = sprintf("display:inline-block;width:10px;height:10px;background:%s;border-radius:2px;margin-right:4px;", .DH_CAL_COLORS[["confirmed"]])), "Confirmed"),
-      tags$span(tags$span(style = sprintf("display:inline-block;width:10px;height:10px;background:%s;border-radius:2px;margin-right:4px;", .DH_CAL_COLORS[["needs_entry"]])), "Needs entry"),
-      tags$span(tags$span(style = sprintf("display:inline-block;width:10px;height:10px;background:%s;border-radius:2px;margin-right:4px;", .DH_CAL_COLORS[["off"]])), "Off/Vacation")
+    div(class = "d-flex gap-3 mt-2 small text-muted flex-wrap", legend_items),
+    div(class = "d-flex gap-3 mt-1 small text-muted flex-wrap",
+      tags$span("Solid = verified · Light = anticipated (not yet confirmed)"),
+      tags$span(style = sprintf("border: 2px dashed %s; padding: 0 4px; border-radius:2px;", .DH_CAL_NEEDS_ENTRY_BORDER), "Needs entry")
     )
   )
 }
@@ -61,45 +80,78 @@ mod_duty_hour_calendar_server <- function(id, resident_id, entries_r, amion_bloc
 
     output$month_label <- renderText(format(month_start(), "%B %Y"))
 
-    day_status <- reactive({
+    # One row per visible day: super_category (color hue), verified
+    # (opacity), needs_entry (dashed border), has_data, Hours, tooltip text.
+    day_info <- reactive({
       ms <- month_start()
       me <- seq(ms, length.out = 2, by = "1 month")[2] - 1
       db <- amion_blocks_r() |> dplyr::filter(Date >= ms, Date <= me)
       entries <- entries_r()
       covered <- entries$dh_date[entries$dh_date >= ms & entries$dh_date <= me]
-
       all_days <- seq(ms, me, by = "day")
-      vapply(all_days, function(d) {
-        if (d > Sys.Date()) return("future")
-        if (d %in% covered) return("confirmed")
-        rows <- db[db$Date == d, ]
-        if (nrow(rows) == 0) return("future")  # no data at all (outside Amion pull range etc.)
-        if (all(rows$source %in% c("vacation", "day_off", "jeopardy"))) return("off")
-        if (all(is.na(rows$Hours))) return("needs_entry")
-        "unconfirmed"
-      }, character(1))
+
+      rows <- lapply(all_days, function(d) {
+        drows <- db[db$Date == d, ]
+        is_verified <- d %in% covered
+        if (nrow(drows) == 0 && !is_verified) {
+          return(data.frame(Date = d, has_data = FALSE, super_category = NA_character_,
+                            verified = FALSE, needs_entry = FALSE, Hours = NA_real_,
+                            category_label = NA_character_, stringsAsFactors = FALSE))
+        }
+        is_off <- nrow(drows) > 0 && all(drows$source %in% c("vacation", "day_off", "jeopardy"))
+        # dominant category = most hours that day; ties/all-NA -> first row's category
+        cat_label <- if (is_off) "Time Off/Holiday"
+                     else if (nrow(drows) == 0) "Confirmed"  # verified but not in amion_blocks (shouldn't normally happen)
+                     else if (all(is.na(drows$Hours))) drows$category[1]
+                     else drows$category[which.max(ifelse(is.na(drows$Hours), -1, drows$Hours))]
+        super_cat <- amiontools::classify_super_category(cat_label)
+        if (is.na(super_cat) || super_cat == "UNMAPPED") super_cat <- "Other"
+        needs_entry <- !is_verified && nrow(drows) > 0 && all(is.na(drows$Hours))
+        total_hours <- if (nrow(drows) == 0) NA_real_ else sum(drows$Hours, na.rm = TRUE)
+        data.frame(Date = d, has_data = TRUE, super_category = super_cat,
+                  verified = is_verified, needs_entry = needs_entry, Hours = total_hours,
+                  category_label = cat_label, stringsAsFactors = FALSE)
+      })
+      do.call(rbind, rows)
     })
 
     output$grid <- renderUI({
       ms <- month_start()
       me <- seq(ms, length.out = 2, by = "1 month")[2] - 1
       all_days <- seq(ms, me, by = "day")
-      status <- day_status()
+      info <- day_info()
       lead_blanks <- as.integer(format(ms, "%w"))  # 0 = Sunday
 
       cells <- lapply(seq_along(all_days), function(i) {
         d <- all_days[i]
-        st <- status[i]
-        is_future <- st == "future" && d > Sys.Date()
-        clickable <- st != "future" || d <= Sys.Date()
+        row <- info[i, ]
+        is_future_no_data <- !row$has_data && d > Sys.Date()
+        clickable <- d <= Sys.Date() || row$has_data
+
+        bg <- if (!row$has_data) .DH_CAL_NO_DATA_COLOR
+              else .dh_cal_hex_to_rgba(
+                unname(amiontools::DUTY_HOUR_CATEGORY_COLORS[[row$super_category]]),
+                if (row$verified) .DH_CAL_VERIFIED_ALPHA else .DH_CAL_ANTICIPATED_ALPHA
+              )
+        border <- if (isTRUE(row$needs_entry)) sprintf("2px dashed %s", .DH_CAL_NEEDS_ENTRY_BORDER) else "none"
+
+        tooltip <- if (!row$has_data) format(d, "%a, %b %d, %Y")
+                   else sprintf(
+                     "%s — %s%s%s",
+                     format(d, "%a, %b %d, %Y"), row$category_label,
+                     if (!is.na(row$Hours)) sprintf(" — %.1fh", row$Hours) else "",
+                     if (row$verified) " — Verified" else if (row$needs_entry) " — Needs entry" else " — Anticipated"
+                   )
+
         tags$div(
           class = "dh-cal-cell",
+          title = tooltip,
           style = sprintf(
-            "background:%s; opacity:%s; cursor:%s; border-radius:4px; padding:6px; text-align:center; min-height:44px;",
-            .DH_CAL_COLORS[[st]], if (is_future) "0.5" else "1",
-            if (clickable && !is_future) "pointer" else "default"
+            "background:%s; border:%s; opacity:%s; cursor:%s; border-radius:4px; padding:6px; text-align:center; min-height:44px;",
+            bg, border, if (is_future_no_data) "0.5" else "1",
+            if (clickable && !is_future_no_data) "pointer" else "default"
           ),
-          onclick = if (clickable && !is_future)
+          onclick = if (clickable && !is_future_no_data)
             sprintf("Shiny.setInputValue('%s', '%s', {priority: 'event'})", ns("day_click"), as.character(d))
           else NULL,
           tags$div(format(d, "%e"), style = "font-weight:600; font-size:0.85rem;")
