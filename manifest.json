@@ -201,18 +201,18 @@
         "Config/roxygen2/version": "8.0.0",
         "Author": "Fred Buckhold [aut, cre]",
         "Maintainer": "Fred Buckhold <fbuckhold3@icloud.com>",
-        "Built": "R 4.6.0; ; 2026-09-04 17:24:47 UTC; unix",
+        "Built": "R 4.6.0; ; 2026-09-15 19:27:05 UTC; unix",
         "RemoteType": "github",
         "RemoteHost": "api.github.com",
         "RemoteUsername": "fbuckhold3",
         "RemoteRepo": "amiontools",
-        "RemoteRef": "main",
-        "RemoteSha": "6d37078067c7468aef3450af14e13866a3a915c3",
+        "RemoteRef": "7cb48e197e4f07fd53f4ea6e71f38826a665701b",
+        "RemoteSha": "7cb48e197e4f07fd53f4ea6e71f38826a665701b",
         "GithubHost": "api.github.com",
         "GithubRepo": "amiontools",
         "GithubUsername": "fbuckhold3",
-        "GithubRef": "main",
-        "GithubSHA1": "6d37078067c7468aef3450af14e13866a3a915c3"
+        "GithubRef": "7cb48e197e4f07fd53f4ea6e71f38826a665701b",
+        "GithubSHA1": "7cb48e197e4f07fd53f4ea6e71f38826a665701b"
       }
     },
     "askpass": {
@@ -3180,13 +3180,22 @@
       "checksum": "fbd8b52b20a0e5606dc9f9ec1e8a6ef2"
     },
     "R/global.R": {
-      "checksum": "7c2480ed1d0301c27da27ee4484ad336"
+      "checksum": "b0148a81e478e09699eecde1ed2befbb"
     },
     "R/modules/mod_attendance.R": {
-      "checksum": "288fb4d4fb8fd19ad8205e74e51c19ab"
+      "checksum": "cc05ccb25f3afbf75af373dff736ca59"
     },
     "R/modules/mod_auth_ui.R": {
       "checksum": "d684a35929c578bfa1af8653b7ecca94"
+    },
+    "R/modules/mod_duty_hour_calendar.R": {
+      "checksum": "56174bb3dc6274a6a46b5771330ec34e"
+    },
+    "R/modules/mod_duty_hour_confirm.R": {
+      "checksum": "8baae0f35f0e0f5a4e1610a96d1b2c54"
+    },
+    "R/modules/mod_duty_hours.R": {
+      "checksum": "557676d36da52bcc172cfe478a01b842"
     },
     "R/modules/mod_evaluations.R": {
       "checksum": "a6445100cc1eb198d6bacf436ccdd491"
@@ -3222,7 +3231,7 @@
       "checksum": "a26b03bf58f62b1c076759beb84415f0"
     },
     "R/server.R": {
-      "checksum": "782a4d256de428dcadc3085646decd72"
+      "checksum": "b55a78f1c4529c24cc636ca4e947c7d9"
     },
     "R/ui.R": {
       "checksum": "a2c241d2036380d851ad4d8007b10060"
