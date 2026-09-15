@@ -49,6 +49,9 @@ mod_duty_hour_calendar_ui <- function(id) {
     )
   })
   tagList(
+    p(class = "small text-muted", style = "margin-bottom: 8px;",
+      "Each day's ", tags$strong("color"), " shows what kind of day it was; its ",
+      tags$strong("shade"), " shows whether you've confirmed it. Hover any day for details, or click it to confirm/edit."),
     div(class = "d-flex justify-content-between align-items-center mb-2",
       actionButton(ns("prev_month"), "‹ Prev", class = "btn btn-sm btn-outline-secondary"),
       h5(textOutput(ns("month_label"), inline = TRUE), style = "margin: 0;"),
@@ -57,8 +60,8 @@ mod_duty_hour_calendar_ui <- function(id) {
     uiOutput(ns("grid")),
     div(class = "d-flex gap-3 mt-2 small text-muted flex-wrap", legend_items),
     div(class = "d-flex gap-3 mt-1 small text-muted flex-wrap",
-      tags$span("Solid = verified · Light = anticipated (not yet confirmed)"),
-      tags$span(style = sprintf("border: 2px dashed %s; padding: 0 4px; border-radius:2px;", .DH_CAL_NEEDS_ENTRY_BORDER), "Needs entry")
+      tags$span("Solid = you've confirmed it · Light = still just your Amion schedule, not yet confirmed"),
+      tags$span(style = sprintf("border: 2px dashed %s; padding: 0 4px; border-radius:2px;", .DH_CAL_NEEDS_ENTRY_BORDER), "Needs entry — no default, log it yourself")
     )
   )
 }

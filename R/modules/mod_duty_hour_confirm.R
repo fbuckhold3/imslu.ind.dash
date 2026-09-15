@@ -84,7 +84,8 @@ mod_duty_hour_confirm_server <- function(id, resident_id, entries_r, amion_block
       if (is.null(day)) {
         return(tagList(
           h5("Duty Hours — Confirm"),
-          p(class = "text-success", "✓ All caught up! No pending days to confirm.")
+          p(class = "text-success", "✓ All caught up! No pending days to confirm."),
+          p(class = "text-muted small", "New days appear here as they pass — check back as your schedule continues.")
         ))
       }
 
@@ -92,11 +93,14 @@ mod_duty_hour_confirm_server <- function(id, resident_id, entries_r, amion_block
         h4(format(day$Date, "%A, %B %d, %Y"), style = "margin-bottom: 2px;"),
         p(class = "text-muted small",
           if (manual) {
-            if (isTRUE(day$is_saved)) "Editing a previously saved entry."
-            else "Editing this date (not yet saved)."
+            if (isTRUE(day$is_saved)) "Editing a previously saved entry — changing anything and saving again updates it."
+            else "This day isn't saved yet — fill in what actually happened and save it."
           } else {
-            sprintf("%d day(s) need confirmation — showing the oldest.", n_remaining)
+            sprintf("%d day(s) need confirmation — showing the oldest first. Work through these regularly so your record stays accurate.", n_remaining)
           }),
+        if (is.na(day$Hours))
+          p(class = "small", style = "color:#b8860b;",
+            "⚠ Amion doesn't have a default for this day — there's nothing to confirm, you'll need to enter what actually happened."),
         fluidRow(
           column(6, selectInput(ns("category"), "Category",
                                 choices = names(amiontools::DUTY_HOUR_CATEGORY_UI_CHOICES),
@@ -121,12 +125,15 @@ mod_duty_hour_confirm_server <- function(id, resident_id, entries_r, amion_block
                                        onchange = sprintf("Shiny.setInputValue('%s', this.value)", ns("end_time")))))
         ),
         fluidRow(
-          column(4, numericInput(ns("hours"), "Total hours", value = if (is.na(day$Hours)) NA else day$Hours, min = 0, max = 24, step = 0.5)),
-          column(4, numericInput(ns("moonlighting"), "Moonlighting hours (this date)",
+          column(4, numericInput(ns("hours"), "Total hours (this rotation/category)",
+                                 value = if (is.na(day$Hours)) NA else day$Hours, min = 0, max = 24, step = 0.5)),
+          column(4, numericInput(ns("moonlighting"), "+ Moonlighting hours",
                                  value = if (is.na(day$moon)) NA else day$moon, min = 0, max = 24, step = 0.5)),
-          column(4, numericInput(ns("home_hours"), "At-home chart-review hours (this date)",
+          column(4, numericInput(ns("home_hours"), "+ At-home chart-review hours",
                                  value = if (is.na(day$home)) NA else day$home, min = 0, max = 24, step = 0.5))
         ),
+        p(class = "text-muted small", style = "margin-top: -8px;",
+          "Leave moonlighting/at-home blank if none — both are optional, and both add on top of your regular hours above, they don't replace them."),
         # The onchange handlers above keep input$start_time/end_time live
         # once edited, but a pre-filled value the resident never touches
         # (the common "confirm as shown" case) would otherwise never reach
@@ -139,12 +146,17 @@ mod_duty_hour_confirm_server <- function(id, resident_id, entries_r, amion_block
           ns("end_time"), .dh_hhmm_to_colon(day$end_hhmm)
         ))),
         textAreaInput(ns("notes"), "Notes (optional)", value = if (is.na(day$notes)) "" else day$notes, rows = 2),
-        div(class = "d-flex gap-2 mt-2",
+        div(class = "d-flex gap-2 mt-2 align-items-center flex-wrap",
           actionButton(ns("save_next"), if (manual) "Save" else "Save & Next", class = "btn btn-primary"),
           if (!is.na(day$Hours))
             actionButton(ns("confirm_as_shown"), "Confirm as shown", class = "btn btn-outline-secondary"),
           if (manual)
-            actionButton(ns("back_to_queue"), "Back to queue", class = "btn btn-outline-secondary")
+            actionButton(ns("back_to_queue"), "Back to queue", class = "btn btn-outline-secondary"),
+          tags$span(class = "text-muted small",
+            if (!is.na(day$Hours))
+              "\"Confirm as shown\" accepts the schedule above exactly as-is — use it when your day matched Amion's plan. Otherwise edit the fields first, then Save."
+            else
+              "Fill in what actually happened, then Save — there's no default to confirm here.")
         )
       )
     })

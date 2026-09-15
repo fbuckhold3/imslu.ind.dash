@@ -18,6 +18,20 @@
 mod_duty_hours_ui <- function(id) {
   ns <- NS(id)
   tagList(
+    tags$div(
+      class = "small text-muted", style = "margin-bottom: 16px; max-width: 720px;",
+      tags$p(style = "margin-bottom: 4px;",
+        tags$strong("What this page does: "),
+        "Your calendar and schedule below are pre-filled from Amion — your program's schedule ",
+        "isn't a record of what you actually worked, just what you were assigned. Click any past ",
+        "or current day to confirm it's accurate, or correct it if it isn't. Add moonlighting and ",
+        "at-home chart-review time too — both count toward your duty hours."
+      ),
+      tags$p(style = "margin-bottom: 0;",
+        "Accurate reporting matters: it's how the program and GME office track ACGME compliance, ",
+        "and how excessive-hours patterns get caught before they become a problem for you."
+      )
+    ),
     mod_duty_hour_calendar_ui(ns("calendar")),
     tags$hr(style = "margin: 20px 0;"),
     mod_duty_hour_confirm_ui(ns("confirm")),
