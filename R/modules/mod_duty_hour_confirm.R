@@ -1,28 +1,25 @@
-# mod_duty_hour_confirm.R ─ Duty Hours: confirm/edit flow (Phase 2)
+# mod_duty_hour_confirm.R ─ Duty Hours: confirm/edit form (Phase 2)
 #
-# A queue of unconfirmed past/current days (Amion default pre-filled, one
-# at a time, oldest first) the resident steps through to confirm-as-shown
-# or edit + add moonlighting/at-home hours + notes. Writes to RDM's
+# Shows ONE day's entry form — either the oldest unconfirmed day in the
+# queue (default), or whatever date `selected_date` currently holds (set
+# by clicking a cell in mod_duty_hour_calendar). Confirm-as-shown or edit +
+# add moonlighting/at-home hours + notes, Save & Next. Writes to RDM's
 # duty_hour_log repeating instrument via .rc_save() (defined in
 # mod_self_eval.R, reused here — same generic writer scholarship/self-eval
 # already use).
 #
-# Future days are never in the queue — they haven't happened yet, so
-# there's nothing to confirm (see amiontools' duty_hour_summary.R header).
-# A day already covered by a saved entry (confirmed OR entered) drops out
-# of the queue automatically once amiontools::pull_duty_hour_log() reflects
-# the save — no separate "mark done" bookkeeping needed.
+# Shared state (entries_r, amion_blocks_r, refresh, selected_date) is owned
+# by the parent orchestrator (mod_duty_hours.R) and passed in directly —
+# both this module and mod_duty_hour_calendar need the same underlying
+# data and need to stay in sync (a save here should update the calendar's
+# coloring; a calendar click should change what this form shows).
 #
-# amiontools must be installed (renv::install("fbuckhold3/amiontools")) —
-# see this repo's own CLAUDE.md for why this app can't locally build
-# packages.
+# Re-editing an already-confirmed day (via calendar click) pre-fills from
+# the SAVED entry, not the Amion default — day_for_date() checks entries_r()
+# first.
 
 .dh_hhmm_to_colon <- function(x) {
   ifelse(is.na(x) | x == "", "", paste0(substr(x, 1, 2), ":", substr(x, 3, 4)))
-}
-.dh_colon_to_hhmm <- function(x) {
-  x <- gsub(":", "", x)
-  ifelse(is.na(x) | x == "", NA_character_, x)
 }
 
 mod_duty_hour_confirm_ui <- function(id) {
@@ -30,55 +27,59 @@ mod_duty_hour_confirm_ui <- function(id) {
   uiOutput(ns("body"))
 }
 
-mod_duty_hour_confirm_server <- function(id, resident_id) {
+#' @param entries_r,amion_blocks_r,refresh,selected_date Shared reactives
+#'   owned by the parent orchestrator — see file header.
+mod_duty_hour_confirm_server <- function(id, resident_id, entries_r, amion_blocks_r, refresh, selected_date) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
-    refresh <- reactiveVal(0)
 
-    entries_r <- reactive({
-      refresh()
-      req(resident_id())
-      amiontools::pull_duty_hour_log(app_config$rdm_token, app_config$redcap_url,
-                                     record_id = resident_id())
-    })
-
-    # Amion-only defaults (entries = data.frame() skips the overlay) — the
-    # queue needs the RAW defaults, not the already-merged view, since the
-    # whole point is finding dates NOT yet covered by a saved entry.
-    amion_blocks <- reactive({
-      req(resident_id())
-      summ <- amiontools::build_duty_hour_summary(
-        rdm_token = app_config$rdm_token, redcap_url = app_config$redcap_url,
-        entries = data.frame()
-      )
-      summ$duty_blocks |> dplyr::filter(record_id == resident_id())
-    })
-
-    queue <- reactive({
-      db <- amion_blocks()
+    queue_dates <- reactive({
+      db <- amion_blocks_r()
+      if (nrow(db) == 0) return(as.Date(character()))
       covered <- entries_r()$dh_date
-      if (nrow(db) == 0) return(db[0, ])
-      db |>
-        dplyr::filter(Date <= Sys.Date(), !(Date %in% covered)) |>
-        dplyr::group_by(Date) |>
-        dplyr::summarise(
-          category   = dplyr::first(category),
-          Hours      = { h <- Hours[!is.na(Hours)]; if (length(h) == 0) NA_real_ else sum(h) },
-          start_hhmm = { s <- block_start[!is.na(block_start)]; if (length(s) == 0) NA_character_ else s[which.min(amiontools::to_int_time(s))] },
-          end_hhmm   = { e <- block_end[!is.na(block_end)];   if (length(e) == 0) NA_character_ else e[which.max(amiontools::to_int_time(e))] },
-          .groups = "drop"
-        ) |>
-        dplyr::arrange(Date)
+      dates <- unique(db$Date[db$Date <= Sys.Date()])
+      sort(setdiff(dates, covered))
     })
+
+    day_for_date <- function(target_date) {
+      ex <- entries_r()
+      match_row <- ex[ex$dh_date == target_date, ]
+      if (nrow(match_row) > 0) {
+        m <- match_row[1, ]
+        return(data.frame(
+          Date = target_date, category = m$dh_category, Hours = m$dh_hours,
+          start_hhmm = m$dh_start_time, end_hhmm = m$dh_end_time,
+          moon = m$dh_moonlighting_hours, home = m$dh_home_hours,
+          notes = m$dh_notes, is_saved = TRUE, stringsAsFactors = FALSE
+        ))
+      }
+      db <- amion_blocks_r()
+      rows <- db[db$Date == target_date, ]
+      if (nrow(rows) == 0) return(NULL)
+      data.frame(
+        Date = target_date, category = rows$category[1],
+        Hours = { h <- rows$Hours[!is.na(rows$Hours)]; if (length(h) == 0) NA_real_ else sum(h) },
+        start_hhmm = { s <- rows$block_start[!is.na(rows$block_start)]; if (length(s) == 0) NA_character_ else s[which.min(amiontools::to_int_time(s))] },
+        end_hhmm   = { e <- rows$block_end[!is.na(rows$block_end)];   if (length(e) == 0) NA_character_ else e[which.max(amiontools::to_int_time(e))] },
+        moon = NA_real_, home = NA_real_, notes = NA_character_, is_saved = FALSE,
+        stringsAsFactors = FALSE
+      )
+    }
 
     current_day <- reactive({
-      q <- queue()
-      if (nrow(q) == 0) NULL else q[1, ]
+      target <- selected_date()
+      if (is.null(target)) {
+        qd <- queue_dates()
+        if (length(qd) == 0) return(NULL)
+        target <- qd[1]
+      }
+      day_for_date(target)
     })
 
     output$body <- renderUI({
       day <- current_day()
-      n_remaining <- nrow(queue())
+      n_remaining <- length(queue_dates())
+      manual <- !is.null(selected_date())
 
       if (is.null(day)) {
         return(tagList(
@@ -88,28 +89,62 @@ mod_duty_hour_confirm_server <- function(id, resident_id) {
       }
 
       tagList(
-        h5("Duty Hours — Confirm"),
+        h4(format(day$Date, "%A, %B %d, %Y"), style = "margin-bottom: 2px;"),
         p(class = "text-muted small",
-          sprintf("%d day(s) need confirmation. Showing the oldest: %s.",
-                 n_remaining, format(day$Date, "%A, %B %d, %Y"))),
+          if (manual) {
+            if (isTRUE(day$is_saved)) "Editing a previously saved entry."
+            else "Editing this date (not yet saved)."
+          } else {
+            sprintf("%d day(s) need confirmation — showing the oldest.", n_remaining)
+          }),
         fluidRow(
           column(6, selectInput(ns("category"), "Category",
                                 choices = names(amiontools::DUTY_HOUR_CATEGORY_UI_CHOICES),
                                 selected = if (day$category %in% names(amiontools::DUTY_HOUR_CATEGORY_UI_CHOICES))
                                              day$category else "Elective")),
-          column(3, textInput(ns("start_time"), "Start time", value = .dh_hhmm_to_colon(day$start_hhmm), placeholder = "HH:MM")),
-          column(3, textInput(ns("end_time"), "End time", value = .dh_hhmm_to_colon(day$end_hhmm), placeholder = "HH:MM"))
+          # Native HTML5 time input, not shiny::textInput — Shiny's built-in
+          # input bindings only bind input[type="text"/"number"/etc.], NOT
+          # type="time" (confirmed against the installed shiny.js before
+          # using this), so this wires it manually via onchange ->
+          # Shiny.setInputValue(). Its .value is spec-guaranteed "HH:MM"
+          # (24h, zero-padded) regardless of the browser's locale/display
+          # format, matching .dh_hhmm_to_colon()'s output exactly.
+          column(3, tags$div(class = "form-group",
+                             tags$label("Start time"),
+                             tags$input(type = "time", class = "form-control", id = ns("start_time"),
+                                       value = .dh_hhmm_to_colon(day$start_hhmm),
+                                       onchange = sprintf("Shiny.setInputValue('%s', this.value)", ns("start_time"))))),
+          column(3, tags$div(class = "form-group",
+                             tags$label("End time"),
+                             tags$input(type = "time", class = "form-control", id = ns("end_time"),
+                                       value = .dh_hhmm_to_colon(day$end_hhmm),
+                                       onchange = sprintf("Shiny.setInputValue('%s', this.value)", ns("end_time")))))
         ),
         fluidRow(
           column(4, numericInput(ns("hours"), "Total hours", value = if (is.na(day$Hours)) NA else day$Hours, min = 0, max = 24, step = 0.5)),
-          column(4, numericInput(ns("moonlighting"), "Moonlighting hours (this date)", value = NA, min = 0, max = 24, step = 0.5)),
-          column(4, numericInput(ns("home_hours"), "At-home chart-review hours (this date)", value = NA, min = 0, max = 24, step = 0.5))
+          column(4, numericInput(ns("moonlighting"), "Moonlighting hours (this date)",
+                                 value = if (is.na(day$moon)) NA else day$moon, min = 0, max = 24, step = 0.5)),
+          column(4, numericInput(ns("home_hours"), "At-home chart-review hours (this date)",
+                                 value = if (is.na(day$home)) NA else day$home, min = 0, max = 24, step = 0.5))
         ),
-        textAreaInput(ns("notes"), "Notes (optional)", rows = 2),
+        # The onchange handlers above keep input$start_time/end_time live
+        # once edited, but a pre-filled value the resident never touches
+        # (the common "confirm as shown" case) would otherwise never reach
+        # the R side at all — no change event ever fires for it. This
+        # initializes both on every render (re-runs each time current_day()
+        # changes, since the whole form is rebuilt).
+        tags$script(HTML(sprintf(
+          "Shiny.setInputValue('%s', '%s'); Shiny.setInputValue('%s', '%s');",
+          ns("start_time"), .dh_hhmm_to_colon(day$start_hhmm),
+          ns("end_time"), .dh_hhmm_to_colon(day$end_hhmm)
+        ))),
+        textAreaInput(ns("notes"), "Notes (optional)", value = if (is.na(day$notes)) "" else day$notes, rows = 2),
         div(class = "d-flex gap-2 mt-2",
-          actionButton(ns("save_next"), "Save & Next", class = "btn btn-primary"),
+          actionButton(ns("save_next"), if (manual) "Save" else "Save & Next", class = "btn btn-primary"),
           if (!is.na(day$Hours))
-            actionButton(ns("confirm_as_shown"), "Confirm as shown", class = "btn btn-outline-secondary")
+            actionButton(ns("confirm_as_shown"), "Confirm as shown", class = "btn btn-outline-secondary"),
+          if (manual)
+            actionButton(ns("back_to_queue"), "Back to queue", class = "btn btn-outline-secondary")
         )
       )
     })
@@ -125,8 +160,8 @@ mod_duty_hour_confirm_server <- function(id, resident_id) {
         identical(start_colon, .dh_hhmm_to_colon(day$start_hhmm)) &&
         identical(end_colon, .dh_hhmm_to_colon(day$end_hhmm)) &&
         isTRUE(all.equal(hours_val, day$Hours)) &&
-        (is.na(moon_val) || moon_val == 0) &&
-        (is.na(home_val) || home_val == 0)
+        isTRUE(all.equal(ifelse(is.na(moon_val), 0, moon_val), ifelse(is.na(day$moon), 0, day$moon))) &&
+        isTRUE(all.equal(ifelse(is.na(home_val), 0, home_val), ifelse(is.na(day$home), 0, day$home)))
       source_label <- if (unchanged) "Resident confirmed" else "Resident entered"
 
       fields <- list(
@@ -144,6 +179,7 @@ mod_duty_hour_confirm_server <- function(id, resident_id) {
       result <- .rc_save(resident_id(), "duty_hour_log", instance, fields)
       if (isTRUE(result$success)) {
         refresh(refresh() + 1)
+        selected_date(NULL)  # always return to queue-oldest view after a save
         showNotification("Saved.", type = "message", duration = 2)
       } else {
         showNotification(paste("Save failed:", result$message), type = "error", duration = NULL)
@@ -168,8 +204,12 @@ mod_duty_hour_confirm_server <- function(id, resident_id) {
       req(!is.na(day$Hours))
       .build_and_save(
         day, day$category, .dh_hhmm_to_colon(day$start_hhmm), .dh_hhmm_to_colon(day$end_hhmm),
-        day$Hours, NA_real_, NA_real_, NULL
+        day$Hours, day$moon, day$home, day$notes
       )
+    })
+
+    observeEvent(input$back_to_queue, {
+      selected_date(NULL)
     })
   })
 }
