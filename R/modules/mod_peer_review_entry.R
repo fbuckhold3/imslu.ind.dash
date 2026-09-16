@@ -167,6 +167,91 @@
   }, error = function(e) 0L)
 }
 
+# Fetches this resident's OWN peer_eval instances (as the reviewee) for the
+# results section below. Deliberately requests ONLY peer_date/peer_item*/
+# peer_plus/peer_delta as explicit fields[] — peer_evaluator_id is never
+# even requested here, so there is no path for it to leak into this
+# reviewee-facing view (not filtered out after the fact — never asked for).
+.peer_fetch_own_reviews <- function(record_id) {
+  tryCatch({
+    item_fields <- vapply(.PEER_ITEMS, `[[`, character(1), "field")
+    fields <- c("record_id", "peer_date", item_fields, "peer_plus", "peer_delta")
+    body <- c(
+      list(token = app_config$rdm_token, content = "record", action = "export",
+           format = "json", type = "flat",
+           records    = as.character(record_id),
+           `forms[0]` = "peer_eval",
+           rawOrLabel = "raw", rawOrLabelHeaders = "raw",
+           exportCheckboxLabel = "false", exportSurveyFields = "false",
+           exportDataAccessGroups = "false", returnFormat = "json"),
+      setNames(as.list(fields), paste0("fields[", seq_along(fields) - 1L, "]"))
+    )
+    resp <- httr::POST(app_config$redcap_url, body = body, encode = "form", httr::timeout(30))
+    if (httr::status_code(resp) != 200) return(data.frame())
+    dat <- jsonlite::fromJSON(httr::content(resp, "text", encoding = "UTF-8"))
+    if (!is.data.frame(dat) || nrow(dat) == 0) return(data.frame())
+    dat <- dat[!is.na(dat$redcap_repeat_instrument) &
+                 dat$redcap_repeat_instrument == "peer_eval", , drop = FALSE]
+    if (nrow(dat) == 0) return(data.frame())
+    dat$peer_date <- suppressWarnings(as.Date(dat$peer_date))
+    dat
+  }, error = function(e) data.frame())
+}
+
+# ── Reveal-eligibility computation (pure, no REDCap calls) ───────────────────
+# Quarter-anchored, count-based batch reveal (Fred's rule, 2026-09-16):
+# reviews accumulate in an "unrevealed pool"; at each calendar-quarter
+# boundary (Jan 1 / Apr 1 / Jul 1 / Oct 1) that has actually passed, if the
+# pool has grown to >= 5 since the last reveal, the WHOLE pool becomes
+# visible (permanently — revealed sets only grow, never shrink) and resets
+# to empty. No age/time embargo — purely a count threshold, checked on a
+# fixed quarterly cadence rather than continuously, so visibility can't
+# creep forward day-by-day and get correlated with "who just rotated off."
+# Stateless by design: replays full history every call from the raw dates
+# alone, so there is no separate "last revealed" field to keep in sync or
+# ever drift out of correctness.
+.peer_quarter_start <- function(d) {
+  d   <- as.Date(d)
+  yr  <- as.integer(format(d, "%Y"))
+  mo  <- as.integer(format(d, "%m"))
+  qmo <- ((mo - 1L) %/% 3L) * 3L + 1L
+  as.Date(sprintf("%d-%02d-01", yr, qmo))
+}
+
+# Returns indices into the ORIGINAL (unsorted) `dates` vector that are
+# revealed as of `as_of`. Zero-length integer(0) if nothing qualifies yet.
+.peer_reveal_eligible_dates <- function(dates, as_of = Sys.Date()) {
+  dates <- as.Date(dates)
+  ord   <- order(dates)
+  valid <- !is.na(dates[ord])
+  sorted_idx   <- ord[valid]
+  sorted_dates <- dates[sorted_idx]
+  n <- length(sorted_dates)
+  if (n == 0) return(integer(0))
+
+  first_q <- .peer_quarter_start(sorted_dates[1])
+  last_q  <- .peer_quarter_start(as.Date(as_of))
+  if (last_q < first_q) return(integer(0))
+  boundaries <- seq(first_q, last_q, by = "3 months")
+
+  revealed_idx <- integer(0)
+  pool_idx     <- integer(0)
+  cursor       <- 0L
+
+  for (i in seq_along(boundaries)) {
+    b <- boundaries[i]
+    while (cursor < n && sorted_dates[cursor + 1L] <= b) {
+      cursor   <- cursor + 1L
+      pool_idx <- c(pool_idx, sorted_idx[cursor])
+    }
+    if (length(pool_idx) >= 5L) {
+      revealed_idx <- c(revealed_idx, pool_idx)
+      pool_idx <- integer(0)
+    }
+  }
+  revealed_idx
+}
+
 .peer_submit <- function(target_record_id, evaluator_id, fields) {
   next_inst <- .peer_next_instance(target_record_id)
   full_data <- c(
@@ -220,9 +305,6 @@ mod_peer_review_entry_ui <- function(id) {
         )
       )
     ),
-    # Placeholder — real aggregate data (avg score per item, comments
-    # received, count of reviews completed ON this resident) is future work;
-    # this section is intentionally a stub for now.
     div(class = "mt-4",
       div(class = "gmed-card",
         div(class = "card-body",
@@ -230,8 +312,8 @@ mod_peer_review_entry_ui <- function(id) {
                  style = "font-size:0.9rem; color:var(--ssm-primary-blue);",
                  tags$i(class = "bi bi-bar-chart-fill me-2"),
                  "Your Peer Review Results"),
-          section_placeholder("bar-chart-line",
-            "Average score per question, comments received, and number of reviews completed on you — coming soon")
+          uiOutput(ns("results_ui")),
+          DT::dataTableOutput(ns("comments_table"))
         )
       )
     )
@@ -255,6 +337,82 @@ mod_peer_review_entry_server <- function(id, resident_id, all_residents_r, rdm_t
     observeEvent(resident_id(), {
       n_completed(.peer_count_completed(resident_id()))
     }, ignoreNULL = TRUE)
+
+    # ── Your Peer Review Results ─────────────────────────────────────────────
+    # Own reviews-received, fetched once per login. Revealed subset (per the
+    # quarter-anchored >=5 rule) and its shuffled row order are both computed
+    # once here and held — NOT recomputed on every render — since the
+    # underlying "which reviews are revealed" fact doesn't change within a
+    # session, and reshuffling on every re-render would add jank without any
+    # real privacy benefit (the set itself carries no chronological signal
+    # once order is randomized once).
+    own_reviews    <- reactiveVal(data.frame())
+    revealed_order <- reactiveVal(integer(0))  # shuffled row-order into own_reviews()
+
+    observeEvent(resident_id(), {
+      df <- .peer_fetch_own_reviews(resident_id())
+      own_reviews(df)
+      if (nrow(df) == 0) {
+        revealed_order(integer(0))
+        return()
+      }
+      idx <- .peer_reveal_eligible_dates(df$peer_date)
+      revealed_order(sample(idx))
+    }, ignoreNULL = TRUE)
+
+    revealed_df <- reactive({
+      idx <- revealed_order()
+      df  <- own_reviews()
+      if (length(idx) == 0) return(df[0, , drop = FALSE])
+      df[idx, , drop = FALSE]
+    })
+
+    output$results_ui <- renderUI({
+      rdf <- revealed_df()
+      if (nrow(rdf) < 5) {
+        return(tags$p(class = "text-muted fst-italic", style = "font-size:0.85rem;",
+                      "Not enough peer reviews yet to show results. Check back later."))
+      }
+      avg_rows <- lapply(.PEER_ITEMS, function(it) {
+        vals <- suppressWarnings(as.numeric(rdf[[it$field]]))
+        vals[vals == 9] <- NA_real_   # "Not observed" excluded from the average
+        n_rated <- sum(!is.na(vals))
+        avg <- if (n_rated > 0) round(mean(vals, na.rm = TRUE), 1) else NA_real_
+        tags$tr(
+          tags$td(it$label, style = "font-size:0.85rem;"),
+          tags$td(if (is.na(avg)) "—" else avg,
+                  style = "font-weight:700; text-align:center; color:var(--ssm-primary-blue);"),
+          tags$td(n_rated, style = "text-align:center; color:#888; font-size:0.8rem;")
+        )
+      })
+      tagList(
+        tags$table(class = "table table-sm mb-4",
+          tags$thead(tags$tr(
+            tags$th("Question"),
+            tags$th("Average (1–5)", style = "text-align:center;"),
+            tags$th("# Rated", style = "text-align:center;")
+          )),
+          tags$tbody(avg_rows)
+        ),
+        tags$p(class = "text-muted mb-2",
+               style = "font-size:0.75rem; text-transform:uppercase; letter-spacing:.07em;",
+               "Comments (order randomized — not chronological)")
+      )
+    })
+
+    output$comments_table <- DT::renderDataTable({
+      rdf <- revealed_df()
+      req(nrow(rdf) >= 5)
+      DT::datatable(
+        data.frame(
+          "What they do well"      = rdf$peer_plus,
+          "Where they can improve" = rdf$peer_delta,
+          check.names = FALSE, stringsAsFactors = FALSE
+        ),
+        rownames = FALSE,
+        options = list(dom = "t", paging = FALSE, searching = FALSE, ordering = FALSE)
+      )
+    })
 
     output$summary_strip <- renderUI({
       n <- n_completed()
