@@ -201,18 +201,18 @@
         "Config/roxygen2/version": "8.0.0",
         "Author": "Fred Buckhold [aut, cre]",
         "Maintainer": "Fred Buckhold <fbuckhold3@icloud.com>",
-        "Built": "R 4.6.0; ; 2026-09-15 19:27:05 UTC; unix",
+        "Built": "R 4.6.0; ; 2026-09-16 14:00:36 UTC; unix",
         "RemoteType": "github",
         "RemoteHost": "api.github.com",
         "RemoteUsername": "fbuckhold3",
         "RemoteRepo": "amiontools",
-        "RemoteRef": "7cb48e197e4f07fd53f4ea6e71f38826a665701b",
-        "RemoteSha": "7cb48e197e4f07fd53f4ea6e71f38826a665701b",
+        "RemoteRef": "main",
+        "RemoteSha": "0f824d620626bb66aae3450e332926e6aff9eb0a",
         "GithubHost": "api.github.com",
         "GithubRepo": "amiontools",
         "GithubUsername": "fbuckhold3",
-        "GithubRef": "7cb48e197e4f07fd53f4ea6e71f38826a665701b",
-        "GithubSHA1": "7cb48e197e4f07fd53f4ea6e71f38826a665701b"
+        "GithubRef": "main",
+        "GithubSHA1": "0f824d620626bb66aae3450e332926e6aff9eb0a"
       }
     },
     "askpass": {
@@ -1112,19 +1112,19 @@
         "Config/roxygen2/version": "8.0.0",
         "Author": "First Last [aut, cre]",
         "Maintainer": "First Last <first.last@example.com>",
-        "Built": "R 4.6.0; ; 2026-09-04 17:24:44 UTC; unix",
+        "Built": "R 4.6.0; ; 2026-09-16 13:50:55 UTC; unix",
         "RemoteType": "github",
         "Remotes": "fbuckhold3/roundsui",
         "RemoteHost": "api.github.com",
         "RemoteUsername": "fbuckhold3",
         "RemoteRepo": "gmed",
         "RemoteRef": "main",
-        "RemoteSha": "6df2786c71baf5219a84965f15204cf4929d62a7",
+        "RemoteSha": "55ec020cf96e14eec5f1ba7b2caf2166546e111e",
         "GithubHost": "api.github.com",
         "GithubRepo": "gmed",
         "GithubUsername": "fbuckhold3",
         "GithubRef": "main",
-        "GithubSHA1": "6df2786c71baf5219a84965f15204cf4929d62a7"
+        "GithubSHA1": "55ec020cf96e14eec5f1ba7b2caf2166546e111e"
       }
     },
     "gtable": {
@@ -3180,7 +3180,7 @@
       "checksum": "fbd8b52b20a0e5606dc9f9ec1e8a6ef2"
     },
     "R/global.R": {
-      "checksum": "b0148a81e478e09699eecde1ed2befbb"
+      "checksum": "5ee0613254ad0b3d90204e4b49119886"
     },
     "R/modules/mod_attendance.R": {
       "checksum": "cc05ccb25f3afbf75af373dff736ca59"
@@ -3209,6 +3209,9 @@
     "R/modules/mod_milestones.R": {
       "checksum": "6cb83c19f22b71fb5983e2c2b7794f25"
     },
+    "R/modules/mod_peer_review_entry.R": {
+      "checksum": "155f3cccf8203f2413ceadb188edd19b"
+    },
     "R/modules/mod_resources.R": {
       "checksum": "a8297a8481fd790af9e578cb750d41f0"
     },
@@ -3231,7 +3234,7 @@
       "checksum": "a26b03bf58f62b1c076759beb84415f0"
     },
     "R/server.R": {
-      "checksum": "b55a78f1c4529c24cc636ca4e947c7d9"
+      "checksum": "fd8bd0c5b32fba1030a34e0c82f0bb08"
     },
     "R/ui.R": {
       "checksum": "a2c241d2036380d851ad4d8007b10060"
