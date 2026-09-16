@@ -88,7 +88,16 @@ server <- function(input, output, session) {
            var el = document.getElementById('auth-access_code');
            if (el && el.value === '') {
              el.value = '%s';
-             Shiny.setInputValue('auth-access_code_btn', Math.random(), {priority:'event'});
+             // Shiny's input binding only syncs on a real DOM event — setting
+             // .value directly leaves input$access_code empty server-side, so
+             // the button click below silently no-ops (req() blocks). Fire
+             // input/change so Shiny picks up the value, then wait a beat for
+             // that to reach the server before triggering the button.
+             el.dispatchEvent(new Event('input', {bubbles: true}));
+             el.dispatchEvent(new Event('change', {bubbles: true}));
+             setTimeout(function(){
+               Shiny.setInputValue('auth-access_code_btn', Math.random(), {priority:'event'});
+             }, 150);
            }
          }, 400);",
         safe_code
@@ -189,6 +198,9 @@ server <- function(input, output, session) {
 
   resident_id    <- reactive({ req(values$resident); values$resident$record_id })
   faculty_roster <- reactive({ req(values$authenticated, data_ready()); faculty_roster_store })
+  # Phase 1 store (fast) is enough for a name search — don't make the picker
+  # wait on the slower Phase 2 full load.
+  all_residents  <- reactive({ req(values$authenticated, residents_ready()); residents_store })
 
   # ── Module servers (initialized once; guard internally with req()) ─────────
   mod_evaluations_server( "evaluations",  rdm_data = rdm_data, resident_id = resident_id)
@@ -197,6 +209,9 @@ server <- function(input, output, session) {
   mod_scholarship_server( "scholarship",  rdm_data = rdm_data, resident_id = resident_id)
   mod_faculty_eval_server("faculty_eval", rdm_data = rdm_data, resident_id = resident_id,
                           faculty_roster_r = faculty_roster)
+  mod_peer_review_entry_server("peer_review", resident_id = resident_id,
+                          all_residents_r = all_residents,
+                          rdm_token = app_config$rdm_token, redcap_url = app_config$redcap_url)
   mod_self_eval_server(   "self_eval",    rdm_data = rdm_data, resident_id = resident_id)
   mod_attendance_server(  "attendance",   rdm_data = rdm_data, resident_id = resident_id,
                           rdm_token = app_config$rdm_token, redcap_url = app_config$redcap_url)
@@ -297,6 +312,7 @@ server <- function(input, output, session) {
         milestones   = mod_milestones_ui("milestones"),
         scholarship  = mod_scholarship_ui("scholarship"),
         faculty_eval = mod_faculty_eval_ui("faculty_eval"),
+        peer_review  = mod_peer_review_entry_ui("peer_review"),
         self_eval    = mod_self_eval_ui("self_eval"),
         attendance   = mod_attendance_ui("attendance"),
         schedule     = mod_schedule_ui("schedule"),
