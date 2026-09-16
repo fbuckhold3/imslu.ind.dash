@@ -32,9 +32,9 @@ mod_duty_hours_ui <- function(id) {
         "and how excessive-hours patterns get caught before they become a problem for you."
       )
     ),
-    mod_duty_hour_calendar_ui(ns("calendar")),
+    amiontools::mod_duty_hour_calendar_ui(ns("calendar")),
     tags$hr(style = "margin: 20px 0;"),
-    mod_duty_hour_confirm_ui(ns("confirm")),
+    amiontools::mod_duty_hour_confirm_ui(ns("confirm")),
     tags$hr(style = "margin: 24px 0;"),
     amiontools::mod_duty_hour_summary_ui(ns("summary"))
   )
@@ -78,12 +78,13 @@ mod_duty_hours_server <- function(id, resident_id) {
       summ$duty_blocks |> dplyr::filter(record_id == resident_id())
     })
 
-    mod_duty_hour_calendar_server("calendar", resident_id = resident_id,
+    amiontools::mod_duty_hour_calendar_server("calendar", resident_id = resident_id,
                                   entries_r = entries_r, amion_blocks_r = amion_blocks_r,
                                   selected_date = selected_date)
-    mod_duty_hour_confirm_server("confirm", resident_id = resident_id,
+    amiontools::mod_duty_hour_confirm_server("confirm", resident_id = resident_id,
                                  entries_r = entries_r, amion_blocks_r = amion_blocks_r,
-                                 refresh = refresh, selected_date = selected_date)
+                                 refresh = refresh, selected_date = selected_date,
+                                 redcap_url = app_config$redcap_url, rdm_token = app_config$rdm_token)
     amiontools::mod_duty_hour_summary_server(
       "summary",
       resident_id = resident_id,

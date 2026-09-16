@@ -45,7 +45,7 @@ mod_scholarship_ui <- function(id) {
         class = "btn btn-sm btn-outline-primary",
         style = "font-size:0.82rem;")),
     mod_scholarship_view_ui(ns("view")),
-    mod_scholarship_entry_ui(ns("entry"))
+    gmed::mod_scholarship_entry_ui(ns("entry"))
   )
 }
 
@@ -99,11 +99,13 @@ mod_scholarship_server <- function(id, rdm_data, resident_id) {
 
     # ── entry form (add / edit / recategorize) ────────────────────────────────
     edit_req_val <- reactiveVal(NULL)
-    saved <- mod_scholarship_entry_server(
+    saved <- gmed::mod_scholarship_entry_server(
       "entry",
       resident_id   = resident_id,
       existing_data = reactive(schol_store()),
-      edit_req      = reactive(edit_req_val())
+      edit_req      = reactive(edit_req_val()),
+      redcap_url    = app_config$redcap_url,
+      rdm_token     = app_config$rdm_token
     )
 
     # ── view (returns per-row actions) ────────────────────────────────────────

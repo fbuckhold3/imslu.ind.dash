@@ -207,13 +207,15 @@ server <- function(input, output, session) {
   mod_learning_server(    "learning",     rdm_data = rdm_data, resident_id = resident_id)
   mod_milestones_server(  "milestones",   rdm_data = rdm_data, resident_id = resident_id)
   mod_scholarship_server( "scholarship",  rdm_data = rdm_data, resident_id = resident_id)
-  mod_faculty_eval_server("faculty_eval", rdm_data = rdm_data, resident_id = resident_id,
-                          faculty_roster_r = faculty_roster)
-  mod_peer_review_entry_server("peer_review", resident_id = resident_id,
+  gmed::mod_faculty_eval_server("faculty_eval", rdm_data = rdm_data, resident_id = resident_id,
+                          faculty_roster_r = faculty_roster,
+                          rdm_token = app_config$rdm_token, redcap_url = app_config$redcap_url,
+                          fac_token = app_config$fac_token)
+  amiontools::mod_peer_review_entry_server("peer_review", resident_id = resident_id,
                           all_residents_r = all_residents,
                           rdm_token = app_config$rdm_token, redcap_url = app_config$redcap_url)
   mod_self_eval_server(   "self_eval",    rdm_data = rdm_data, resident_id = resident_id)
-  mod_attendance_server(  "attendance",   rdm_data = rdm_data, resident_id = resident_id,
+  amiontools::mod_attendance_server(  "attendance",   rdm_data = rdm_data, resident_id = resident_id,
                           rdm_token = app_config$rdm_token, redcap_url = app_config$redcap_url)
   mod_schedule_server(    "schedule",     resident_id = resident_id)
   mod_duty_hours_server(  "duty_hours",   resident_id = resident_id)
@@ -311,10 +313,10 @@ server <- function(input, output, session) {
         learning     = mod_learning_ui("learning"),
         milestones   = mod_milestones_ui("milestones"),
         scholarship  = mod_scholarship_ui("scholarship"),
-        faculty_eval = mod_faculty_eval_ui("faculty_eval"),
-        peer_review  = mod_peer_review_entry_ui("peer_review"),
+        faculty_eval = gmed::mod_faculty_eval_ui("faculty_eval"),
+        peer_review  = amiontools::mod_peer_review_entry_ui("peer_review"),
         self_eval    = mod_self_eval_ui("self_eval"),
-        attendance   = mod_attendance_ui("attendance"),
+        attendance   = amiontools::mod_attendance_ui("attendance"),
         schedule     = mod_schedule_ui("schedule"),
         duty_hours   = mod_duty_hours_ui("duty_hours"),
         resources    = mod_resources_ui("resources"),
