@@ -206,18 +206,18 @@
         "Config/roxygen2/version": "8.0.0",
         "Author": "Fred Buckhold [aut, cre]",
         "Maintainer": "Fred Buckhold <fbuckhold3@icloud.com>",
-        "Built": "R 4.6.0; ; 2026-09-17 16:31:19 UTC; unix",
+        "Built": "R 4.6.0; ; 2026-09-18 00:02:54 UTC; unix",
         "RemoteType": "github",
         "RemoteHost": "api.github.com",
         "RemoteUsername": "fbuckhold3",
         "RemoteRepo": "amiontools",
         "RemoteRef": "main",
-        "RemoteSha": "f81278a1c8f4c24f317926f42c14127a660342da",
+        "RemoteSha": "bd13370657098708b109fd28d6d60f4abe595b5c",
         "GithubHost": "api.github.com",
         "GithubRepo": "amiontools",
         "GithubUsername": "fbuckhold3",
         "GithubRef": "main",
-        "GithubSHA1": "f81278a1c8f4c24f317926f42c14127a660342da"
+        "GithubSHA1": "bd13370657098708b109fd28d6d60f4abe595b5c"
       }
     },
     "askpass": {
