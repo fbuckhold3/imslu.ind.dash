@@ -200,24 +200,26 @@
         "License": "MIT + file LICENSE",
         "Encoding": "UTF-8",
         "Roxygen": "list(markdown = TRUE)",
-        "Imports": "dplyr,\nDT,\ngmed,\nhttr,\nlubridate,\nplotly,\nREDCapR,\nshiny,\nshinycssloaders,\ntidyr",
+        "Imports": "dplyr, DT, gmed, httr, lubridate, plotly, REDCapR, shiny,\nshinycssloaders, tidyr",
         "Suggests": "testthat (>= 3.0.0)",
         "Config/testthat/edition": "3",
         "Config/roxygen2/version": "8.0.0",
-        "Author": "Fred Buckhold [aut, cre]",
-        "Maintainer": "Fred Buckhold <fbuckhold3@icloud.com>",
-        "Built": "R 4.6.0; ; 2026-09-18 00:02:54 UTC; unix",
         "RemoteType": "github",
         "RemoteHost": "api.github.com",
-        "RemoteUsername": "fbuckhold3",
         "RemoteRepo": "amiontools",
-        "RemoteRef": "main",
-        "RemoteSha": "bd13370657098708b109fd28d6d60f4abe595b5c",
-        "GithubHost": "api.github.com",
+        "RemoteUsername": "fbuckhold3",
+        "RemoteRef": "HEAD",
+        "RemoteSha": "ca4341eb703817e8cc2fc78d2d3967a691e7d57b",
         "GithubRepo": "amiontools",
         "GithubUsername": "fbuckhold3",
-        "GithubRef": "main",
-        "GithubSHA1": "bd13370657098708b109fd28d6d60f4abe595b5c"
+        "GithubRef": "HEAD",
+        "GithubSHA1": "ca4341eb703817e8cc2fc78d2d3967a691e7d57b",
+        "NeedsCompilation": "no",
+        "Packaged": "2026-09-18 23:13:36 UTC; home_base",
+        "Author": "Fred Buckhold [aut, cre]",
+        "Maintainer": "Fred Buckhold <fbuckhold3@icloud.com>",
+        "Depends": "R (>= 4.1.0)",
+        "Built": "R 4.6.0; ; 2026-09-18 23:13:36 UTC; unix"
       }
     },
     "askpass": {
@@ -3222,7 +3224,7 @@
       "checksum": "d684a35929c578bfa1af8653b7ecca94"
     },
     "R/modules/mod_duty_hours.R": {
-      "checksum": "9d17dad82647a1772a05fa28d60990c1"
+      "checksum": "9b8da4c998b533821e1dfdc4651abdd5"
     },
     "R/modules/mod_evaluations.R": {
       "checksum": "a6445100cc1eb198d6bacf436ccdd491"
