@@ -1115,7 +1115,7 @@
         "Roxygen": "list(markdown = TRUE)",
         "Suggests": "knitr,\nrmarkdown,\ntestthat (>= 3.0.0)",
         "Config/testthat/edition": "3",
-        "Imports": "dplyr, httr, readr, jsonlite, DT, reactable, htmltools,\nplotly, rlang, config, lubridate, tidyr, shinyjs, shiny, bslib,\ndata.table, tibble, purrr, roundsui",
+        "Imports": "dplyr, httr, curl, readr, jsonlite, DT, reactable, htmltools,\nplotly, rlang, config, lubridate, tidyr, shinyjs, shiny, bslib,\ndata.table, tibble, purrr, roundsui",
         "Config/roxygen2/version": "8.0.0",
         "Author": "First Last [aut, cre]",
         "Maintainer": "First Last <first.last@example.com>",
@@ -1126,12 +1126,12 @@
         "RemoteUsername": "fbuckhold3",
         "RemoteRepo": "gmed",
         "RemoteRef": "main",
-        "RemoteSha": "edf636647a1e5991afa50d2e4aa8e9b356eb7361",
+        "RemoteSha": "45c650c203d1a75f22406f5a92ee5d3d5c936fb3",
         "GithubHost": "api.github.com",
         "GithubRepo": "gmed",
         "GithubUsername": "fbuckhold3",
         "GithubRef": "main",
-        "GithubSHA1": "edf636647a1e5991afa50d2e4aa8e9b356eb7361"
+        "GithubSHA1": "45c650c203d1a75f22406f5a92ee5d3d5c936fb3"
       }
     },
     "gtable": {

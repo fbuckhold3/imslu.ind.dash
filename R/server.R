@@ -12,7 +12,9 @@ server <- function(input, output, session) {
 
   # ── Two-phase data loading ─────────────────────────────────────────────────
   # Phase 1 (~4 s): fetch residents only — unblocks login UI
-  # Phase 2 (~25 s): fetch full data — triggered after Phase 1 completes
+  # Phase 2 (~4 s): fetch full data — triggered after Phase 1 completes
+  #   (per_form = TRUE parallel per-instrument export; was ~25 s as one flat
+  #   export. Requires gmed >= 45c650c.)
   residents_ready <- reactiveVal(FALSE)
   data_ready      <- reactiveVal(FALSE)
 
@@ -42,7 +44,8 @@ server <- function(input, output, session) {
     future_promise({
       list(
         rdm = gmed::load_rdm_complete(rdm_token = token, redcap_url = url,
-                                      verbose = FALSE, raw_or_label = "raw"),
+                                      verbose = FALSE, raw_or_label = "raw",
+                                      per_form = TRUE),
         fac = gmed::load_faculty_roster(fac_token = fac_token, redcap_url = url)
       )
     }, globals  = list(token = token, url = url, fac_token = fac_token),

@@ -170,7 +170,7 @@ load_app_residents <- function() {
   residents_store
 }
 
-# ── Phase 2: full data load (~25 s) ───────────────────────────────────────────
+# ── Phase 2: full data load (~4 s) ────────────────────────────────────────────
 # Called from a future worker — returns a list so the .then() handler can
 # assign results back into the main-process globals.
 fetch_full_app_data <- function(rdm_token, redcap_url, fac_token) {
@@ -178,7 +178,8 @@ fetch_full_app_data <- function(rdm_token, redcap_url, fac_token) {
     rdm_token    = rdm_token,
     redcap_url   = redcap_url,
     verbose      = FALSE,
-    raw_or_label = "raw"
+    raw_or_label = "raw",
+    per_form     = TRUE   # gmed >= 45c650c; ~4 s vs ~25 s single export
   )
   fac <- gmed::load_faculty_roster(
     fac_token  = fac_token,
