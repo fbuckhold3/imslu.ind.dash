@@ -208,8 +208,9 @@
 
 # ── Combined progression plot ─────────────────────────────────────────────────
 #
-# Plots raw scores on a fixed 1-9 y-axis.  Each dataset gets its own dashed
-# graduation-target reference line (Self target=7, ACGME target=4).
+# Plots raw scores on a fixed 1-9 y-axis.  A single dashed graduation-target
+# reference line at Level 7 is shared by Self and ACGME (ACGME 4.0 on its
+# native 1-5 scale = 7 on our 1-9 scale; see gmed::convert_acgme_to_internal_scale).
 #
 # datasets: named list; each entry:
 #   data    - data.frame
