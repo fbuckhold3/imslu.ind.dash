@@ -212,7 +212,7 @@
     },
     "amiontools": {
       "Package": "amiontools",
-      "Version": "0.0.1",
+      "Version": "0.1.0",
       "Source": "GitHub",
       "Title": "Shared Amion Schedule Fetch, Classification, and Crosswalk Tools",
       "Authors@R": "person(\"Fred\", \"Buckhold\", , \"fbuckhold3@icloud.com\", role = c(\"aut\", \"cre\"))",
@@ -238,14 +238,12 @@
       ],
       "Config/testthat/edition": "3",
       "Config/roxygen2/version": "8.0.0",
-      "Author": "Fred Buckhold [aut, cre]",
-      "Maintainer": "Fred Buckhold <fbuckhold3@icloud.com>",
       "RemoteType": "github",
       "RemoteHost": "api.github.com",
       "RemoteUsername": "fbuckhold3",
       "RemoteRepo": "amiontools",
-      "RemoteRef": "38e609f946d7333c6191efd96c5e21a685a6cc70",
-      "RemoteSha": "38e609f946d7333c6191efd96c5e21a685a6cc70"
+      "RemoteRef": "873cfa90f2ebd1ab8f35e13cd2e17216d33052e6",
+      "RemoteSha": "873cfa90f2ebd1ab8f35e13cd2e17216d33052e6"
     },
     "askpass": {
       "Package": "askpass",

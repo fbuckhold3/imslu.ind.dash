@@ -194,30 +194,32 @@
       "description": {
         "Package": "amiontools",
         "Title": "Shared Amion Schedule Fetch, Classification, and Crosswalk Tools",
-        "Version": "0.0.1",
+        "Version": "0.1.0",
         "Authors@R": "\n    person(\"Fred\", \"Buckhold\", , \"fbuckhold3@icloud.com\", role = c(\"aut\", \"cre\"))",
         "Description": "Shared functions for pulling resident schedule data from\n    Amion, classifying assignments into top-level rotation categories, and\n    crosswalking Amion identities against RDM resident_id records. Used by\n    amion-va-report and downstream rotation-analysis, attendance-\n    reconciliation, and duty-hour tools across the IMSLU / GME Tools\n    ecosystem.",
         "License": "MIT + file LICENSE",
         "Encoding": "UTF-8",
         "Roxygen": "list(markdown = TRUE)",
-        "Imports": "dplyr,\nDT,\ngmed,\nhttr,\njsonlite,\nlubridate,\nplotly,\nREDCapR,\nshiny,\nshinycssloaders,\ntidyr",
+        "Imports": "dplyr, DT, gmed, httr, jsonlite, lubridate, plotly, REDCapR,\nshiny, shinycssloaders, tidyr",
         "Suggests": "testthat (>= 3.0.0)",
         "Config/testthat/edition": "3",
         "Config/roxygen2/version": "8.0.0",
-        "Author": "Fred Buckhold [aut, cre]",
-        "Maintainer": "Fred Buckhold <fbuckhold3@icloud.com>",
-        "Built": "R 4.6.0; ; 2026-10-21 00:53:33 UTC; unix",
         "RemoteType": "github",
         "RemoteHost": "api.github.com",
-        "RemoteUsername": "fbuckhold3",
         "RemoteRepo": "amiontools",
-        "RemoteRef": "38e609f946d7333c6191efd96c5e21a685a6cc70",
-        "RemoteSha": "38e609f946d7333c6191efd96c5e21a685a6cc70",
-        "GithubHost": "api.github.com",
+        "RemoteUsername": "fbuckhold3",
+        "RemoteRef": "873cfa9",
+        "RemoteSha": "873cfa90f2ebd1ab8f35e13cd2e17216d33052e6",
         "GithubRepo": "amiontools",
         "GithubUsername": "fbuckhold3",
-        "GithubRef": "38e609f946d7333c6191efd96c5e21a685a6cc70",
-        "GithubSHA1": "38e609f946d7333c6191efd96c5e21a685a6cc70"
+        "GithubRef": "873cfa9",
+        "GithubSHA1": "873cfa90f2ebd1ab8f35e13cd2e17216d33052e6",
+        "NeedsCompilation": "no",
+        "Packaged": "2026-10-25 18:54:38 UTC; home_base",
+        "Author": "Fred Buckhold [aut, cre]",
+        "Maintainer": "Fred Buckhold <fbuckhold3@icloud.com>",
+        "Depends": "R (>= 4.1.0)",
+        "Built": "R 4.6.0; ; 2026-10-25 18:54:38 UTC; unix"
       }
     },
     "askpass": {
@@ -3258,7 +3260,7 @@
       "checksum": "a2c241d2036380d851ad4d8007b10060"
     },
     "renv.lock": {
-      "checksum": "9119051d71ce28e51409d94b72522877"
+      "checksum": "746401a07d70eea32755a0696d84f54a"
     },
     "scripts/make_fake_2042.R": {
       "checksum": "286c3a399c6981dbe5f9694b8eda534b"
