@@ -13,21 +13,6 @@
 #   pgy*_total_ile   = national percentile (relative)
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
-# .NOMOGRAM_PARAMS / .pass_prob / .risk_from_prob defined in global.R (shared)
-
-# Generate nomogram curve data for plotting (20–100% at 0.5% steps)
-.nomogram_curves <- function() {
-  do.call(rbind, lapply(1:3, function(pgy) {
-    pcts <- seq(20, 100, by = 0.5)
-    data.frame(
-      ITE_Pct  = pcts,
-      PGY      = pgy,
-      PGY_lbl  = paste0("PGY-", pgy),
-      Pass_Prob = sapply(pcts, function(x) .pass_prob(x, pgy))
-    )
-  }))
-}
-
 # Decode REDCap checkbox columns (uses exported parse_redcap_choices from gmed)
 .decode_checkboxes <- function(row, prefix, choices_str) {
   if (is.null(choices_str) || is.na(choices_str) || !nzchar(trimws(choices_str)))
@@ -461,70 +446,7 @@ mod_learning_server <- function(id, rdm_data, resident_id) {
       if (is.null(td) || nrow(td) == 0) return(NULL)
       pcts <- .pct_vec(td)  # may be length-0 → curves only
 
-      curves <- .nomogram_curves()
-      curve_cols  <- c("1"="#4e79a7", "2"="#59a14f", "3"="#f28e2b")
-      curve_dashes <- c("1"="solid",  "2"="dash",    "3"="dot")
-
-      fig <- plotly::plot_ly()
-
-      # Risk zone fills
-      fig <- fig %>%
-        plotly::add_ribbons(x=c(20,100), ymin=0, ymax=0.5,
-          fillcolor="rgba(211,47,47,0.06)", line=list(width=0),
-          hoverinfo="none", showlegend=FALSE) %>%
-        plotly::add_ribbons(x=c(20,100), ymin=0.5, ymax=0.75,
-          fillcolor="rgba(230,81,0,0.06)", line=list(width=0),
-          hoverinfo="none", showlegend=FALSE)
-
-      # Reference lines
-      fig <- fig %>%
-        plotly::add_segments(x=20, xend=100, y=0.75, yend=0.75,
-          line=list(color="#e65100", dash="dash", width=1),
-          name="75% threshold", showlegend=TRUE) %>%
-        plotly::add_segments(x=20, xend=100, y=0.50, yend=0.50,
-          line=list(color="#d32f2f", dash="dash", width=1),
-          name="50% threshold", showlegend=TRUE)
-
-      # Nomogram curves (PGY-1, PGY-2, PGY-3)
-      for (pgy in 1:3) {
-        cd <- curves[curves$PGY == pgy, ]
-        fig <- fig %>%
-          plotly::add_trace(data=cd, x=~ITE_Pct, y=~Pass_Prob,
-            type="scatter", mode="lines",
-            line=list(color=curve_cols[[as.character(pgy)]],
-                      dash=curve_dashes[[as.character(pgy)]], width=2),
-            name=paste0("PGY-",pgy," curve"),
-            hovertemplate=paste0("PGY-",pgy," | %{x:.0f}% correct<br>",
-                                 "P(pass) = %{y:.1%}<extra></extra>"))
-      }
-
-      # Resident's actual points (each on their own PGY curve)
-      for (y in names(pcts)) {
-        pct_v  <- pcts[[y]]
-        prob_v <- .pass_prob(pct_v, as.integer(y))
-        risk   <- .risk_from_prob(prob_v)
-        fig <- fig %>%
-          plotly::add_trace(x=pct_v, y=prob_v,
-            type="scatter", mode="markers",
-            marker=list(size=14, color=risk$color,
-                        line=list(color="white", width=2), symbol="diamond"),
-            name=paste0("Your PGY-",y," score"),
-            hovertemplate=paste0("PGY-",y,"<br>",
-                                 round(pct_v,1),"% correct<br>",
-                                 "P(pass ABIM) = ", round(prob_v*100,1),"%<br>",
-                                 risk$level, "<extra></extra>"))
-      }
-
-      fig %>% plotly::layout(
-        xaxis=list(title="ITE % Correct", range=c(20,100),
-                   showgrid=TRUE, gridcolor="#f0f0f0", dtick=10),
-        yaxis=list(title="Probability of Passing ABIM",
-                   range=c(0,1), tickformat=".0%",
-                   showgrid=TRUE, gridcolor="#f0f0f0"),
-        legend=list(orientation="h", x=0, y=-0.3),
-        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-        margin=list(t=10, b=60)
-      )
+      iteviz::ite_nomogram_plot(if (length(pcts)) pcts else NULL)
     })
 
     # Plot 2: Percentile trajectory (secondary)
@@ -608,54 +530,24 @@ mod_learning_server <- function(id, rdm_data, resident_id) {
         ile_v <- if (ile_f %in% names(td)) suppressWarnings(as.numeric(td[[ile_f]][1])) else NA
         if (is.na(pct_v) && is.na(ile_v)) return(NULL)
 
-        prob  <- if (!is.na(pct_v)) .pass_prob(pct_v, as.integer(y)) else NA
-        risk  <- .risk_from_prob(prob)
-
-        prob_txt <- if (!is.na(prob)) {
-          if      (prob >= 0.90) "Strong position for board success"
-          else if (prob >= 0.75) "Favorable \u2014 continue preparation"
-          else if (prob >= 0.50) "Moderate risk \u2014 targeted prep recommended"
-          else                   "Significant risk \u2014 intervention needed"
-        } else ""
-
         ile_col <- if (!is.na(ile_v)) {
           if (ile_v < 20) "#d32f2f" else if (ile_v < 50) "#e65100" else "#2e7d32"
         } else "#adb5bd"
 
         div(class="col-md-4 mb-2",
-          div(style=paste0("background:#fff; border-left:5px solid ",risk$color,";",
-                           " border-radius:0 8px 8px 0; padding:16px;",
-                           " box-shadow:0 1px 4px rgba(0,0,0,.07);"),
-            tags$p(style=paste0("font-size:0.7rem; font-weight:700; text-transform:uppercase;",
-                               " letter-spacing:.07em; color:#6c757d; margin-bottom:8px;"),
-                   paste0("PGY-", y)),
-            if (!is.na(pct_v))
-              tagList(
-                tags$p(class="mb-0",
-                  style=paste0("font-size:2rem; font-weight:700; color:",risk$color,
-                               "; line-height:1;"),
-                  paste0(round(pct_v,1),"%")),
-                tags$p(class="mb-1", style="font-size:0.72rem; color:#6c757d;",
-                       "ITE % correct")
-              ),
-            if (!is.na(prob))
-              tagList(
-                tags$hr(style="margin:8px 0;"),
-                tags$p(class="mb-0",
-                  style=paste0("font-size:1.35rem; font-weight:700; color:",risk$color,
-                               "; line-height:1;"),
-                  paste0(round(prob*100,0),"% pass probability")),
-                tags$p(class="mb-1", style="font-size:0.75rem; color:#6c757d;",
-                       "McDonald et al. 2020 nomogram"),
-                tags$p(class="mb-0",
-                  style=paste0("font-size:0.78rem; color:",risk$color,"; font-weight:600;"),
-                  prob_txt)
-              ),
-            if (!is.na(ile_v))
-              tags$p(class="mb-0 mt-2",
-                style=paste0("font-size:0.83rem; color:",ile_col,"; font-weight:600;"),
-                paste0(round(ile_v,0),"th national percentile"))
-          )
+          if (!is.na(pct_v))
+            iteviz::ite_estimate_card(pct_v, as.integer(y), compact = TRUE, citation = FALSE)
+          else
+            div(style="border:1px solid #e6e9ec; border-left:5px solid #adb5bd; border-radius:8px; padding:12px;",
+              tags$p(style=paste0("font-size:0.7rem; font-weight:700; text-transform:uppercase;",
+                                 " letter-spacing:.07em; color:#6c757d; margin-bottom:4px;"),
+                     paste0("PGY-", y)),
+              tags$p(class="mb-0", style="font-size:0.83rem; color:#6c757d;",
+                     "% correct not recorded")),
+          if (!is.na(ile_v))
+            tags$p(class="mb-0 mt-2",
+              style=paste0("font-size:0.83rem; color:",ile_col,"; font-weight:600;"),
+              paste0(round(ile_v,0),"th national percentile"))
         )
       })
       yr_cards <- Filter(Negate(is.null), yr_cards)
@@ -701,24 +593,24 @@ mod_learning_server <- function(id, rdm_data, resident_id) {
         card_hdr("clipboard2-data-fill", "ITE / Board Exam Scores"),
         div(class="card-body",
           info_banner(
-            "Pass probability uses the ",
+            "The estimated chance of passing ABIM approximates the ",
             tags$strong("McDonald et al. 2020"), " (", tags$em("Academic Medicine"), ")",
-            " logistic regression nomogram — the same published tool used nationally to predict ",
-            "ABIM pass rates from ITE % correct by PGY year. ",
+            " nomogram, which links ITE % correct by PGY year to first-attempt ABIM pass rates. ",
+            "It is a guide, not a precise prediction. ",
             "National percentile is shown for comparison; yellow = <50th, red = <20th."
           ),
 
           # Per-year cards (% correct + pass probability + risk)
           if (length(yr_cards) > 0)
-            div(class="row g-3 mb-4", yr_cards),
+            div(class="mb-4", div(class="row g-3", yr_cards), iteviz::ite_citation()),
 
           # Nomogram chart — always shown; dots only appear when % correct is available
           div(class="mb-4",
             sec_lbl("graph-up-arrow", "ABIM Pass Probability Nomogram"),
             if (has_pct)
               tags$p(class="text-muted small mb-2",
-                "All three PGY curves are shown. Your scores are plotted as diamonds ",
-                "on their corresponding curve. Hover for exact probability.")
+                "All three PGY curves are shown. Your scores are plotted as dots ",
+                "on their corresponding curve. Hover for the estimate.")
             else
               div(class="alert alert-light border mb-3 py-2 px-3",
                   style="font-size:0.8rem; border-left:3px solid #adb5bd;",

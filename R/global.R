@@ -87,11 +87,8 @@ local({
 `%||%` <- function(x, y) if (!is.null(x)) x else y
 
 # ── ABIM board risk — McDonald et al. 2020 nomogram ──────────────────────────
-# Exported from gmed::abim_risk.R; thin wrappers kept here so existing module
-# code that calls .pass_prob() / .risk_from_prob() continues to work unchanged.
-.NOMOGRAM_PARAMS <- gmed::NOMOGRAM_PARAMS
-.pass_prob       <- gmed::pass_prob
-.risk_from_prob  <- gmed::risk_from_prob
+# Estimates, tiers and the nomogram plot come from iteviz (R mirror of the
+# im-ite-analyzer spec); modules call iteviz:: directly.
 
 # ── Navigation blocks definition ──────────────────────────────────────────────
 # Edit here to add / reorder / rename sections. Each list must have:

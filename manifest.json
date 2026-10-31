@@ -200,26 +200,24 @@
         "License": "MIT + file LICENSE",
         "Encoding": "UTF-8",
         "Roxygen": "list(markdown = TRUE)",
-        "Imports": "dplyr, DT, gmed, httr, jsonlite, lubridate, plotly, REDCapR,\nshiny, shinycssloaders, tidyr",
+        "Imports": "dplyr,\nDT,\ngmed,\nhttr,\njsonlite,\nlubridate,\nplotly,\nREDCapR,\nshiny,\nshinycssloaders,\ntidyr",
         "Suggests": "testthat (>= 3.0.0)",
         "Config/testthat/edition": "3",
         "Config/roxygen2/version": "8.0.0",
-        "RemoteType": "github",
-        "RemoteHost": "api.github.com",
-        "RemoteRepo": "amiontools",
-        "RemoteUsername": "fbuckhold3",
-        "RemoteRef": "873cfa9",
-        "RemoteSha": "873cfa90f2ebd1ab8f35e13cd2e17216d33052e6",
-        "GithubRepo": "amiontools",
-        "GithubUsername": "fbuckhold3",
-        "GithubRef": "873cfa9",
-        "GithubSHA1": "873cfa90f2ebd1ab8f35e13cd2e17216d33052e6",
-        "NeedsCompilation": "no",
-        "Packaged": "2026-10-25 18:54:38 UTC; home_base",
         "Author": "Fred Buckhold [aut, cre]",
         "Maintainer": "Fred Buckhold <fbuckhold3@icloud.com>",
-        "Depends": "R (>= 4.1.0)",
-        "Built": "R 4.6.0; ; 2026-10-25 18:54:38 UTC; unix"
+        "Built": "R 4.6.0; ; 2026-10-25 18:50:19 UTC; unix",
+        "RemoteType": "github",
+        "RemoteHost": "api.github.com",
+        "RemoteUsername": "fbuckhold3",
+        "RemoteRepo": "amiontools",
+        "RemoteRef": "873cfa90f2ebd1ab8f35e13cd2e17216d33052e6",
+        "RemoteSha": "873cfa90f2ebd1ab8f35e13cd2e17216d33052e6",
+        "GithubHost": "api.github.com",
+        "GithubRepo": "amiontools",
+        "GithubUsername": "fbuckhold3",
+        "GithubRef": "873cfa90f2ebd1ab8f35e13cd2e17216d33052e6",
+        "GithubSHA1": "873cfa90f2ebd1ab8f35e13cd2e17216d33052e6"
       }
     },
     "askpass": {
@@ -1107,7 +1105,7 @@
       "description": {
         "Package": "gmed",
         "Title": "What the Package Does (One Line, Title Case)",
-        "Version": "0.0.1",
+        "Version": "0.0.2",
         "Authors@R": "\n    person(\"First\", \"Last\", , \"first.last@example.com\", role = c(\"aut\", \"cre\"))",
         "Description": "What the package does (one paragraph).",
         "License": "MIT + file LICENSE",
@@ -1115,23 +1113,23 @@
         "Roxygen": "list(markdown = TRUE)",
         "Suggests": "knitr,\nrmarkdown,\ntestthat (>= 3.0.0)",
         "Config/testthat/edition": "3",
-        "Imports": "dplyr, httr, curl, readr, jsonlite, DT, reactable, htmltools,\nplotly, rlang, config, lubridate, tidyr, shinyjs, shiny, bslib,\ndata.table, tibble, purrr, roundsui",
+        "Imports": "dplyr, httr, curl, readr, jsonlite, DT, reactable, htmltools,\nplotly, rlang, config, lubridate, tidyr, shinyjs, shiny, bslib,\ndata.table, tibble, purrr, roundsui, iteviz",
         "Config/roxygen2/version": "8.0.0",
         "Author": "First Last [aut, cre]",
         "Maintainer": "First Last <first.last@example.com>",
-        "Built": "R 4.6.0; ; 2026-09-30 19:11:57 UTC; unix",
+        "Built": "R 4.6.0; ; 2026-10-31 17:07:01 UTC; unix",
         "RemoteType": "github",
-        "Remotes": "fbuckhold3/roundsui",
+        "Remotes": "fbuckhold3/roundsui,\nfbuckhold3/im-ite-analyzer/r/iteviz",
         "RemoteHost": "api.github.com",
         "RemoteUsername": "fbuckhold3",
         "RemoteRepo": "gmed",
         "RemoteRef": "main",
-        "RemoteSha": "45c650c203d1a75f22406f5a92ee5d3d5c936fb3",
+        "RemoteSha": "b82727020422db50f31fa41f593cb83059fd20ab",
         "GithubHost": "api.github.com",
         "GithubRepo": "gmed",
         "GithubUsername": "fbuckhold3",
         "GithubRef": "main",
-        "GithubSHA1": "45c650c203d1a75f22406f5a92ee5d3d5c936fb3"
+        "GithubSHA1": "b82727020422db50f31fa41f593cb83059fd20ab"
       }
     },
     "gtable": {
@@ -1372,6 +1370,41 @@
         "Date/Publication": "2025-12-07 06:10:07 UTC",
         "Built": "R 4.6.0; aarch64-apple-darwin23; 2026-04-25 23:14:25 UTC; unix",
         "Archs": "isoband.so.dSYM"
+      }
+    },
+    "iteviz": {
+      "Source": "github",
+      "Repository": null,
+      "description": {
+        "Package": "iteviz",
+        "Title": "ABIM Pass Estimates from ITE Scores, and Their Display",
+        "Version": "0.1.0",
+        "Authors@R": "\n    person(\"Fred\", \"Buckhold\", email = \"fbuckhold3@users.noreply.github.com\", role = c(\"aut\", \"cre\"),\n           comment = c(ORCID = \"0000-0001-9049-3870\"))",
+        "Description": "R mirror of the im-ite-analyzer nomogram (ite_core/nomogram.py):\n    the estimated chance of passing the ABIM certification exam from IM-ITE\n    percent correct and PGY level, approximating the McDonald et al. (2020)\n    curves <doi:10.1097/ACM.0000000000003382>. Risk tiers, ~5% display labels,\n    trajectories and curves match the Python spec exactly (checked against a\n    shared parity fixture). Also provides htmltools/plotly display helpers:\n    tier badge, estimate card, per-year chips and the nomogram chart.",
+        "License": "Apache License (>= 2)",
+        "URL": "https://github.com/fbuckhold3/im-ite-analyzer",
+        "Encoding": "UTF-8",
+        "Depends": "R (>= 4.1)",
+        "Imports": "grDevices, htmltools, plotly, tibble, utils",
+        "Suggests": "jsonlite, roundsui, testthat (>= 3.0.0)",
+        "Config/testthat/edition": "3",
+        "Roxygen": "list(markdown = TRUE)",
+        "Config/roxygen2/version": "8.0.0",
+        "Author": "Fred Buckhold [aut, cre] (ORCID:\n    <https://orcid.org/0000-0001-9049-3870>)",
+        "Maintainer": "Fred Buckhold <fbuckhold3@users.noreply.github.com>",
+        "Built": "R 4.6.0; ; 2026-10-31 16:27:47 UTC; unix",
+        "RemoteType": "github",
+        "RemoteHost": "api.github.com",
+        "RemoteUsername": "fbuckhold3",
+        "RemoteRepo": "im-ite-analyzer",
+        "RemoteSubdir": "r/iteviz",
+        "RemoteRef": "main",
+        "RemoteSha": "8eb97af5ccd48ea08b5af16af99b956b8343f530",
+        "GithubHost": "api.github.com",
+        "GithubRepo": "im-ite-analyzer",
+        "GithubUsername": "fbuckhold3",
+        "GithubRef": "main",
+        "GithubSHA1": "8eb97af5ccd48ea08b5af16af99b956b8343f530"
       }
     },
     "jquerylib": {
@@ -3218,7 +3251,7 @@
       "checksum": "fbd8b52b20a0e5606dc9f9ec1e8a6ef2"
     },
     "R/global.R": {
-      "checksum": "5fde9c950d711fc6dc10b5c8827a4028"
+      "checksum": "3547c47315484a863b6845e72551ee6a"
     },
     "R/modules/mod_auth_ui.R": {
       "checksum": "d684a35929c578bfa1af8653b7ecca94"
@@ -3230,7 +3263,7 @@
       "checksum": "a6445100cc1eb198d6bacf436ccdd491"
     },
     "R/modules/mod_learning.R": {
-      "checksum": "b84bcf6ece9c64e380fed736bfe218ff"
+      "checksum": "437f6f29e8d5ce2ea0fa3c5f9273620b"
     },
     "R/modules/mod_milestones.R": {
       "checksum": "6cb83c19f22b71fb5983e2c2b7794f25"
@@ -3251,7 +3284,7 @@
       "checksum": "0504af91f5aeea96ba1d8d26fd8eba94"
     },
     "R/modules/mod_self_eval.R": {
-      "checksum": "a26b03bf58f62b1c076759beb84415f0"
+      "checksum": "224bdc0e158f07fc17ea2334083e361a"
     },
     "R/server.R": {
       "checksum": "000ab8daf1de3ae54eb1e963949acffb"
@@ -3260,7 +3293,7 @@
       "checksum": "a2c241d2036380d851ad4d8007b10060"
     },
     "renv.lock": {
-      "checksum": "746401a07d70eea32755a0696d84f54a"
+      "checksum": "33a16fb63123c45a2ecb56f200c87be7"
     },
     "scripts/make_fake_2042.R": {
       "checksum": "286c3a399c6981dbe5f9694b8eda534b"

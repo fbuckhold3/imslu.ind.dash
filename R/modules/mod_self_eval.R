@@ -563,25 +563,7 @@
   } else NA_real_
 
   ite_panel <- if (!is.na(ite_pct)) {
-    prob <- .pass_prob(ite_pct, pgy)
-    risk <- .risk_from_prob(prob)
-    div(class="alert mb-3 py-2 px-3",
-        style=paste0("background:#f8fafc; border-left:4px solid ", risk$color, "; font-size:0.83rem;"),
-      div(class="d-flex align-items-center gap-3",
-        div(style="text-align:center; min-width:70px;",
-          tags$span(style=paste0("font-size:1.5rem; font-weight:700; color:", risk$color),
-                    paste0(round(ite_pct,1),"%")),
-          tags$p(style="font-size:0.68rem; color:#6c757d; margin:0;", "ITE % correct")),
-        div(style="flex:1;",
-          tags$p(style="margin:0; font-weight:600; font-size:0.85rem; color:var(--gmed-primary);",
-                 paste0("PGY", pgy, " ACP ITE Score")),
-          if (!is.na(prob))
-            tags$p(style="margin:0; font-size:0.78rem; color:#6c757d;",
-                   paste0(round(prob * 100, 0), "% predicted ABIM pass probability \u2014 "),
-                   tags$span(style=paste0("font-weight:700; color:", risk$color), risk$level))
-          else
-            tags$p(style="margin:0; font-size:0.78rem; color:#6c757d;", risk$level)))
-    )
+    div(class="mb-3", iteviz::ite_estimate_card(ite_pct, pgy, compact = TRUE))
   } else {
     div(class="alert alert-light mb-3 py-2 px-3",
         style="font-size:0.82rem; border-left:4px solid #adb5bd;",
@@ -1452,26 +1434,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       } else NA_real_
 
       ite_panel <- if (!is.na(ite_pct)) {
-        prob       <- .pass_prob(ite_pct, pgy)
-        risk       <- .risk_from_prob(prob)
-        div(class="alert mb-3 py-2 px-3",
-            style=paste0("background:#f8fafc; border-left:4px solid ", risk$color, "; font-size:0.83rem;"),
-          div(class="d-flex align-items-center gap-3",
-            div(style="text-align:center; min-width:70px;",
-              tags$span(style=paste0("font-size:1.5rem; font-weight:700; color:", risk$color),
-                        paste0(round(ite_pct,1),"%")),
-              tags$p(style="font-size:0.68rem; color:#6c757d; margin:0;", "ITE % correct")),
-            div(style="flex:1;",
-              tags$p(style="margin:0; font-weight:600; font-size:0.85rem; color:var(--gmed-primary);",
-                     paste0("PGY", pgy, " ACP ITE Score")),
-              if (!is.na(prob))
-                tags$p(style="margin:0; font-size:0.78rem; color:#6c757d;",
-                       paste0(round(prob * 100, 0), "% predicted ABIM pass probability \u2014 "),
-                       tags$span(style=paste0("font-weight:700; color:", risk$color),
-                                 risk$level))
-              else
-                tags$p(style="margin:0; font-size:0.78rem; color:#6c757d;",
-                       risk$level))))
+        div(class="mb-3", iteviz::ite_estimate_card(ite_pct, pgy, compact = TRUE))
       } else {
         div(class="alert alert-light mb-3 py-2 px-3",
             style="font-size:0.82rem; border-left:4px solid #adb5bd;",
