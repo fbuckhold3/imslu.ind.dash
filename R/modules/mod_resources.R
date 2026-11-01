@@ -21,8 +21,8 @@ resource_links <- list(
     label = "Faculty Evaluation Form",
     desc  = "Submit your evaluation of a faculty member",
     icon  = "person-check",
-    url   = "https://fbuckhold3-imslu-facultyeval.share.connect.posit.cloud",
-    external = TRUE
+    # In-app page (the standalone facultyeval app was retired 2026-11-01).
+    nav   = "faculty_eval"
   ),
   list(
     label = "Noon Conference",
@@ -40,8 +40,11 @@ mod_resources_ui <- function(id) {
     class = "gmed-nav-grid",   # reuse the same 3-col grid from the home screen
     lapply(resource_links, function(r) {
       tags$a(
-        href   = r$url,
-        target = if (isTRUE(r$external)) "_blank" else NULL,
+        href    = r$url %||% "#",
+        target  = if (isTRUE(r$external)) "_blank" else NULL,
+        # `nav` cards open an ind.dash page instead of a URL.
+        onclick = if (!is.null(r$nav))
+          sprintf("Shiny.setInputValue('nav_block','%s',{priority:'event'}); return false;", r$nav),
         style  = "text-decoration: none;",
         div(
           class = "gmed-nav-block",
