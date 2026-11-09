@@ -86,6 +86,8 @@ mod_learning_server <- function(id, rdm_data, resident_id) {
       req(rdm_data(), resident_id())
       df <- rdm_data()$all_forms$questions
       if (is.null(df) || nrow(df) == 0) return(NULL)
+      # A "did not attend" entry is not a question-log entry.
+      if ("q_attended" %in% names(df)) df <- df[!df$q_attended %in% "0", , drop = FALSE]
       df %>% dplyr::filter(record_id == resident_id())
     })
     data_dict_r <- reactive({ req(rdm_data()); rdm_data()$data_dict })

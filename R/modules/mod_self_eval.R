@@ -410,6 +410,18 @@
 
 # ── Period completion (for status table) ──────────────────────────────────────
 
+# Periods that go through the data gate and an explicit Submit. Entering
+# Residency (7) has no duty or conference history to check.
+.GATED_PERIODS <- as.character(1:6)
+
+# This period's stored snapshot (NA when not submitted).
+.saved_snapshot <- function(seva, period) {
+  if (is.null(seva) || nrow(seva) == 0 || !"s_e_snapshot_json" %in% names(seva)) return(NA_character_)
+  v <- seva$s_e_snapshot_json[as.character(seva$s_e_period) == as.character(period)]
+  v <- v[!is.na(v) & nzchar(trimws(v))]
+  if (length(v)) v[1] else NA_character_
+}
+
 .period_status <- function(seva, ilp, ms_data, period, res = NULL) {
   p  <- as.character(period)
   sr <- if (!is.null(seva) && nrow(seva)>0) seva[as.character(seva$s_e_period)==p,] else NULL
@@ -692,7 +704,9 @@ mod_self_eval_ui <- function(id) {
     div(id = ns("wrap"),
       uiOutput(ns("status_table")),
       uiOutput(ns("fac_eval_gate")),
-      div(class="mt-3", uiOutput(ns("period_form"))))
+      mod_review_gate_ui(ns("gate")),
+      div(class="mt-3", uiOutput(ns("period_form"))),
+      mod_review_gate_submit_ui(ns("gate")))
   )
 }
 
@@ -769,7 +783,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
     #   >= 0.9  \u2192 on track (congratulate)
     #   0.5\u20130.9 \u2192 behind (encourage)
     #   < 0.5   \u2192 well behind (warn)
-    #   < 0.10 of annual goal (i.e., < 3 evals)   \u2192 hard block
+    #   < 0.10 of annual goal (i.e., < 3 evals)   \u2192 strongest banner (no lock)
     fac_eval_status_r <- reactive({
       req(rdm_data(), resident_id())
       fe <- rdm_data()$all_forms$faculty_evaluation
@@ -790,7 +804,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
         sum(!is.na(d) & d >= ay_start)
       } else 0L
       ratio   <- if (expected > 0) done / expected else 0
-      blocked <- done < ceiling(goal * 0.10)  # < 3 evals \u2192 hard block
+      blocked <- done < ceiling(goal * 0.10)  # very low: strongest banner, no lock
       band    <- if (blocked)            "block"
                  else if (ratio >= 0.9)  "ontrack"
                  else if (ratio >= 0.5)  "behind"
@@ -830,14 +844,12 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
                        body=paste0("You've done ", s$done, " out of ", s$expected,
                                    " expected by now (annual goal ", s$goal, "). ",
                                    "Please complete several before moving on.")),
-        block   = list(bg="#ffebee", border="#c62828", icon="lock-fill",
+        block   = list(bg="#ffebee", border="#c62828", icon="exclamation-triangle-fill",
                        ic_col="#c62828",
-                       head="Faculty evaluations required before starting.",
+                       head="Faculty evaluations are very low.",
                        body=paste0("You've done ", s$done, " faculty evaluation",
                                    if (s$done == 1) "" else "s",
-                                   " this academic year. The self-assessment is locked until at least ",
-                                   ceiling(s$goal * 0.10),
-                                   " are submitted. Please go to the Faculty Evaluations page to get started."))
+                                   " this academic year. Please complete several on the Faculty Evaluations page."))
       )
 
       # Progress bar
@@ -1368,6 +1380,31 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       }
       local$seva <- df
     }
+
+    # Data gate + Submit (periods 1-6, open period only)
+    mod_review_gate_server(
+      "gate", resident_id = resident_id,
+      enabled_r = reactive({
+        req(local$ready, local$sel_period)
+        local$sel_period %in% .GATED_PERIODS && period_mode_r() %in% c("active", "unknown")
+      }),
+      sections_done_r = reactive({
+        req(local$ready, local$sel_period)
+        identical(.period_status(local$seva, local$ilp, local$ms, local$sel_period,
+                                 resident_r())$status, "complete")
+      }),
+      saved_json_r = reactive({
+        req(local$ready, local$sel_period)
+        .saved_snapshot(local$seva, local$sel_period)
+      }),
+      save_snapshot = function(json) {
+        p <- isolate(local$sel_period)
+        f <- list(s_e_period = p, s_e_snapshot_json = json)
+        res <- .rc_save(isolate(resident_id()), "s_eval", as.integer(p), f)
+        if (isTRUE(res$success)) isolate(.merge_seva(p, f))
+        res
+      }
+    )
     .merge_ilp <- function(period, fields) {
       p <- as.character(period); df <- local$ilp
       idx <- if (!is.null(df)&&nrow(df)>0) which(as.character(df$year_resident)==p) else integer(0)
@@ -2561,6 +2598,11 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
         ps     <- .period_status(local$seva, local$ilp, local$ms, p, res_row)
         is_sel <- isTRUE(local$sel_period == p_str)
         is_act <- isTRUE(active_p == p_str)
+        # All sections done isn't submitted until the resident clicks Submit.
+        if (is_act && p_str %in% .GATED_PERIODS && ps$status == "complete" &&
+            is.na(.saved_snapshot(local$seva, p_str))) {
+          ps$status <- "in_progress"
+        }
 
         # Determine whether this period is past, active, or future
         active_chron  <- if (!is.null(active_p)) .PERIOD_CHRON[active_p]  else NA_integer_
@@ -2681,29 +2723,6 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       mode <- period_mode_r()
       pname <- .PERIOD_NAMES[[p]] %||% paste0("Period ", p)
 
-      # Hard block when faculty-eval count is critically low on an active
-      # period. Past periods remain viewable (read-only) so residents can
-      # still review prior entries; future periods already show their own
-      # lock panel. Hidden behind isolate() so data merges don't retrigger.
-      fstat <- tryCatch(isolate(fac_eval_status_r()), error = function(e) NULL)
-      # Intern-intro residents (period 7) are exempt from the faculty-eval
-      # hard-block — they haven't had a chance to complete any yet.
-      if (!is.null(fstat) && isTRUE(fstat$blocked) && mode == "active" &&
-          as.character(p) != "7") {
-        return(div(class = "text-center py-4 px-4",
-          style = paste0("background:#fff5f5; border:1px solid #ffcdd2;",
-                         " border-left:5px solid #c62828; border-radius:10px;",
-                         " margin-top:8px;"),
-          tags$i(class = "bi bi-lock-fill",
-                 style = "font-size:2rem; color:#c62828; display:block; margin-bottom:6px;"),
-          tags$p(style = "font-weight:700; color:#b71c1c; font-size:1.05rem; margin:0 0 4px;",
-                 "Self-evaluation locked"),
-          tags$p(style = "color:#6d4c41; font-size:0.95rem; max-width:520px; margin:0 auto;",
-                 "See the message above. Please complete at least ",
-                 tags$strong(paste0(ceiling(fstat$goal * 0.10), " faculty evaluations")),
-                 " this academic year before starting your self-evaluation.")))
-      }
-
       # ── Future period: blocked ──────────────────────────────────────────────
       if (mode == "future") {
         return(div(
@@ -2768,7 +2787,8 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       # later. Recomputes from the freshly-merged local state so it appears
       # immediately after the final save.
       done_ps <- isolate(.period_status(local$seva, local$ilp, local$ms, p, res))
-      complete_banner <- if (mode != "past" &&
+      # Gated periods show their submitted state in the gate's Submit panel.
+      complete_banner <- if (mode != "past" && !(p %in% .GATED_PERIODS) &&
                              isTRUE(done_ps$status == "complete")) {
         div(class = "d-flex align-items-start gap-3 mb-3 py-3 px-3",
             style = paste0("background:#e8f5e9; border:1px solid #a5d6a7;",
