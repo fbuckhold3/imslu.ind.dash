@@ -132,8 +132,8 @@ mod_learning_server <- function(id, rdm_data, resident_id) {
       div(class = "card-header border-0 d-flex align-items-center gap-2",
           style = "background:#f8fafc; border-radius:8px 8px 0 0; padding:14px 18px;",
           tags$i(class = paste0("bi bi-", ic),
-                 style = "color:var(--gmed-primary); font-size:1.1rem;"),
-          tags$span(style = "font-weight:700; color:var(--gmed-primary); font-size:1rem;", title),
+                 style = "color:var(--roundsui-accent, #3355D8); font-size:1.1rem;"),
+          tags$span(style = "font-weight:700; color:var(--roundsui-accent, #3355D8); font-size:1rem;", title),
           extra)
 
     info_banner <- function(...)
@@ -141,7 +141,7 @@ mod_learning_server <- function(id, rdm_data, resident_id) {
           style = "font-size:0.82rem; border-left:4px solid #0d6efd;",
           tags$i(class = "bi bi-info-circle me-1"), ...)
 
-    period_badge <- function(code, bg = "#e5eef0", col = "var(--gmed-primary)")
+    period_badge <- function(code, bg = "#e5eef0", col = "var(--roundsui-accent, #3355D8)")
       div(class = "mb-3",
           tags$span(style = paste0("background:", bg, "; color:", col,
                                    "; border-radius:20px; padding:3px 12px;",
@@ -198,7 +198,7 @@ mod_learning_server <- function(id, rdm_data, resident_id) {
               style = "display:flex; align-items:center; gap:10px; margin-bottom:5px;",
               tags$span(style = paste0("min-width:10px; width:10px; height:10px; border-radius:50%;",
                                        " background:", col, "; display:inline-block; flex-shrink:0;")),
-              tags$span(style = "font-size:0.88rem; color:var(--gmed-text-primary); flex:1;", lbl_t),
+              tags$span(style = "font-size:0.88rem; color:var(--roundsui-ink, #13161F); flex:1;", lbl_t),
               tags$span(style = paste0("font-size:0.75rem; font-weight:600; color:", col, ";",
                                        " white-space:nowrap;"), lbl_v)
             )
@@ -224,7 +224,7 @@ mod_learning_server <- function(id, rdm_data, resident_id) {
             div(class = "mb-3",
               sec_lbl("bullseye", "Learning Goals (Entering Residency)"),
               tags$ol(class = "mb-0 ps-4",
-                style = "font-size:0.95rem; color:var(--gmed-text-primary); line-height:1.8;",
+                style = "font-size:0.95rem; color:var(--roundsui-ink, #13161F); line-height:1.8;",
                 lapply(goals, function(g) tags$li(as.character(g))))
             )
           else
@@ -305,7 +305,7 @@ mod_learning_server <- function(id, rdm_data, resident_id) {
               tags$p(style=paste0("font-size:0.72rem; font-weight:700; text-transform:uppercase;",
                                   " letter-spacing:.07em; color:",cfg$color,"; margin-bottom:8px;"),
                 tags$i(class=paste0("bi bi-",cfg$icon," me-1")), cfg$label),
-              if (has_g) tags$p(style="font-size:0.93rem; font-weight:600; color:var(--gmed-text-primary); margin-bottom:6px;",
+              if (has_g) tags$p(style="font-size:0.93rem; font-weight:600; color:var(--roundsui-ink, #13161F); margin-bottom:6px;",
                                 as.character(g_val)),
               if (has_h) tags$p(style="font-size:0.87rem; color:#5d6d7e; line-height:1.6; margin:0;",
                 tags$strong("Plan: "), as.character(h_val))
@@ -409,7 +409,7 @@ mod_learning_server <- function(id, rdm_data, resident_id) {
             ),
             div(class="col-md-6",
               sec_lbl("star-fill", "Preferred Learning Experiences", "0.78rem"),
-              mk_chips(styles_labels, "var(--gmed-secondary)", "check-circle-fill")
+              mk_chips(styles_labels, "var(--roundsui-accent, #3355D8)", "check-circle-fill")
             )
           )
         )
@@ -654,7 +654,7 @@ mod_learning_server <- function(id, rdm_data, resident_id) {
       div(class="card border-0 shadow-sm", style="border-radius:8px;",
         card_hdr("journal-text", "Daily Question Log",
           tags$span(class="ms-auto badge",
-            style=paste0("background:#e5eef0; color:var(--gmed-primary); font-size:0.75rem;",
+            style=paste0("background:#e5eef0; color:var(--roundsui-accent, #3355D8); font-size:0.75rem;",
                          " font-weight:600; border-radius:20px; padding:4px 10px;"),
             paste0(format(n_q, big.mark=","), " entries"))),
         div(class="card-body",
@@ -694,7 +694,7 @@ mod_learning_server <- function(id, rdm_data, resident_id) {
                   tags$i(class=paste0("bi bi-",ic),
                          style=paste0("font-size:1.3rem; color:",col,"; opacity:0.85;")),
                   tags$p(class="mb-0 mt-1",
-                    style="font-size:1.8rem; font-weight:700; color:var(--gmed-primary);",
+                    style="font-size:1.8rem; font-weight:700; color:var(--roundsui-accent, #3355D8);",
                     val),
                   tags$p(class="mb-0",
                     style="font-size:0.72rem; text-transform:uppercase; letter-spacing:.07em; color:#6c757d;",
@@ -709,9 +709,9 @@ mod_learning_server <- function(id, rdm_data, resident_id) {
               # Stat strip
               div(class="row g-3 mb-4",
                 stat_card(format(rate_pw, nsmall=1), "Per Week Avg",
-                          "bar-chart-fill", "var(--gmed-primary)"),
+                          "bar-chart-fill", "var(--roundsui-accent, #3355D8)"),
                 stat_card(last_mo_n, "Last 30 Days",
-                          "calendar-month-fill", "var(--gmed-secondary)"),
+                          "calendar-month-fill", "var(--roundsui-accent, #3355D8)"),
                 stat_card(yr_n, "This Acad. Year",
                           "calendar-check-fill", "#27ae60")
               ),
@@ -726,11 +726,11 @@ mod_learning_server <- function(id, rdm_data, resident_id) {
                       pct   <- round(cnt / max_cnt * 100)
                       div(style="display:flex; align-items:center; gap:10px; margin-bottom:6px;",
                         tags$span(style=paste0("min-width:130px; font-size:0.85rem;",
-                                               " font-weight:600; color:var(--gmed-text-primary);"), rname),
+                                               " font-weight:600; color:var(--roundsui-ink, #13161F);"), rname),
                         div(style=paste0("flex:1; background:#e9ecef; border-radius:4px; height:16px;",
                                          " overflow:hidden;"),
                           div(style=paste0("width:",pct,"%; height:100%;",
-                                           " background:var(--gmed-secondary); border-radius:4px;",
+                                           " background:var(--roundsui-accent, #3355D8); border-radius:4px;",
                                            " transition:width .3s;"))),
                         tags$span(style="font-size:0.83rem; color:#6c757d; min-width:24px;",
                                   cnt)
