@@ -150,8 +150,14 @@ mod_review_gate_server <- function(id, resident_id, enabled_r, sections_done_r,
     )
     observeEvent(saved_days(), recheck(), ignoreInit = TRUE)
 
+    # Queue holds exactly the days the gate counts: scheduled (not off)
+    # days in the gate window (Oct 1 in AY 2026-27, Jul 1 after) through
+    # yesterday.
     amiontools::mod_duty_hour_page_server(
-      "duty", resident_id = resident_id, rdm_token = token, redcap_url = url
+      "duty", resident_id = resident_id, rdm_token = token, redcap_url = url,
+      queue_from    = function() reviewkit::review_window()$start,
+      queue_through = function() reviewkit::review_window()$end,
+      skip_off_days = TRUE
     )
 
     # ── Display ─────────────────────────────────────────────────────────
