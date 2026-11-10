@@ -437,6 +437,26 @@
        date = val("s_e_gate_override_date"))
 }
 
+# REDCap field holding a milestone's description. SBP 1 is the one field
+# named differently in the dictionary (rep_sbp1_self_desc1).
+.ms_desc_field <- function(fld) {
+  if (identical(unname(fld), "rep_sbp1_self")) "rep_sbp1_self_desc1" else paste0(fld, "_desc")
+}
+
+# TRUE when the milestone form holds nothing that isn't already saved.
+# Blank descriptions don't count: the save never writes them.
+.ms_unchanged <- function(scores, descs, saved_scores, saved_descs) {
+  for (k in names(scores)) {
+    a <- suppressWarnings(as.integer(scores[[k]]))
+    b <- suppressWarnings(as.integer(saved_scores[[k]]))
+    if (length(b) != 1 || is.na(b) || length(a) != 1 || is.na(a) || a != b) return(FALSE)
+    d <- descs[[k]]
+    if (!is.null(d) && nzchar(trimws(as.character(d))) &&
+        !identical(as.character(d), as.character(saved_descs[[k]]))) return(FALSE)
+  }
+  TRUE
+}
+
 .period_status <- function(seva, ilp, ms_data, period, res = NULL) {
   p  <- as.character(period)
   sr <- if (!is.null(seva) && nrow(seva)>0) seva[as.character(seva$s_e_period)==p,] else NULL
@@ -1263,7 +1283,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       if (nrow(df) == 0) return(NULL)
       out <- list()
       for (k in names(.MS_FIELD_MAP)) {
-        fld <- paste0(.MS_FIELD_MAP[[k]], "_desc")
+        fld <- .ms_desc_field(.MS_FIELD_MAP[[k]])
         if (fld %in% names(df)) {
           v <- df[[fld]][1]
           if (!is.na(v) && nzchar(as.character(v))) out[[k]] <- as.character(v)
@@ -1280,9 +1300,9 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
                                                 initial_descs  = cur_ms_descs_r)
 
     # Shared save helper — called both from debounced auto-save and on done()
-    # All 22 milestone self-eval fields have a matching <fld>_desc column in
-    # REDCap (verified against RDM20 data dict 2026-04-10), so descriptions
-    # save unconditionally for every rated subcompetency.
+    # Every milestone self-eval field has a description column in REDCap
+    # (see .ms_desc_field), so descriptions save for every rated
+    # subcompetency.
     .save_milestone_scores <- function(scores, descs, p) {
       if (length(scores) == 0 || is.null(p)) return(invisible(NULL))
       field_map <- get_milestone_field_mapping_rdm2("milestone_selfevaluation_c33c")
@@ -1293,7 +1313,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
         if (!is.na(rdm_fld)) {
           fields[[rdm_fld]] <- as.character(scores[[key]])
           if (!is.null(descs[[key]]) && nzchar(trimws(descs[[key]])))
-            fields[[paste0(rdm_fld, "_desc")]] <- descs[[key]]
+            fields[[.ms_desc_field(rdm_fld)]] <- descs[[key]]
         }
       }
       message("[milestone save] record=", resident_id(),
@@ -1361,6 +1381,10 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
         }, logical(1))
         if (any(pending)) return()
       }
+      # Opening a period prefills saved ratings, which looks like a change.
+      # Saving them back would only restamp prog_mile_date_self.
+      if (.ms_unchanged(sig$scores, sig$descs,
+                        isolate(cur_ms_scores_r()), isolate(cur_ms_descs_r()))) return()
       # Skip if this exact payload was just saved
       sig_str <- rlang::hash(list(sig, local$sel_period))
       if (isTRUE(identical(sig_str, isolate(last_sig())))) return()
