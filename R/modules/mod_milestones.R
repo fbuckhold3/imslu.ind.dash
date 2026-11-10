@@ -432,7 +432,7 @@ mod_milestones_ui <- function(id) {
     div(
       class = "d-flex align-items-center gap-2 mb-3 flex-wrap",
       tags$span("Assessment period:",
-                style = "font-size:0.9rem; font-weight:600; color:var(--gmed-primary); white-space:nowrap;"),
+                style = "font-size:0.9rem; font-weight:600; color:var(--roundsui-accent, #3355D8); white-space:nowrap;"),
       uiOutput(ns("period_pills"))
     ),
 
@@ -497,7 +497,7 @@ mod_milestones_ui <- function(id) {
         div(
           class = "d-flex align-items-center flex-wrap gap-3 mb-2",
           tags$span("Individual Progression",
-                    style = "font-weight:700; font-size:0.9rem; color:var(--gmed-primary);"),
+                    style = "font-weight:700; font-size:0.9rem; color:var(--roundsui-accent, #3355D8);"),
           div(
             class = "ms-auto d-flex align-items-center flex-wrap gap-3",
             div(

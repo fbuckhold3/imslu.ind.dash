@@ -9,12 +9,12 @@ ui <- roundsui::roundsui_page(
 
   useShinyjs(),
 
-  # roundsui_page() doesn't load gmed's CSS the way gmed_page() did -
-  # this app's own milestone_dashboard.css (login screen, EKG animation)
-  # reads --gmed-* custom properties directly, so it still needs gmed's
-  # stylesheet loaded alongside roundsui's. Non-colliding token prefixes
-  # (--gmed-*/--roundsui-*) by design - this is the documented supported
-  # way to run both during a migration, not a workaround.
+  # gmed's stylesheet is still loaded ONLY for its component classes this
+  # app renders (.gmed-card in mod_milestones, .gmed-nav-* home/resources
+  # grid, .gmed-login-*) and its 19px root font size. No --gmed-* color
+  # tokens are referenced here any more (moved to --roundsui-*), and gmed's
+  # own --gmed-* tokens now resolve to roundsui values. Retire this call
+  # once those classes are swapped for roundsui components.
   gmed::load_gmed_styles(),
 
   tags$head(

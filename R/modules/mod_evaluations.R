@@ -70,7 +70,7 @@ mod_evaluations_server <- function(id, rdm_data, resident_id) {
           div(style = "margin-top:6px;",
             lapply(names(tbl), function(yr)
               tags$span(
-                style = paste0("display:inline-block; background:#e5eef0; color:var(--gmed-primary);",
+                style = paste0("display:inline-block; background:#e5eef0; color:var(--roundsui-accent, #3355D8);",
                                "border-radius:20px; padding:3px 12px; font-size:0.78rem;",
                                "font-weight:600; margin:2px;"),
                 paste0(yr, ": ", tbl[[yr]])
@@ -81,7 +81,7 @@ mod_evaluations_server <- function(id, rdm_data, resident_id) {
       }
 
       stat_card <- function(value, label, icon_name,
-                            color = "var(--ssm-primary-blue)", extra = NULL) {
+                            color = "var(--roundsui-accent, #3355D8)", extra = NULL) {
         div(class = "col-sm-4",
           div(
             class = "card text-center border-0 shadow-sm py-3 px-2",
@@ -89,10 +89,10 @@ mod_evaluations_server <- function(id, rdm_data, resident_id) {
             tags$i(class  = paste0("bi bi-", icon_name),
                    style  = paste0("font-size:1.6rem; color:", color, "; opacity:0.8;")),
             tags$p(class  = "mb-0 mt-2",
-                   style  = "font-size:1.9rem; font-weight:700; color:var(--ssm-primary-blue); line-height:1.1;",
+                   style  = "font-size:1.9rem; font-weight:700; color:var(--roundsui-accent, #3355D8); line-height:1.1;",
                    value),
             tags$p(class  = "mb-0 mt-1",
-                   style  = "font-size:0.75rem; color:var(--ssm-text-muted); text-transform:uppercase; letter-spacing:.07em;",
+                   style  = "font-size:0.75rem; color:var(--roundsui-ink-faint, #8991A0); text-transform:uppercase; letter-spacing:.07em;",
                    label),
             extra
           )
@@ -112,7 +112,7 @@ mod_evaluations_server <- function(id, rdm_data, resident_id) {
             else "\u2014"
           },
           "Date Range", "calendar3-fill",
-          color = "var(--ssm-secondary-blue)"
+          color = "var(--roundsui-accent, #3355D8)"
         )
       )
     })

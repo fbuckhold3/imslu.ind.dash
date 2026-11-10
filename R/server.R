@@ -282,7 +282,7 @@ server <- function(input, output, session) {
           "border-radius: 10px;",
           "padding: 10px 16px;",
           "box-shadow: 0 2px 8px rgba(0,61,92,0.07);",
-          "border-left: 4px solid var(--ssm-secondary-blue);"
+          "border-left: 4px solid var(--roundsui-accent, #3355D8);"
         ),
         tags$button(
           class   = "btn btn-sm btn-outline-secondary me-3",
@@ -291,20 +291,20 @@ server <- function(input, output, session) {
         ),
         tags$i(
           class = paste0("bi bi-", section_icon, " me-2"),
-          style = "color: var(--ssm-secondary-blue); font-size: 1.15rem;"
+          style = "color: var(--roundsui-accent, #3355D8); font-size: 1.15rem;"
         ),
         tags$span(
           section_label,
-          style = "font-weight: 700; font-size: 1.1rem; color: var(--ssm-primary-blue);"
+          style = "font-weight: 700; font-size: 1.1rem; color: var(--roundsui-accent, #3355D8);"
         ),
         # Right side: resident name + coach + sign out
         div(
           class = "ms-auto d-flex align-items-center gap-2",
           div(
             style = "text-align:right; font-size:0.875rem; line-height:1.4;",
-            tags$div(style = "font-weight:600; color:var(--ssm-primary-blue);", res_name),
+            tags$div(style = "font-weight:600; color:var(--roundsui-accent, #3355D8);", res_name),
             if (!is.null(coach_name))
-              tags$div(style = "font-size:0.8rem; color:var(--gmed-text-secondary);", paste0("Coach: ", coach_name))
+              tags$div(style = "font-size:0.8rem; color:var(--roundsui-ink-muted, #5B6472);", paste0("Coach: ", coach_name))
           ),
           sign_out_btn
         )

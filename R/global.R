@@ -217,7 +217,7 @@ info_note <- function(..., summary = "About this section") {
 section_placeholder <- function(icon_name, msg = "Content coming soon") {
   div(
     class = "d-flex flex-column align-items-center justify-content-center py-5",
-    style = "color: var(--ssm-text-muted);",
+    style = "color: var(--roundsui-ink-faint, #8991A0);",
     tags$i(
       class = paste0("bi bi-", icon_name),
       style = "font-size: 3rem; opacity: 0.25; margin-bottom: 16px;"
