@@ -45,8 +45,12 @@ mod_review_gate_submit_ui <- function(id) {
 # sections_done_r: TRUE when every section of that period is complete.
 # saved_json_r: the period's stored s_e_snapshot_json, or NA/NULL.
 # save_snapshot: function(json) -> list(success, message); writes the snapshot.
+# override_r: the period's gate override, list(reason, by, date), or NULL.
+#   An overridden period can be submitted with the gate failing; the
+#   snapshot still stores the real numbers.
 mod_review_gate_server <- function(id, resident_id, enabled_r, sections_done_r,
-                                   saved_json_r, save_snapshot) {
+                                   saved_json_r, save_snapshot,
+                                   override_r = reactive(NULL)) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
     state <- reactiveVal(NULL)
@@ -122,7 +126,7 @@ mod_review_gate_server <- function(id, resident_id, enabled_r, sections_done_r,
       submitting(FALSE)
       s <- state()
       if (!isTRUE(sections_done_r()) || isTRUE(submitted())) return(invisible())
-      if (!isTRUE(s$gate$pass)) {
+      if (!isTRUE(s$gate$pass) && is.null(override_r())) {
         failing <- c(if (!s$gate$duty$pass) s$gate$duty$message,
                      if (!s$gate$conference$pass) s$gate$conference$message)
         submit_msg(list(ok = FALSE, text = paste("Not submitted yet.", paste(failing, collapse = " "))))
@@ -168,6 +172,21 @@ mod_review_gate_server <- function(id, resident_id, enabled_r, sections_done_r,
         tags$span(text))
     }
 
+    override_note <- function() {
+      o <- override_r()
+      if (is.null(o)) return(NULL)
+      who  <- if (!is.na(o$by)) paste0(" by ", o$by) else ""
+      when <- if (!is.na(o$date)) paste0(" on ", trimws(format(as.Date(o$date), "%B %e"))) else ""
+      div(class = "mb-3 py-2 px-3",
+          style = "background:#e8f5e9; border-left:5px solid #2e7d32; border-radius:8px;",
+        tags$div(style = "font-weight:700; color:#1b5e20;",
+                 tags$i(class = "bi bi-unlock-fill me-1"),
+                 paste0("The data check was cleared for you", who, when, ".")),
+        if (!is.na(o$reason)) tags$div(style = "color:#2e7d32;", o$reason),
+        tags$div(class = "small text-muted mt-1",
+                 "You can submit even if the items below aren't current. Please still update what you can."))
+    }
+
     output$status <- renderUI({
       running <- task$status() == "running"
       s <- state()
@@ -183,6 +202,7 @@ mod_review_gate_server <- function(id, resident_id, enabled_r, sections_done_r,
       }
       n <- s$gate$nudges
       tagList(
+        override_note(),
         check_row(s$gate$duty$pass, s$gate$duty$message),
         check_row(s$gate$conference$pass, s$gate$conference$message),
         tags$div(class = "mt-3 small text-muted", "Also worth a look (these don't block submission):"),

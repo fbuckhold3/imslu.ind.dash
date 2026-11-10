@@ -422,6 +422,21 @@
   if (length(v)) v[1] else NA_character_
 }
 
+# This period's gate override (s_e_gate_override = Yes), set by the PD /
+# program office in REDCap: list(reason, by, date), or NULL.
+.gate_override <- function(seva, period) {
+  if (is.null(seva) || nrow(seva) == 0 || !"s_e_gate_override" %in% names(seva)) return(NULL)
+  r <- seva[as.character(seva$s_e_period) == as.character(period) &
+              as.character(seva$s_e_gate_override) %in% c("1", "Yes"), , drop = FALSE]
+  if (nrow(r) == 0) return(NULL)
+  val <- function(f) {
+    v <- if (f %in% names(r)) as.character(r[[f]][1]) else NA_character_
+    if (is.na(v) || !nzchar(trimws(v))) NA_character_ else trimws(v)
+  }
+  list(reason = val("s_e_gate_override_reason"), by = val("s_e_gate_override_by"),
+       date = val("s_e_gate_override_date"))
+}
+
 .period_status <- function(seva, ilp, ms_data, period, res = NULL) {
   p  <- as.character(period)
   sr <- if (!is.null(seva) && nrow(seva)>0) seva[as.character(seva$s_e_period)==p,] else NULL
@@ -1396,6 +1411,10 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       saved_json_r = reactive({
         req(local$ready, local$sel_period)
         .saved_snapshot(local$seva, local$sel_period)
+      }),
+      override_r = reactive({
+        req(local$ready, local$sel_period)
+        .gate_override(local$seva, local$sel_period)
       }),
       save_snapshot = function(json) {
         p <- isolate(local$sel_period)
