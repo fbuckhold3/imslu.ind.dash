@@ -98,9 +98,14 @@ mod_review_gate_server <- function(id, resident_id, enabled_r, sections_done_r,
       state(NULL); load_error(NULL); submit_msg(NULL); submitting(FALSE)
     })
 
+    # Every module starts at login, so wait until this panel is actually
+    # on screen: the check loads all of RDM plus Amion. The key doesn't
+    # exist until the self-eval tab has rendered.
+    on_screen <- reactive(isFALSE(session$clientData[[paste0("output_", ns("status"), "_hidden")]]))
+
     # First look at an open period: run the check once.
-    observeEvent(show_gate(), {
-      if (isTRUE(show_gate()) && is.null(state())) recheck()
+    observeEvent(list(show_gate(), on_screen()), {
+      if (isTRUE(show_gate()) && on_screen() && is.null(state())) recheck()
     })
     observeEvent(input$recheck, recheck())
 
