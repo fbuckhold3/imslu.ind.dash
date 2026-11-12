@@ -34,6 +34,16 @@
 .PREP_SCALE <- c("1"="Not at all prepared","2"="Slightly","3"="Moderately",
                  "4"="Very","5"="Extremely prepared")
 
+# Rating at/above which a milestone needs a written description, by period
+# code. Same thresholds as .ms_thresholds in the server (by period name) and
+# gmed::mod_miles_rating_server.
+.MS_DESC_MIN <- c("7"=3, "1"=4, "2"=5, "3"=6, "4"=7, "5"=8, "6"=9)
+.ms_desc_note <- function(p) {
+  n <- .MS_DESC_MIN[as.character(p)]
+  if (is.na(n)) "Higher ratings require a brief description."
+  else paste0("Ratings of ", n, " or higher require a brief description.")
+}
+
 # ILP goal subcompetency choices — values are REDCap numeric codes for each dropdown
 .SUBCOMP_CHOICES <- list(
   pcmk = c(
@@ -845,7 +855,14 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       if (is.null(s)) return(NULL)
 
       left <- max(0L, s$need - s$done)
-      spec <- if (s$met)
+      # Gate cleared for this period: say so instead of "to open".
+      ov <- tryCatch(.gate_override(local$seva, local$sel_period), error = function(e) NULL)
+      spec <- if (!s$met && !is.null(ov))
+        list(bg="#e3f2fd", border="#1565c0", icon="info-circle-fill", ic_col="#1565c0",
+             head="Faculty evaluations: the data check was cleared for this period.",
+             body=paste0("You've done ", s$done, " of the ", s$need,
+                         " expected this academic year. It doesn't block you now, but please complete the rest."))
+      else if (s$met)
         list(bg="#e8f5e9", border="#2e7d32", icon="check-circle-fill", ic_col="#2e7d32",
              head="Faculty evaluations done for your self-evaluation.",
              body=paste0("You've completed ", s$done, " this academic year (", s$need,
@@ -1425,7 +1442,8 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       }),
       save_snapshot = function(json) {
         p <- isolate(local$sel_period)
-        f <- list(s_e_period = p, s_e_snapshot_json = json)
+        # s_eval_complete = 2 (Complete) so REDCap reports agree with the app.
+        f <- list(s_e_period = p, s_e_snapshot_json = json, s_eval_complete = "2")
         res <- .rc_save(isolate(resident_id()), "s_eval", as.integer(p), f)
         if (isTRUE(res$success)) isolate(.merge_seva(p, f))
         res
@@ -1433,6 +1451,11 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
     )
     .merge_ilp <- function(period, fields) {
       p <- as.character(period); df <- local$ilp
+      # The ILP save passes year_resident in fields; adding it again made a
+      # duplicate column (renamed year_resident...2), so the period's row was
+      # never found and Submit didn't appear until a reload (found
+      # 2026-11-12). Same guard as .merge_seva.
+      fields <- fields[setdiff(names(fields), c("year_resident", "redcap_repeat_instance"))]
       idx <- if (!is.null(df)&&nrow(df)>0) which(as.character(df$year_resident)==p) else integer(0)
       if (length(idx)>0) { for (fld in names(fields)) df[idx[1],fld] <- as.character(fields[[fld]]) }
       else df <- dplyr::bind_rows(df, as.data.frame(c(
@@ -2422,6 +2445,14 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
                        (nzchar(.fv(res_now, "usmle_step3_score")) ||
                         nzchar(.fv(res_now, "comlex_step3_score")))
       step3_val <- if (score_on_file) "1" else (input$s_e_step3 %||% "")
+      # Not clicked this session: keep the saved answer rather than blanking it.
+      if (!nzchar(step3_val)) step3_val <- .fv(tryCatch(sel_seva(), error = function(e) NULL), "s_e_step3")
+      # Step 3 is the question that completes this section; without it the
+      # section used to "save" and move on while staying incomplete.
+      if (!nzchar(step3_val)) {
+        ss$boards <- list(success = FALSE, message = "Answer the Step 3 question before saving.")
+        return()
+      }
       f <- list(s_e_period=p,
                 s_e_step3         = step3_val,
                 s_e_step3_date_set= input$s_e_step3_date_set  %||% "",
@@ -3340,7 +3371,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
               saved = .section_complete("milestones", sr, NULL, md, res),
       div(class="d-flex align-items-center justify-content-between mb-3",
         tags$p(class="text-muted mb-0", style="font-size:0.82rem;",
-               "Rate yourself on each ACGME milestone. Ratings of 4+ require a brief description. Your previously saved ratings will load automatically — review and edit as needed."),
+               paste("Rate yourself on each ACGME milestone.", .ms_desc_note(p), "Your previously saved ratings will load automatically — review and edit as needed.")),
         uiOutput(ns("milestone_save_status"))),
       uiOutput(ns("milestone_ui"))),
 
@@ -3505,7 +3536,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
                    collapsed=FALSE,
       div(class="d-flex align-items-center justify-content-between mb-3",
         tags$p(class="text-muted mb-0", style="font-size:0.82rem;",
-               "Rate yourself on each ACGME milestone. Ratings of 4+ require a brief description."),
+               paste("Rate yourself on each ACGME milestone.", .ms_desc_note(p))),
         uiOutput(ns("milestone_save_status"))),
       uiOutput(ns("milestone_ui"))),
 
@@ -3660,7 +3691,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
               collapsed=FALSE,
       div(class="d-flex align-items-center justify-content-between mb-3",
         tags$p(class="text-muted mb-0", style="font-size:0.82rem;",
-               "Rate yourself on each ACGME milestone. Ratings of 4+ require a brief description."),
+               paste("Rate yourself on each ACGME milestone.", .ms_desc_note(p))),
         uiOutput(ns("milestone_save_status"))),
       uiOutput(ns("milestone_ui")))
   )

@@ -1122,17 +1122,17 @@
         "RemoteHost": "api.github.com",
         "RemoteRepo": "gmed",
         "RemoteUsername": "fbuckhold3",
-        "RemoteRef": "61c250db23d3b881fd5c79a6ddfca266333d3ab7",
-        "RemoteSha": "61c250db23d3b881fd5c79a6ddfca266333d3ab7",
+        "RemoteRef": "46dcc2f69d06d08f5984fafdfc72a25cbe477bca",
+        "RemoteSha": "46dcc2f69d06d08f5984fafdfc72a25cbe477bca",
         "GithubRepo": "gmed",
         "GithubUsername": "fbuckhold3",
-        "GithubRef": "61c250db23d3b881fd5c79a6ddfca266333d3ab7",
-        "GithubSHA1": "61c250db23d3b881fd5c79a6ddfca266333d3ab7",
+        "GithubRef": "46dcc2f69d06d08f5984fafdfc72a25cbe477bca",
+        "GithubSHA1": "46dcc2f69d06d08f5984fafdfc72a25cbe477bca",
         "NeedsCompilation": "no",
-        "Packaged": "2026-11-11 01:40:21 UTC; home_base",
+        "Packaged": "2026-11-12 16:48:11 UTC; home_base",
         "Author": "First Last [aut, cre]",
         "Maintainer": "First Last <first.last@example.com>",
-        "Built": "R 4.6.0; ; 2026-11-11 01:40:22 UTC; unix"
+        "Built": "R 4.6.0; ; 2026-11-12 16:48:12 UTC; unix"
       }
     },
     "gtable": {
@@ -3301,7 +3301,7 @@
       "checksum": "8a2896ff160f79c1a80a1affdc0baa56"
     },
     "R/modules/mod_learning.R": {
-      "checksum": "b5602b4ab2c8c2a937c597f8ada1a4b7"
+      "checksum": "dedfc2115c5e1ffa551163775008f787"
     },
     "R/modules/mod_milestones.R": {
       "checksum": "31bea5e6b2dbb389b3ac7d95d2339a50"
@@ -3310,7 +3310,7 @@
       "checksum": "df0dfdbe3788383bb88a92b75ff4d608"
     },
     "R/modules/mod_review_gate.R": {
-      "checksum": "ae426890cc71297e5723d76418efc921"
+      "checksum": "f437ea030d5aa7c0329f1aa765937112"
     },
     "R/modules/mod_schedule.R": {
       "checksum": "0097c943e50a0ffb2345bcde39c25ea1"
@@ -3325,7 +3325,7 @@
       "checksum": "0504af91f5aeea96ba1d8d26fd8eba94"
     },
     "R/modules/mod_self_eval.R": {
-      "checksum": "1848cd9310f8c064a6f0ebe1f584962a"
+      "checksum": "723732d820503f62b5b16aad0672bd74"
     },
     "R/server.R": {
       "checksum": "b0fb43d805c38bb7fc6b5ffcfeda4776"
@@ -3334,7 +3334,7 @@
       "checksum": "9ee43b5b51934125010b8316006261f2"
     },
     "renv.lock": {
-      "checksum": "12840dbb07638cd1966bcdeb8b45420d"
+      "checksum": "42221b821da54ac3c32b04168c01952a"
     },
     "scripts/make_fake_2042.R": {
       "checksum": "286c3a399c6981dbe5f9694b8eda534b"
