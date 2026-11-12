@@ -4,7 +4,9 @@
 #   2. Topics & Styles     — Checkbox-decoded from most recent s_eval
 #   3. ITE / Board Scores  — % correct trajectory (primary) → risk banner
 #                            → percentile trajectory (colored) → specialty table
-#   4. Daily Question Log  — Rate stats + rotation breakdown
+#   4. MKSAP Progress      — latest import + history (mksap_progress form).
+#                            Replaced the "Daily Question Log" card, which
+#                            counted noon-conference check-ins (Fred, 2026-11-12).
 #
 # s_e_ field notes:
 #   Intern-specific (ume annotation): s_e_ume_goal1/2/3, s_e_prep_1-17, s_e_ume_concern
@@ -40,7 +42,7 @@ mod_learning_ui <- function(id) {
     uiOutput(ns("goals_section")),
     div(class = "mt-4", uiOutput(ns("topics_section"))),
     div(class = "mt-4", uiOutput(ns("ite_section"))),
-    div(class = "mt-4", uiOutput(ns("questions_section")))
+    div(class = "mt-4", uiOutput(ns("mksap_section")))
   )
 }
 
@@ -82,13 +84,26 @@ mod_learning_server <- function(id, rdm_data, resident_id) {
       }
       td
     })
-    questions_r <- reactive({
+    # One row per MKSAP import for this resident, newest first.
+    mksap_r <- reactive({
       req(rdm_data(), resident_id())
-      df <- rdm_data()$all_forms$questions
+      df <- rdm_data()$all_forms$mksap_progress
       if (is.null(df) || nrow(df) == 0) return(NULL)
-      # A "did not attend" entry is not a question-log entry.
-      if ("q_attended" %in% names(df)) df <- df[!df$q_attended %in% "0", , drop = FALSE]
-      df %>% dplyr::filter(record_id == resident_id())
+      if ("redcap_repeat_instrument" %in% names(df))
+        df <- df[!is.na(df$redcap_repeat_instrument) & df$redcap_repeat_instrument == "mksap_progress", , drop = FALSE]
+      df <- df[as.character(df$record_id) == as.character(resident_id()), , drop = FALSE]
+      num <- function(x) suppressWarnings(as.numeric(as.character(x)))
+      out <- data.frame(
+        date        = suppressWarnings(as.Date(as.character(df$mk_export_date))),
+        tracker     = as.character(df$mk_tracker %||% rep(NA, nrow(df))),
+        total       = num(df$mk_total_questions),
+        n_complete  = num(df$mk_n_complete),
+        pct_complete = num(df$mk_pct_complete),
+        pct_correct = num(df$mk_pct_correct),
+        stringsAsFactors = FALSE)
+      out <- out[!is.na(out$date), , drop = FALSE]
+      if (nrow(out) == 0) return(NULL)
+      out[order(out$date, decreasing = TRUE), , drop = FALSE]
     })
     data_dict_r <- reactive({ req(rdm_data()); rdm_data()$data_dict })
 
@@ -640,53 +655,29 @@ mod_learning_server <- function(id, rdm_data, resident_id) {
     })
 
     # =========================================================================
-    # 4.  DAILY QUESTION LOG
+    # 4.  MKSAP PROGRESS
     # =========================================================================
-    ROT_LKP <- c("1"="Red","2"="Green","3"="White","4"="Yellow","5"="Diamond",
-                 "6"="Gold","7"="MICU","8"="Bronze","9"="Cardiology",
-                 "10"="Bridge/Acute","11"="Consults-SLUH","12"="Elective/Clinics",
-                 "13"="VA-A","14"="VA-B","15"="VA-C","16"="VA-D","17"="VA Clinics")
-
-    output$questions_section <- renderUI({
-      df <- questions_r()
-      n_q <- if (!is.null(df) && nrow(df) > 0) nrow(df) else 0L
+    output$mksap_section <- renderUI({
+      m <- mksap_r()
+      fmt <- function(x, suffix = "") if (is.na(x)) "\u2014" else paste0(format(round(x, 1), big.mark = ","), suffix)
+      tracker_lbl <- function(t) {
+        if (is.na(t) || !nzchar(t)) return(NULL)
+        switch(t, "1" = "ACP MKSAP (current)", "2" = "MKSAP 19", t)
+      }
 
       div(class="card border-0 shadow-sm", style="border-radius:8px;",
-        card_hdr("journal-text", "Daily Question Log",
-          tags$span(class="ms-auto badge",
-            style=paste0("background:#e5eef0; color:var(--roundsui-accent, #3355D8); font-size:0.75rem;",
-                         " font-weight:600; border-radius:20px; padding:4px 10px;"),
-            paste0(format(n_q, big.mark=","), " entries"))),
+        card_hdr("journal-check", "MKSAP Progress",
+          if (!is.null(m))
+            tags$span(class="ms-auto small text-muted",
+                      paste0("As of ", trimws(format(m$date[1], "%B %e, %Y"))))),
         div(class="card-body",
-          if (n_q == 0L)
+          if (is.null(m))
             div(class="d-flex flex-column align-items-center py-4", style="color:#adb5bd;",
               tags$i(class="bi bi-journal-x",
                      style="font-size:2.5rem; opacity:0.35; margin-bottom:12px;"),
-              tags$p("No question log entries yet.", style="font-size:0.92rem; margin:0;")
-            )
+              tags$p("No MKSAP progress imported for you yet.", style="font-size:0.92rem; margin:0;"))
           else {
-            dates  <- as.Date(df$q_date[!is.na(df$q_date)])
-            today  <- Sys.Date()
-
-            # Stat calculations
-            wks_all <- length(unique(lubridate::floor_date(dates, "week")))
-            rate_pw  <- if (wks_all > 0) round(n_q / wks_all, 1) else 0
-
-            last_mo_dates <- dates[dates >= (today - 30)]
-            last_mo_n     <- length(last_mo_dates)
-
-            yr_start      <- as.Date(paste0(
-              if (as.numeric(format(today,"%m")) >= 7) format(today,"%Y") else
-                as.character(as.numeric(format(today,"%Y")) - 1), "-07-01"))
-            yr_n          <- sum(dates >= yr_start, na.rm=TRUE)
-
-            # Rotation breakdown
-            rot_raw <- as.character(df$q_rotation)
-            rot_lbl <- unname(ROT_LKP[rot_raw])
-            rot_lbl[is.na(rot_lbl)] <- paste0("Rotation ", rot_raw[is.na(rot_lbl)])
-            rot_counts <- sort(table(rot_lbl), decreasing=TRUE)
-            max_cnt <- max(rot_counts, na.rm=TRUE)
-
+            r <- m[1, ]
             stat_card <- function(val, lbl, ic, col)
               div(class="col-4",
                 div(class="card border-0 shadow-sm text-center py-3",
@@ -694,50 +685,34 @@ mod_learning_server <- function(id, rdm_data, resident_id) {
                   tags$i(class=paste0("bi bi-",ic),
                          style=paste0("font-size:1.3rem; color:",col,"; opacity:0.85;")),
                   tags$p(class="mb-0 mt-1",
-                    style="font-size:1.8rem; font-weight:700; color:var(--roundsui-accent, #3355D8);",
-                    val),
+                    style="font-size:1.8rem; font-weight:700; color:var(--roundsui-accent, #3355D8);", val),
                   tags$p(class="mb-0",
-                    style="font-size:0.72rem; text-transform:uppercase; letter-spacing:.07em; color:#6c757d;",
-                    lbl)
-                )
-              )
-
+                    style="font-size:0.72rem; text-transform:uppercase; letter-spacing:.07em; color:#6c757d;", lbl)))
+            pct <- if (is.na(r$pct_complete)) 0 else max(0, min(100, r$pct_complete))
             tagList(
-              info_banner("Self-reported daily practice questions. ",
-                "Program target is 4+ per week."),
-
-              # Stat strip
-              div(class="row g-3 mb-4",
-                stat_card(format(rate_pw, nsmall=1), "Per Week Avg",
-                          "bar-chart-fill", "var(--roundsui-accent, #3355D8)"),
-                stat_card(last_mo_n, "Last 30 Days",
-                          "calendar-month-fill", "var(--roundsui-accent, #3355D8)"),
-                stat_card(yr_n, "This Acad. Year",
-                          "calendar-check-fill", "#27ae60")
-              ),
-
-              # Rotation breakdown
-              if (length(rot_counts) > 0)
+              info_banner(paste0("From the program's MKSAP progress import",
+                if (!is.null(tracker_lbl(r$tracker))) paste0(", ", tracker_lbl(r$tracker)),
+                ". Numbers update with each import, not live.")),
+              div(class="row g-3 mb-3",
+                stat_card(paste0(fmt(r$n_complete), if (!is.na(r$total)) paste0(" / ", fmt(r$total))),
+                          "Questions completed", "check2-square", "var(--roundsui-accent, #3355D8)"),
+                stat_card(fmt(r$pct_complete, "%"), "Of the question bank", "pie-chart-fill",
+                          "var(--roundsui-accent, #3355D8)"),
+                stat_card(fmt(r$pct_correct, "%"), "Correct", "bullseye", "#27ae60")),
+              div(style="background:#e9ecef; border-radius:4px; height:12px; overflow:hidden;",
+                  class = "mb-4",
+                div(style=paste0("width:", pct, "%; height:100%; background:var(--roundsui-accent, #3355D8);"))),
+              if (nrow(m) > 1)
                 div(
-                  sec_lbl("geo-alt-fill", "Questions by Rotation"),
-                  div(style="max-width:480px;",
-                    lapply(names(rot_counts), function(rname) {
-                      cnt   <- rot_counts[[rname]]
-                      pct   <- round(cnt / max_cnt * 100)
-                      div(style="display:flex; align-items:center; gap:10px; margin-bottom:6px;",
-                        tags$span(style=paste0("min-width:130px; font-size:0.85rem;",
-                                               " font-weight:600; color:var(--roundsui-ink, #13161F);"), rname),
-                        div(style=paste0("flex:1; background:#e9ecef; border-radius:4px; height:16px;",
-                                         " overflow:hidden;"),
-                          div(style=paste0("width:",pct,"%; height:100%;",
-                                           " background:var(--roundsui-accent, #3355D8); border-radius:4px;",
-                                           " transition:width .3s;"))),
-                        tags$span(style="font-size:0.83rem; color:#6c757d; min-width:24px;",
-                                  cnt)
-                      )
-                    })
-                  )
-                )
+                  sec_lbl("clock-history", "Progress by import"),
+                  tags$table(class="table table-sm mb-0", style="font-size:0.85rem; max-width:560px;",
+                    tags$thead(tags$tr(tags$th("Import date"), tags$th("Completed"),
+                                       tags$th("% of bank"), tags$th("% correct"))),
+                    tags$tbody(lapply(seq_len(nrow(m)), function(i)
+                      tags$tr(tags$td(trimws(format(m$date[i], "%b %e, %Y"))),
+                              tags$td(fmt(m$n_complete[i])),
+                              tags$td(fmt(m$pct_complete[i], "%")),
+                              tags$td(fmt(m$pct_correct[i], "%")))))))
             )
           }
         )

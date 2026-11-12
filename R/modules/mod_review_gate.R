@@ -6,7 +6,15 @@
 # freezes the snapshot on this period's s_eval row. A saved
 # s_e_snapshot_json is what "submitted" means.
 #
-# The live check takes 15-25 s (Amion), so it runs in a future worker.
+# The live check takes ~10 s (RDM + Amion), so it runs in a future worker.
+#
+# Lock (Fred, 2026-11-12): until duty hours, the conference log and faculty
+# evaluations (FAC_EVAL_MIN this academic year) all pass, the self-eval
+# sections stay hidden. The module returns locked_r for mod_self_eval. A
+# coach's gate override unlocks all three. Faculty evaluations are counted
+# from the live check, so finishing some and re-checking unlocks at once.
+
+FAC_EVAL_MIN <- 10L
 
 mod_review_gate_ui <- function(id) {
   ns <- NS(id)
@@ -18,7 +26,8 @@ mod_review_gate_ui <- function(id) {
         tags$p(class = "text-muted mb-3",
                "Your duty hours and conference log need to be current since ",
                textOutput(ns("window_start"), inline = TRUE),
-               ". You can work on the sections below at any time."),
+               ", and you need at least ", FAC_EVAL_MIN, " faculty evaluations this academic year. ",
+               "The self-evaluation opens once all three are done."),
         uiOutput(ns("status")),
         bslib::accordion(
           id = ns("fix"), open = FALSE, class = "mt-3",
@@ -113,8 +122,11 @@ mod_review_gate_server <- function(id, resident_id, enabled_r, sections_done_r,
       st <- task$status()
       if (st == "success") {
         r <- task$result()
+        n_fac <- suppressWarnings(as.integer(r$snapshot$faculty_evals_submitted))
+        if (length(n_fac) != 1 || is.na(n_fac)) n_fac <- 0L
         state(list(snapshot = r$snapshot, unlogged = r$unlogged,
-                   gate = reviewkit::evaluate_gate(r$snapshot)))
+                   gate = reviewkit::evaluate_gate(r$snapshot),
+                   fac = list(n = n_fac, pass = n_fac >= FAC_EVAL_MIN)))
         if (isTRUE(submitting())) finish_submit()
       } else if (st == "error") {
         msg <- tryCatch({ task$result(); "" }, error = function(e) conditionMessage(e))
@@ -131,9 +143,10 @@ mod_review_gate_server <- function(id, resident_id, enabled_r, sections_done_r,
       submitting(FALSE)
       s <- state()
       if (!isTRUE(sections_done_r()) || isTRUE(submitted())) return(invisible())
-      if (!isTRUE(s$gate$pass) && is.null(override_r())) {
+      if (!(isTRUE(s$gate$pass) && isTRUE(s$fac$pass)) && is.null(override_r())) {
         failing <- c(if (!s$gate$duty$pass) s$gate$duty$message,
-                     if (!s$gate$conference$pass) s$gate$conference$message)
+                     if (!s$gate$conference$pass) s$gate$conference$message,
+                     if (!isTRUE(s$fac$pass)) fac_message(s$fac))
         submit_msg(list(ok = FALSE, text = paste("Not submitted yet.", paste(failing, collapse = " "))))
         return(invisible())
       }
@@ -168,6 +181,23 @@ mod_review_gate_server <- function(id, resident_id, enabled_r, sections_done_r,
       queue_through = function() reviewkit::review_window()$end,
       skip_off_days = TRUE
     )
+
+    # ── Lock ────────────────────────────────────────────────────────────
+    # reactiveVal, so the self-eval form re-renders only when the lock
+    # actually flips (a re-check that changes nothing must not redraw it).
+    locked <- reactiveVal(TRUE)
+    observe({
+      s <- state()
+      v <- isTRUE(show_gate()) && is.null(override_r()) &&
+        (is.null(s) || !(isTRUE(s$gate$pass) && isTRUE(s$fac$pass)))
+      if (!identical(v, isolate(locked()))) locked(v)
+    })
+
+    fac_message <- function(f) {
+      if (isTRUE(f$pass)) sprintf("Faculty evaluations: %d this academic year.", f$n)
+      else sprintf("Faculty evaluations: %d of %d this academic year. Complete %d more on the Faculty Evaluations page.",
+                   f$n, FAC_EVAL_MIN, FAC_EVAL_MIN - f$n)
+    }
 
     # ── Display ─────────────────────────────────────────────────────────
     check_row <- function(ok, text) {
@@ -206,10 +236,16 @@ mod_review_gate_server <- function(id, resident_id, enabled_r, sections_done_r,
           if (!is.null(err)) recheck_btn))
       }
       n <- s$gate$nudges
+      n <- n[n$item != "Faculty evaluations submitted", , drop = FALSE]
       tagList(
         override_note(),
         check_row(s$gate$duty$pass, s$gate$duty$message),
         check_row(s$gate$conference$pass, s$gate$conference$message),
+        check_row(isTRUE(s$fac$pass), fac_message(s$fac)),
+        if (!isTRUE(s$fac$pass))
+          tags$a(href = "#", class = "small ms-4",
+                 onclick = "Shiny.setInputValue('nav_block','faculty_eval',{priority:'event'});return false;",
+                 "Go to Faculty Evaluations ", tags$i(class = "bi bi-arrow-right")),
         tags$div(class = "mt-3 small text-muted", "Also worth a look (these don't block submission):"),
         tags$ul(class = "small mb-1",
           lapply(seq_len(nrow(n)), function(i)
@@ -249,5 +285,7 @@ mod_review_gate_server <- function(id, resident_id, enabled_r, sections_done_r,
           if (!is.null(m)) tags$p(class = paste0("mt-2 mb-0 ", if (m$ok) "text-success" else "text-danger"), m$text)
         ))
     })
+
+    list(locked_r = locked)
   })
 }

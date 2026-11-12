@@ -1437,8 +1437,9 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       local$seva <- df
     }
 
-    # Data gate + Submit (periods 1-6, open period only)
-    mod_review_gate_server(
+    # Data gate + Submit (periods 1-6, open period only). gate$locked_r is
+    # TRUE until duty hours, conference log and faculty evals pass.
+    gate <- mod_review_gate_server(
       "gate", resident_id = resident_id,
       enabled_r = reactive({
         req(local$ready, local$sel_period)
@@ -2895,6 +2896,19 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
             style = "border:0; padding:0; margin:0; min-width:0;",
             form_ui)
         )
+      } else if (isTRUE(gate$locked_r())) {
+        # Open period, data not done yet: no sections until it is
+        # (Fred, 2026-11-12). Saved answers are kept, just not shown.
+        div(class = "d-flex align-items-start gap-3 mt-2 mb-3 py-3 px-3",
+            style = "background:#fff8e1; border-left:5px solid #f9a825; border-radius:8px;",
+          tags$i(class = "bi bi-lock-fill", style = "font-size:1.4rem; color:#f57f17;"),
+          div(
+            tags$div(style = "font-weight:700; color:#5d4037;",
+                     paste0(pname, " \u2014 locked until your data is done")),
+            tags$div(style = "color:#795548;",
+                     "Finish the items in \u201cBefore you submit: your data\u201d above, then click ",
+                     tags$strong("Re-check my data"), ". The sections open as soon as everything passes. ",
+                     "Anything you already saved is kept.")))
       } else {
         tagList(complete_banner, form_ui)
       }
