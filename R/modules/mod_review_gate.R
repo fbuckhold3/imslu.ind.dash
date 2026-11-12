@@ -286,6 +286,10 @@ mod_review_gate_server <- function(id, resident_id, enabled_r, sections_done_r,
         ))
     })
 
-    list(locked_r = locked)
+    # Live faculty-eval count from the last check (NULL until one has run),
+    # so the self-eval's faculty-eval banner shows the same number.
+    fac_n <- reactive({ s <- state(); if (is.null(s)) NULL else s$fac$n })
+
+    list(locked_r = locked, fac_n_r = fac_n)
   })
 }

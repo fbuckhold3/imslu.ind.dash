@@ -811,89 +811,54 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       df[df$record_id == resident_id(), ]
     })
 
-    # ── Faculty-eval completion gate ─────────────────────────────────────────
-    # Resident expectation: 25 faculty evaluations per academic year
-    # (July 1 \u2013 June 30).  Linear pace: 13 by mid-year, 25 by year-end.
-    # Bands (ratio = done / expected-by-today):
-    #   >= 0.9  \u2192 on track (congratulate)
-    #   0.5\u20130.9 \u2192 behind (encourage)
-    #   < 0.5   \u2192 well behind (warn)
-    #   < 0.10 of annual goal (i.e., < 3 evals)   \u2192 strongest banner (no lock)
+    # ── Faculty-eval banner ─────────────────────────────────────────────────
+    # Same rule as the data gate (Fred, 2026-11-12): FAC_EVAL_MIN (10)
+    # faculty evaluations since Jul 1 open the self-evaluation. Uses the
+    # gate's live count once a check has run, else the count loaded at login,
+    # so the banner and the gate always show the same number.
     fac_eval_status_r <- reactive({
       req(rdm_data(), resident_id())
-      fe <- rdm_data()$all_forms$faculty_evaluation
-      mine <- if (!is.null(fe) && nrow(fe) > 0)
-                fe[fe$record_id == resident_id(), , drop = FALSE]
-              else data.frame()
-      today     <- Sys.Date()
-      yr        <- as.integer(format(today, "%Y"))
-      ay_start  <- if (as.integer(format(today, "%m")) >= 7L)
-                     as.Date(sprintf("%d-07-01", yr))
-                   else
-                     as.Date(sprintf("%d-07-01", yr - 1L))
-      days_in   <- as.integer(today - ay_start)
-      goal      <- 25L
-      expected  <- max(1L, round(goal * days_in / 365))
-      done <- if (nrow(mine) > 0 && "fac_eval_date" %in% names(mine)) {
-        d <- suppressWarnings(as.Date(mine$fac_eval_date))
-        sum(!is.na(d) & d >= ay_start)
-      } else 0L
-      ratio   <- if (expected > 0) done / expected else 0
-      blocked <- done < ceiling(goal * 0.10)  # very low: strongest banner, no lock
-      band    <- if (blocked)            "block"
-                 else if (ratio >= 0.9)  "ontrack"
-                 else if (ratio >= 0.5)  "behind"
-                 else                    "warn"
-      list(done = done, expected = expected, goal = goal,
-           ay_start = ay_start, days_in = days_in,
-           ratio = ratio, band = band, blocked = blocked)
+      today    <- Sys.Date()
+      yr       <- as.integer(format(today, "%Y"))
+      ay_start <- as.Date(sprintf("%d-07-01", if (as.integer(format(today, "%m")) >= 7L) yr else yr - 1L))
+      live <- tryCatch(gate$fac_n_r(), error = function(e) NULL)
+      done <- if (!is.null(live)) live else {
+        fe <- rdm_data()$all_forms$faculty_evaluation
+        mine <- if (!is.null(fe) && nrow(fe) > 0)
+                  fe[fe$record_id == resident_id(), , drop = FALSE] else data.frame()
+        if (nrow(mine) > 0 && "fac_eval_date" %in% names(mine)) {
+          d <- suppressWarnings(as.Date(mine$fac_eval_date))
+          sum(!is.na(d) & d >= ay_start)
+        } else 0L
+      }
+      need <- FAC_EVAL_MIN
+      list(done = as.integer(done), need = need, ay_start = ay_start, met = done >= need)
     })
 
     output$fac_eval_gate <- renderUI({
       req(local$ready)
-      # Skip the faculty-eval gate for residents eligible for the intern
-      # intro (period 7, Entering Residency) — they haven't had a chance
-      # to complete faculty evaluations yet.
+      # Entering Residency (period 7) has had no chance to evaluate faculty yet.
       pi <- tryCatch(period_info_r(), error = function(e) NULL)
       if (!is.null(pi) && !is.na(pi$period_number) &&
           as.character(pi$period_number) == "7") return(NULL)
       s <- tryCatch(fac_eval_status_r(), error = function(e) NULL)
       if (is.null(s)) return(NULL)
 
-      # Band -> colors + headline
-      spec <- switch(s$band,
-        ontrack = list(bg="#e8f5e9", border="#2e7d32", icon="emoji-smile-fill",
-                       ic_col="#2e7d32",
-                       head="Great work — you're on track with faculty evaluations!",
-                       body=paste0("You've completed ", s$done, " of ", s$goal,
-                                   " evaluations expected this academic year. Keep going.")),
-        behind  = list(bg="#fff8e1", border="#f9a825", icon="exclamation-circle-fill",
-                       ic_col="#f9a825",
-                       head="A bit behind on faculty evaluations.",
-                       body=paste0("You've done ", s$done, "; by this point in the year we'd expect about ",
-                                   s$expected, " (goal: ", s$goal, " per year). ",
-                                   "Consider completing a few before finishing this self-evaluation.")),
-        warn    = list(bg="#fff3e0", border="#e65100", icon="exclamation-triangle-fill",
-                       ic_col="#e65100",
-                       head="Faculty evaluations are well behind pace.",
-                       body=paste0("You've done ", s$done, " out of ", s$expected,
-                                   " expected by now (annual goal ", s$goal, "). ",
-                                   "Please complete several before moving on.")),
-        block   = list(bg="#ffebee", border="#c62828", icon="exclamation-triangle-fill",
-                       ic_col="#c62828",
-                       head="Faculty evaluations are very low.",
-                       body=paste0("You've done ", s$done, " faculty evaluation",
-                                   if (s$done == 1) "" else "s",
-                                   " this academic year. Please complete several on the Faculty Evaluations page."))
-      )
+      left <- max(0L, s$need - s$done)
+      spec <- if (s$met)
+        list(bg="#e8f5e9", border="#2e7d32", icon="check-circle-fill", ic_col="#2e7d32",
+             head="Faculty evaluations done for your self-evaluation.",
+             body=paste0("You've completed ", s$done, " this academic year (", s$need,
+                         " needed). Keep evaluating the faculty you work with."))
+      else
+        list(bg="#ffebee", border="#c62828", icon="exclamation-triangle-fill", ic_col="#c62828",
+             head=paste0("Complete ", left, " more faculty evaluation", if (left == 1) "" else "s",
+                         " to open your self-evaluation."),
+             body=paste0("You've done ", s$done, " of the ", s$need,
+                         " needed this academic year (since July 1)."))
 
-      # Progress bar
-      pct <- min(100L, as.integer(round(100 * s$done / s$goal)))
-      exp_pct <- min(100L, as.integer(round(100 * s$expected / s$goal)))
-      bar <- div(style="position:relative; height:14px; background:#eceff1; border-radius:7px; overflow:hidden; margin:8px 0 6px;",
-        # target marker
-        div(style=sprintf("position:absolute; left:%d%%; top:-3px; bottom:-3px; width:2px; background:#455a64;", exp_pct)),
-        # fill
+      pct <- min(100L, as.integer(round(100 * s$done / s$need)))
+      bar <- div(style="height:14px; background:#eceff1; border-radius:7px; overflow:hidden; margin:8px 0 6px;",
         div(style=sprintf("height:100%%; width:%d%%; background:%s; transition:width .3s;",
                           pct, spec$ic_col)))
 
@@ -909,15 +874,15 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
             bar,
             tags$div(style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--roundsui-ink-muted, #5B6472);",
               tags$span(sprintf("Completed: %d", s$done)),
-              tags$span(sprintf("Expected by today: %d", s$expected)),
-              tags$span(sprintf("Annual goal: %d", s$goal))),
-            tags$div(class="mt-2", style="font-size:0.92rem; color:#37474f;",
-              tags$i(class="bi bi-lightbulb-fill me-1", style="color:#f9a825;"),
-              tags$strong("Tip: "),
-              "Evaluate every attending or fellow you worked with this year \u2014 ",
-              "especially your ", tags$b("continuity clinic attendings"),
-              ". Honest, timely feedback helps the program and your peers."),
-            if (s$band == "block")
+              tags$span(sprintf("Needed: %d", s$need))),
+            if (!s$met)
+              tags$div(class="mt-2", style="font-size:0.92rem; color:#37474f;",
+                tags$i(class="bi bi-lightbulb-fill me-1", style="color:#f9a825;"),
+                tags$strong("Tip: "),
+                "Evaluate every attending or fellow you worked with this year \u2014 ",
+                "especially your ", tags$b("continuity clinic attendings"),
+                ". After you finish, click ", tags$b("Re-check my data"), " below."),
+            if (!s$met)
               div(class="mt-3",
                 actionButton(ns("goto_fac_eval"),
                   tagList(tags$i(class="bi bi-arrow-right-circle-fill me-1"),
