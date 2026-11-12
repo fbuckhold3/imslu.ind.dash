@@ -757,6 +757,9 @@ mod_self_eval_ui <- function(id) {
 
 # ── Server ────────────────────────────────────────────────────────────────────
 
+# Process-level store for the program milestone spread (shared by sessions).
+.MS_SPREAD_STORE <- new.env(parent = emptyenv())
+
 mod_self_eval_server <- function(id, rdm_data, resident_id) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
@@ -1291,12 +1294,58 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       if (length(out) == 0) NULL else out
     })
 
+    # ── Milestone progression chart data ──────────────────────────────────────
+    # Program spread (median + 25th-75th percentile by period) comes from the
+    # app_cache record written by rdm-data-refresh; if that is missing it is
+    # computed from the Phase 2 data (all ratings, no July-2021 cohort cut,
+    # since Phase 2 has no graduation year for graduates). Kept per process.
+    spread_r <- reactive({
+      hit <- .MS_SPREAD_STORE$val
+      if (!is.null(hit) &&
+          difftime(Sys.time(), .MS_SPREAD_STORE$at, units = "hours") < 6) return(hit)
+      sp <- tryCatch(gmed::load_cached_milestone_spread(
+                       rdm_token = app_config$rdm_token,
+                       redcap_url = app_config$redcap_url),
+                     error = function(e) NULL)
+      if (is.null(sp)) {
+        hm <- rdm_data()$historical_medians
+        if (!is.null(hm$acgme_miles$processed_data))
+          sp <- tryCatch(gmed::milestone_spread(hm), error = function(e) NULL)
+      }
+      if (!is.null(sp) && nrow(sp) > 0) {
+        .MS_SPREAD_STORE$val <- sp
+        .MS_SPREAD_STORE$at  <- Sys.time()
+        message("[self_eval] milestone spread: ", nrow(sp), " rows (",
+                if (!is.null(attr(sp, "generated_at"))) "cache" else "computed", ")")
+      }
+      sp
+    })
+
+    # The resident's own ACGME + self ratings. Updated only when the value
+    # changes, so auto-saves of the current period don't redraw the milestone.
+    trajectory_rv <- reactiveVal(NULL)
+    observe({
+      rd <- rdm_data(); rid <- resident_id(); req(rd, rid)
+      ac <- rd$all_forms$acgme_miles %||% rd$acgme_miles
+      hist <- tryCatch(gmed::milestone_history(acgme = ac, self = local$ms,
+                                               record_id = rid),
+                       error = function(e) NULL)
+      # The period being rated is never drawn; leaving it out keeps the
+      # value stable while the resident's ratings auto-save.
+      sp_per <- local$sel_period
+      if (!is.null(hist) && !is.null(sp_per))
+        hist <- hist[hist$period != as.character(sp_per), , drop = FALSE]
+      tr <- list(spread = spread_r(), history = hist)
+      if (!identical(tr, isolate(trajectory_rv()))) trajectory_rv(tr)
+    })
+
     # ── milestone module (initialised once, period reactive) ──────────────────
     milestone_result <- mod_miles_rating_server("milestone_rating",
                                                 period         = period_name_r,
                                                 prev_scores    = prev_ms_scores_r,
                                                 initial_scores = cur_ms_scores_r,
-                                                initial_descs  = cur_ms_descs_r)
+                                                initial_descs  = cur_ms_descs_r,
+                                                trajectory     = trajectory_rv)
 
     # Shared save helper — called both from debounced auto-save and on done()
     # Every milestone self-eval field has a description column in REDCap
