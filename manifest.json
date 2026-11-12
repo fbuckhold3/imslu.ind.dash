@@ -194,7 +194,7 @@
       "description": {
         "Package": "amiontools",
         "Title": "Shared Amion Schedule Fetch, Classification, and Crosswalk Tools",
-        "Version": "0.2.1",
+        "Version": "0.2.2",
         "Authors@R": "\n    person(\"Fred\", \"Buckhold\", , \"fbuckhold3@icloud.com\", role = c(\"aut\", \"cre\"))",
         "Description": "Shared functions for pulling resident schedule data from\n    Amion, classifying assignments into top-level rotation categories, and\n    crosswalking Amion identities against RDM resident_id records. Used by\n    amion-va-report and downstream rotation-analysis, attendance-\n    reconciliation, and duty-hour tools across the IMSLU / GME Tools\n    ecosystem.",
         "License": "MIT + file LICENSE",
@@ -208,18 +208,18 @@
         "RemoteHost": "api.github.com",
         "RemoteRepo": "amiontools",
         "RemoteUsername": "fbuckhold3",
-        "RemoteRef": "e7336d989faeb3daad92a1d16cbf687993f6f833",
-        "RemoteSha": "e7336d989faeb3daad92a1d16cbf687993f6f833",
+        "RemoteRef": "4dbfabf",
+        "RemoteSha": "4dbfabfa893d7e81ba913ec004ce0ac8c83e18fb",
         "GithubRepo": "amiontools",
         "GithubUsername": "fbuckhold3",
-        "GithubRef": "e7336d989faeb3daad92a1d16cbf687993f6f833",
-        "GithubSHA1": "e7336d989faeb3daad92a1d16cbf687993f6f833",
+        "GithubRef": "4dbfabf",
+        "GithubSHA1": "4dbfabfa893d7e81ba913ec004ce0ac8c83e18fb",
         "NeedsCompilation": "no",
-        "Packaged": "2026-11-11 01:40:26 UTC; home_base",
+        "Packaged": "2026-11-12 13:01:57 UTC; home_base",
         "Author": "Fred Buckhold [aut, cre]",
         "Maintainer": "Fred Buckhold <fbuckhold3@icloud.com>",
         "Depends": "R (>= 4.1.0)",
-        "Built": "R 4.6.0; ; 2026-11-11 01:40:26 UTC; unix"
+        "Built": "R 4.6.0; ; 2026-11-12 13:01:57 UTC; unix"
       }
     },
     "askpass": {
@@ -3298,7 +3298,7 @@
       "checksum": "9b8da4c998b533821e1dfdc4651abdd5"
     },
     "R/modules/mod_evaluations.R": {
-      "checksum": "216ed8b7a3c506eae250043bbf8a5d6e"
+      "checksum": "8a2896ff160f79c1a80a1affdc0baa56"
     },
     "R/modules/mod_learning.R": {
       "checksum": "b5602b4ab2c8c2a937c597f8ada1a4b7"
@@ -3310,7 +3310,7 @@
       "checksum": "df0dfdbe3788383bb88a92b75ff4d608"
     },
     "R/modules/mod_review_gate.R": {
-      "checksum": "04dd412c5e78d566c08d1b1d9ece9eb8"
+      "checksum": "ae426890cc71297e5723d76418efc921"
     },
     "R/modules/mod_schedule.R": {
       "checksum": "0097c943e50a0ffb2345bcde39c25ea1"
@@ -3325,7 +3325,7 @@
       "checksum": "0504af91f5aeea96ba1d8d26fd8eba94"
     },
     "R/modules/mod_self_eval.R": {
-      "checksum": "669b88403e5958255ed5ee021b9ab1b7"
+      "checksum": "1848cd9310f8c064a6f0ebe1f584962a"
     },
     "R/server.R": {
       "checksum": "b0fb43d805c38bb7fc6b5ffcfeda4776"
@@ -3334,7 +3334,7 @@
       "checksum": "9ee43b5b51934125010b8316006261f2"
     },
     "renv.lock": {
-      "checksum": "29fe9363774699686186c683f4609163"
+      "checksum": "12840dbb07638cd1966bcdeb8b45420d"
     },
     "scripts/make_fake_2042.R": {
       "checksum": "286c3a399c6981dbe5f9694b8eda534b"

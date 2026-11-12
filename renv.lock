@@ -212,7 +212,7 @@
     },
     "amiontools": {
       "Package": "amiontools",
-      "Version": "0.2.1",
+      "Version": "0.2.2",
       "Source": "GitHub",
       "Title": "Shared Amion Schedule Fetch, Classification, and Crosswalk Tools",
       "Authors@R": "person(\"Fred\", \"Buckhold\", , \"fbuckhold3@icloud.com\", role = c(\"aut\", \"cre\"))",
@@ -242,8 +242,8 @@
       "RemoteHost": "api.github.com",
       "RemoteUsername": "fbuckhold3",
       "RemoteRepo": "amiontools",
-      "RemoteRef": "e7336d989faeb3daad92a1d16cbf687993f6f833",
-      "RemoteSha": "e7336d989faeb3daad92a1d16cbf687993f6f833"
+      "RemoteRef": "4dbfabfa893d7e81ba913ec004ce0ac8c83e18fb",
+      "RemoteSha": "4dbfabfa893d7e81ba913ec004ce0ac8c83e18fb"
     },
     "askpass": {
       "Package": "askpass",

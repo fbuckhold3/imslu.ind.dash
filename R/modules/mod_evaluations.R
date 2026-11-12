@@ -16,7 +16,8 @@ mod_evaluations_ui <- function(id) {
     ),
 
     # 3 ── Eval Feedback (breakdown + written feedback + scores) ────────────────
-    div(class = "mt-4",
+    # id: anchor for the self-eval's "Open the full plus/delta table" link.
+    div(class = "mt-4", id = ns("feedback_anchor"),
       mod_eval_feedback_ui(ns("feedback"))
     )
   )

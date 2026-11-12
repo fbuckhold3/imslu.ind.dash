@@ -1206,6 +1206,23 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       df
     })
 
+    # Every earlier period's s_eval row, newest first, with a .period_label
+    # column — for the "your previous answers" tables (Fred, 2026-11-12).
+    prev_seva_all_r <- reactive({
+      p <- local$sel_period; if (is.null(p)) return(data.frame())
+      df <- local$seva; if (is.null(df)||nrow(df)==0) return(data.frame())
+      df <- .coalesce_all_dups(.coalesce_dup_cols(df, "s_e_period"))
+      if (!"s_e_period" %in% names(df)) return(data.frame())
+      cur_chron <- .PERIOD_CHRON[p] %||% -1L
+      df$.chron <- unname(.PERIOD_CHRON[as.character(df$s_e_period)])
+      df <- df[!is.na(df$.chron) & df$.chron < cur_chron, , drop = FALSE]
+      if (nrow(df) == 0) return(data.frame())
+      df <- df[order(-df$.chron), , drop = FALSE]
+      df$.period_label <- unname(.PERIOD_NAMES[as.character(df$s_e_period)])
+      df$.chron <- NULL
+      df
+    })
+
     # Previous period ILP row (for context in ILP goal section)
     prev_ilp_r <- reactive({
       p <- local$sel_period; if (is.null(p)) return(data.frame())
@@ -2792,8 +2809,13 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       sr   <- isolate(sel_seva()); ir <- isolate(sel_ilp()); md <- isolate(sel_ms())
       dd   <- isolate(data_dict_r())
       psr  <- isolate(prev_seva_r())
+      psa  <- isolate(prev_seva_all_r())
       pir  <- isolate(prev_ilp_r())
       ev   <- isolate(evals_r())
+      # Evaluations from this review period only, for the open period
+      # (past periods list every evaluation).
+      ev_win <- if (isolate(period_mode_r()) %in% c("active", "unknown"))
+        .eval_review_range() else NULL
       res  <- isolate(resident_r())
       ite  <- isolate(ite_data_r())
       pi   <- isolate(period_info_r())
@@ -2820,10 +2842,12 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       form_ui <- if (p=="7")      .form_p7(ns, p, sr, dd, psr, res, chk, md=md,
                                            active_step = active_step_for_render)
                  else if (p=="6") .form_p6(ns, p, sr, dd, psr, ev, res, chk,
-                                           active_step = active_step_for_render)
+                                           active_step = active_step_for_render,
+                                           psa = psa, ev_win = ev_win)
                  else             .form_std(ns, p, sr, ir, dd, psr, ev, chk, ite, pgy,
                                             pir = pir, md = md, peer_med = peer_med,
-                                            active_step = active_step_for_render)
+                                            active_step = active_step_for_render,
+                                            psa = psa, ev_win = ev_win)
 
       # Completion banner — shown when every section in the active period is
       # done. Reassures the resident that the work is in and they can revisit
@@ -2884,15 +2908,17 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
 
 # ── Form helpers ──────────────────────────────────────────────────────────────
 
-# Recent evaluations reference panel (#5) — shows all available fields
-.eval_reference_panel <- function(ev) {
+# Evaluations reference panel (#5). Lists every evaluation in the review
+# range (Fred, 2026-11-12: "all from the last review period"), with a link to
+# the plus/delta table on My Evaluations. range: list(start, end, label) from
+# .eval_review_range(), or NULL to list every evaluation (past periods).
+.eval_reference_panel <- function(ev, range = NULL, ns = NULL) {
   if (is.null(ev) || nrow(ev)==0) return(NULL)
 
-  # Sort by date descending, show up to 5 most recent
   ev_sorted <- ev %>%
     dplyr::mutate(.dt = suppressWarnings(as.Date(ass_date, "%Y-%m-%d"))) %>%
+    { if (is.null(range)) . else dplyr::filter(., !is.na(.dt), .dt >= range$start, .dt <= range$end) } %>%
     dplyr::arrange(dplyr::desc(.dt)) %>%
-    dplyr::slice(1:min(5, dplyr::n())) %>%
     dplyr::select(-.dt)
 
   level_map <- c("1"="Intern","2"="PGY2","3"="PGY3","4"="Graduated","5"="Rotator")
@@ -2923,16 +2949,66 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
           tags$p(class="mb-0", style="font-size:0.83rem; color:#c0392b;", delta)))
   })
 
-  total <- nrow(ev)
-  shown <- min(5, total)
-  tags$details(
-    tags$summary(
-      style="cursor:pointer; font-size:0.82rem; color:var(--roundsui-accent, #3355D8); font-weight:600; padding:8px 0; list-style:none;",
-      tags$i(class="bi bi-clipboard2-check me-1"),
-      sprintf("Review recent evaluations — %d shown of %d total (click to expand)", shown, total)),
-    div(class="mt-2 ps-2 pe-1 py-1",
-        style="background:#f8fafc; border-radius:6px; max-height:400px; overflow-y:auto;",
-        items))
+  n <- nrow(ev_sorted)
+  span <- if (is.null(range)) "all evaluations" else
+    paste0("since ", trimws(format(range$start, "%B %e, %Y")))
+  # Opens My Evaluations and scrolls to its plus/delta table (the anchor is
+  # in mod_evaluations_ui).
+  link <- tags$a(href = "#", class = "small",
+    onclick = paste0(
+      "Shiny.setInputValue('nav_block','evaluations',{priority:'event'});",
+      # Waits (up to 8 s) for the page to render, then scrolls to the
+      # second card, "Assessment History & Scores" (the plus/delta table).
+      "var n=0,iv=setInterval(function(){n++;var a=document.getElementById('evaluations-feedback_anchor');",
+      "var c=a?a.querySelectorAll('.roundsui-card'):[];",
+      "if((c.length>1&&a.offsetParent)||n>40){clearInterval(iv);",
+      "if(c.length>1)setTimeout(function(){c[1].scrollIntoView({behavior:'smooth',block:'start'});},300);}},200);",
+      "return false;"),
+    "Open the full plus/delta table in My Evaluations ", tags$i(class = "bi bi-arrow-right"))
+  tagList(
+    tags$details(
+      tags$summary(
+        style="cursor:pointer; font-size:0.82rem; color:var(--roundsui-accent, #3355D8); font-weight:600; padding:8px 0; list-style:none;",
+        tags$i(class="bi bi-clipboard2-check me-1"),
+        sprintf("Review your evaluations \u2014 %d %s (click to expand)", n, span)),
+      div(class="mt-2 ps-2 pe-1 py-1",
+          style="background:#f8fafc; border-radius:6px; max-height:400px; overflow-y:auto;",
+          if (n == 0) tags$p(class = "text-muted small mb-2", "No evaluations in this range yet.")
+          else items)),
+    div(class = "mb-2", link))
+}
+
+# Review range for the evaluations panel, from today: a mid-year review
+# covers Jul 1 onward, an end-of-year review Jan 1 onward (Fred, 2026-11-12).
+.eval_review_range <- function(today = Sys.Date()) {
+  w <- reviewkit::review_window(today)
+  start <- if (identical(w$label, "end"))
+    as.Date(sprintf("%s-01-01", format(w$end, "%Y"))) else w$ay_start
+  list(start = start, end = today, label = w$label)
+}
+
+# Every earlier period's answer to one question, newest first, as a
+# Period | Response table. psa: prev_seva_all_r() rows (with .period_label).
+# Collapsed when there are more than two answers, to keep the form short.
+.prev_ref_history <- function(psa, field, label = "Your previous answers") {
+  if (is.null(psa) || nrow(psa) == 0 || !field %in% names(psa)) return(NULL)
+  vals <- trimws(as.character(psa[[field]]))
+  keep <- !is.na(vals) & nzchar(vals)
+  if (!any(keep)) return(NULL)
+  per <- psa$.period_label[keep]; vals <- vals[keep]
+  tbl <- tags$table(class = "table table-sm mb-0", style = "font-size:0.82rem;",
+    tags$thead(tags$tr(tags$th(style = "width:9rem;", "Period"), tags$th("Your response"))),
+    tags$tbody(lapply(seq_along(vals), function(i)
+      tags$tr(tags$td(class = "text-muted", style = "white-space:nowrap;",
+                      if (is.na(per[i])) "\u2014" else per[i]),
+              tags$td(style = "white-space:pre-wrap;", vals[i])))))
+  div(class = "mb-2 py-2 px-3",
+      style = "background:#f6f7fb; border-left:3px solid #adb5bd; border-radius:4px;",
+    tags$details(open = if (length(vals) <= 2) NA else NULL,
+      tags$summary(style = "cursor:pointer; font-size:0.7rem; text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:#6c757d;",
+                   tags$i(class = "bi bi-clock-history me-1"),
+                   sprintf("%s (%d)", label, length(vals))),
+      div(class = "mt-2", tbl)))
 }
 
 # ILP goal select with fallback hint for pre-existing free text
@@ -3317,7 +3393,8 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
 # ── Standard periods (1-5) ────────────────────────────────────────────────────
 
 .form_std <- function(ns, p, sr, ir, dd, psr, ev, chk, ite_data = NULL, pgy = 1L,
-                      pir = NULL, md = NULL, peer_med = NULL, active_step = 1L) {
+                      pir = NULL, md = NULL, peer_med = NULL, active_step = 1L,
+                      psa = NULL, ev_win = NULL) {
   tc <- .dd_choices(dd,"s_e_topic_sel"); sc <- .dd_choices(dd,"s_e_learn_style")
   cp <- .dd_choices(dd,"s_e_career_path"); fl <- .dd_choices(dd,"s_e_fellow")
   tr <- .dd_choices(dd,"s_e_track_type")
@@ -3357,14 +3434,14 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
               collapsed=col_for("reflection"),
       tags$p(class="text-muted mb-3", style="font-size:0.82rem;",
              "Review your recent evaluations and reflect on your growth this period."),
-      .eval_reference_panel(ev),
+      .eval_reference_panel(ev, ev_win, ns),
       div(class="mt-2",
         .section_hdr("plus-circle-fill","What went well this period?"),
-        .prev_ref_text(.fv(psr,"s_e_plus"), label="Previous period \u2014 what went well"),
+        .prev_ref_history(psa, "s_e_plus", "Your previous answers \u2014 what went well"),
         .ta(ns("s_e_plus"),NULL,.fv(sr,"s_e_plus"),rows=3,
             placeholder="Strengths, successes, moments you're proud of...")),
       .section_hdr("arrow-up-circle-fill","Areas to develop?"),
-      .prev_ref_text(.fv(psr,"s_e_delta"), label="Previous period \u2014 areas to develop"),
+      .prev_ref_history(psa, "s_e_delta", "Your previous answers \u2014 areas to develop"),
       .ta(ns("s_e_delta"),NULL,.fv(sr,"s_e_delta"),rows=3,
           placeholder="What do you want to work on next period?"),
       .section_hdr("heart-pulse-fill","How are you doing mentally, emotionally, and physically?"),
@@ -3519,7 +3596,8 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
 
 # ── Period 6 (Graduating) ────────────────────────────────────────────────────
 
-.form_p6 <- function(ns, p, sr, dd, psr, ev, res, chk, active_step = 1L) {
+.form_p6 <- function(ns, p, sr, dd, psr, ev, res, chk, active_step = 1L,
+                     psa = NULL, ev_win = NULL) {
 
   # Strict sequential gating driven by session state (active_step).
   # Step numbers for P6:
@@ -3545,10 +3623,12 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
               collapsed=col_for("reflection"),
       tags$p(class="text-muted mb-3", style="font-size:0.82rem;",
              "Review your recent evaluations and reflect on your growth this period."),
-      .eval_reference_panel(ev),
+      .eval_reference_panel(ev, ev_win, ns),
       div(class="mt-2",
+        .prev_ref_history(psa, "s_e_plus", "Your previous answers \u2014 what went well"),
         .ta(ns("s_e_plus"),"What went well over your training?",
             .fv(sr,"s_e_plus"),rows=3)),
+      .prev_ref_history(psa, "s_e_delta", "Your previous answers \u2014 areas to develop"),
       .ta(ns("s_e_delta"),"What would you do differently?",
           .fv(sr,"s_e_delta"),rows=3),
       .ta(ns("s_e_well"),"How are you doing mentally, emotionally, and physically?",
