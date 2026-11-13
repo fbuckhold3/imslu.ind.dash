@@ -4,9 +4,14 @@ Individual resident dashboard for IMSLU Internal Medicine, deployed on
 Posit Connect Cloud. Covers architecture and gotchas not obvious from the
 code — no README in this repo currently.
 
-**This repo has NO renv** (no `renv.lock`/`renv/`/`.Rprofile`), unlike the
-global convention. Posit Connect deploys off `manifest.json`
-(`rsconnect::writeManifest()`). There is one libPath — the R system
+**renv is not activated here**, unlike the global convention: there is a
+`renv.lock` (it holds the package pins) but no `renv/` folder or
+`.Rprofile`. Posit Connect deploys off `manifest.json`
+(`rsconnect::writeManifest()`), which must agree with `renv.lock`. To
+change a pin: `renv::record("fbuckhold3/<pkg>@<sha>", project = ".")`,
+then `writeManifest()` with `R_LIBS` pointing at a scratch library that
+holds exactly the pinned versions (writeManifest refuses when the library
+and lockfile disagree). Locally there is one libPath — the R system
 library — so packages are shared across all of Fred's local apps/scripts,
 not project-isolated. Don't `install.packages()` or locally build a
 package (e.g. `gmed`) here; it silently drifts the shared system library
