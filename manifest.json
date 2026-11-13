@@ -1113,26 +1113,25 @@
         "License": "MIT + file LICENSE",
         "Encoding": "UTF-8",
         "Roxygen": "list(markdown = TRUE)",
-        "Suggests": "knitr, rmarkdown, testthat (>= 3.0.0)",
+        "Suggests": "knitr,\nrmarkdown,\ntestthat (>= 3.0.0)",
         "Config/testthat/edition": "3",
         "Imports": "dplyr, httr, curl, readr, jsonlite, DT, reactable, htmltools,\nplotly, rlang, config, lubridate, tidyr, shinyjs, shiny, bslib,\ndata.table, tibble, purrr, roundsui, iteviz",
-        "Remotes": "fbuckhold3/roundsui, fbuckhold3/im-ite-analyzer/r/iteviz",
         "Config/roxygen2/version": "8.0.0",
-        "RemoteType": "github",
-        "RemoteHost": "api.github.com",
-        "RemoteRepo": "gmed",
-        "RemoteUsername": "fbuckhold3",
-        "RemoteRef": "46dcc2f69d06d08f5984fafdfc72a25cbe477bca",
-        "RemoteSha": "46dcc2f69d06d08f5984fafdfc72a25cbe477bca",
-        "GithubRepo": "gmed",
-        "GithubUsername": "fbuckhold3",
-        "GithubRef": "46dcc2f69d06d08f5984fafdfc72a25cbe477bca",
-        "GithubSHA1": "46dcc2f69d06d08f5984fafdfc72a25cbe477bca",
-        "NeedsCompilation": "no",
-        "Packaged": "2026-11-12 16:48:11 UTC; home_base",
         "Author": "First Last [aut, cre]",
         "Maintainer": "First Last <first.last@example.com>",
-        "Built": "R 4.6.0; ; 2026-11-12 16:48:12 UTC; unix"
+        "Built": "R 4.6.0; ; 2026-11-13 01:18:51 UTC; unix",
+        "RemoteType": "github",
+        "Remotes": "fbuckhold3/roundsui,\nfbuckhold3/im-ite-analyzer/r/iteviz",
+        "RemoteHost": "api.github.com",
+        "RemoteUsername": "fbuckhold3",
+        "RemoteRepo": "gmed",
+        "RemoteRef": "20d8a27d63664eb8c8d786003ed12be724d8a5b0",
+        "RemoteSha": "20d8a27d63664eb8c8d786003ed12be724d8a5b0",
+        "GithubHost": "api.github.com",
+        "GithubRepo": "gmed",
+        "GithubUsername": "fbuckhold3",
+        "GithubRef": "20d8a27d63664eb8c8d786003ed12be724d8a5b0",
+        "GithubSHA1": "20d8a27d63664eb8c8d786003ed12be724d8a5b0"
       }
     },
     "gtable": {
@@ -3325,7 +3324,7 @@
       "checksum": "0504af91f5aeea96ba1d8d26fd8eba94"
     },
     "R/modules/mod_self_eval.R": {
-      "checksum": "723732d820503f62b5b16aad0672bd74"
+      "checksum": "b62eb025567316c5286fe2bb6e7c9cdf"
     },
     "R/server.R": {
       "checksum": "b0fb43d805c38bb7fc6b5ffcfeda4776"
@@ -3334,7 +3333,7 @@
       "checksum": "9ee43b5b51934125010b8316006261f2"
     },
     "renv.lock": {
-      "checksum": "42221b821da54ac3c32b04168c01952a"
+      "checksum": "79b85a4e31a19fcde899e2a7ccf1a102"
     },
     "scripts/make_fake_2042.R": {
       "checksum": "286c3a399c6981dbe5f9694b8eda534b"
