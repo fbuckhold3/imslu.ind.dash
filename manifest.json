@@ -215,11 +215,11 @@
         "GithubRef": "4dbfabf",
         "GithubSHA1": "4dbfabfa893d7e81ba913ec004ce0ac8c83e18fb",
         "NeedsCompilation": "no",
-        "Packaged": "2026-11-12 13:01:57 UTC; home_base",
+        "Packaged": "2026-11-17 23:31:24 UTC; home_base",
         "Author": "Fred Buckhold [aut, cre]",
         "Maintainer": "Fred Buckhold <fbuckhold3@icloud.com>",
         "Depends": "R (>= 4.1.0)",
-        "Built": "R 4.6.0; ; 2026-11-12 13:01:57 UTC; unix"
+        "Built": "R 4.6.0; ; 2026-11-17 23:31:25 UTC; unix"
       }
     },
     "askpass": {
@@ -1107,31 +1107,32 @@
       "description": {
         "Package": "gmed",
         "Title": "What the Package Does (One Line, Title Case)",
-        "Version": "0.0.3",
+        "Version": "0.0.4",
         "Authors@R": "\n    person(\"First\", \"Last\", , \"first.last@example.com\", role = c(\"aut\", \"cre\"))",
         "Description": "What the package does (one paragraph).",
         "License": "MIT + file LICENSE",
         "Encoding": "UTF-8",
         "Roxygen": "list(markdown = TRUE)",
-        "Suggests": "knitr,\nrmarkdown,\ntestthat (>= 3.0.0)",
+        "Suggests": "knitr, rmarkdown, testthat (>= 3.0.0)",
         "Config/testthat/edition": "3",
         "Imports": "dplyr, httr, curl, readr, jsonlite, DT, reactable, htmltools,\nplotly, rlang, config, lubridate, tidyr, shinyjs, shiny, bslib,\ndata.table, tibble, purrr, roundsui, iteviz",
+        "Remotes": "fbuckhold3/roundsui, fbuckhold3/im-ite-analyzer/r/iteviz",
         "Config/roxygen2/version": "8.0.0",
-        "Author": "First Last [aut, cre]",
-        "Maintainer": "First Last <first.last@example.com>",
-        "Built": "R 4.6.0; ; 2026-11-13 01:18:51 UTC; unix",
         "RemoteType": "github",
-        "Remotes": "fbuckhold3/roundsui,\nfbuckhold3/im-ite-analyzer/r/iteviz",
         "RemoteHost": "api.github.com",
-        "RemoteUsername": "fbuckhold3",
         "RemoteRepo": "gmed",
-        "RemoteRef": "20d8a27d63664eb8c8d786003ed12be724d8a5b0",
-        "RemoteSha": "20d8a27d63664eb8c8d786003ed12be724d8a5b0",
-        "GithubHost": "api.github.com",
+        "RemoteUsername": "fbuckhold3",
+        "RemoteRef": "d31098277750277fbe7383b73709a02e0c7561e4",
+        "RemoteSha": "d31098277750277fbe7383b73709a02e0c7561e4",
         "GithubRepo": "gmed",
         "GithubUsername": "fbuckhold3",
-        "GithubRef": "20d8a27d63664eb8c8d786003ed12be724d8a5b0",
-        "GithubSHA1": "20d8a27d63664eb8c8d786003ed12be724d8a5b0"
+        "GithubRef": "d31098277750277fbe7383b73709a02e0c7561e4",
+        "GithubSHA1": "d31098277750277fbe7383b73709a02e0c7561e4",
+        "NeedsCompilation": "no",
+        "Packaged": "2026-11-17 23:30:23 UTC; home_base",
+        "Author": "First Last [aut, cre]",
+        "Maintainer": "First Last <first.last@example.com>",
+        "Built": "R 4.6.0; ; 2026-11-17 23:30:24 UTC; unix"
       }
     },
     "gtable": {
@@ -2291,10 +2292,10 @@
         "GithubRef": "23e5d849c38377b6c3c7085dc9eef4a7829124ab",
         "GithubSHA1": "23e5d849c38377b6c3c7085dc9eef4a7829124ab",
         "NeedsCompilation": "no",
-        "Packaged": "2026-11-11 01:40:30 UTC; home_base",
+        "Packaged": "2026-11-17 23:31:22 UTC; home_base",
         "Author": "Fred Buckhold [aut, cre]",
         "Maintainer": "Fred Buckhold <fbuckhold3@icloud.com>",
-        "Built": "R 4.6.0; ; 2026-11-11 01:40:30 UTC; unix"
+        "Built": "R 4.6.0; ; 2026-11-17 23:31:22 UTC; unix"
       }
     },
     "rlang": {
@@ -3272,20 +3273,20 @@
     }
   },
   "files": {
-    ".claude/settings.local.json": {
-      "checksum": "1af42fa71a50be06a29bb6136aecab31"
+    ".gitignore": {
+      "checksum": "ab69237994c356cc3fe285b9fc7f342d"
     },
     ".impeccable/config.json": {
       "checksum": "e65e6a7956e3563af09523d0ca005a57"
-    },
-    ".impeccable/hook.cache.json": {
-      "checksum": "c621d065be8711073187b15553eff49b"
     },
     "app.R": {
       "checksum": "ee3b1518474e22037fc00eecd25b8356"
     },
     "CLAUDE.md": {
-      "checksum": "fbd8b52b20a0e5606dc9f9ec1e8a6ef2"
+      "checksum": "b5370703f1fceb646e10d76ff9cc105f"
+    },
+    "imslu.ind.dash.Rproj": {
+      "checksum": "c8d3f84a410f46d4d8b03a268e313e35"
     },
     "R/global.R": {
       "checksum": "fb3b2715cad58ccb90359647e1494675"
@@ -3315,25 +3316,22 @@
       "checksum": "0097c943e50a0ffb2345bcde39c25ea1"
     },
     "R/modules/mod_scholarship_cv.R": {
-      "checksum": "f876f225b387444c97a1224899e180e0"
-    },
-    "R/modules/mod_scholarship_view.R": {
-      "checksum": "288a046eb3f67d8d4f6b1dd82a1c83b3"
+      "checksum": "39a95362abc7c0159622803d67c209e3"
     },
     "R/modules/mod_scholarship.R": {
-      "checksum": "0504af91f5aeea96ba1d8d26fd8eba94"
+      "checksum": "1bd7649c5f90ab0cd0f968928f6302f5"
     },
     "R/modules/mod_self_eval.R": {
-      "checksum": "b62eb025567316c5286fe2bb6e7c9cdf"
+      "checksum": "6ec07aecc21d88d608a6c4229d003a25"
     },
     "R/server.R": {
-      "checksum": "b0fb43d805c38bb7fc6b5ffcfeda4776"
+      "checksum": "c650a966f55011793c0655eafe83df74"
     },
     "R/ui.R": {
       "checksum": "9ee43b5b51934125010b8316006261f2"
     },
     "renv.lock": {
-      "checksum": "79b85a4e31a19fcde899e2a7ccf1a102"
+      "checksum": "49ec973ede1a248b2a66361a8abe2f0e"
     },
     "scripts/make_fake_2042.R": {
       "checksum": "286c3a399c6981dbe5f9694b8eda534b"
