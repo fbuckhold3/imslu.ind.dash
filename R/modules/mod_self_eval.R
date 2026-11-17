@@ -155,6 +155,136 @@
   if (!is.null(txt) && !is.na(txt) && nzchar(trimws(txt))) trimws(txt) else NULL
 }
 
+# Every ILP goal set before `cur_period`, one row per period x domain:
+# period, period label, chronological order, domain, short subcompetency
+# code ("PC3"), target level (NA when none was saved).
+.ILP_DOMAINS <- list(
+  pcmk    = list(label = "Patient Care / Med Knowledge",   goal = "goal_pcmk",            level = "goal_level_pcmk",    color = "#0d6efd"),
+  sbppbl  = list(label = "Systems / Practice-Based Learning", goal = "goal_sbppbl",       level = "goal_level_sbppbl",  color = "#198754"),
+  profics = list(label = "Professionalism / Interpersonal", goal = "goal_subcomp_profics", level = "goal_level_profics", color = "#6f42c1"))
+.ILP_CHRON <- c("7" = 0L, "1" = 1L, "2" = 2L, "3" = 3L, "4" = 4L, "5" = 5L, "6" = 6L)
+.ILP_PNAME <- c("7" = "Entering", "1" = "Mid Intern", "2" = "End Intern", "3" = "Mid PGY2",
+                "4" = "End PGY2", "5" = "Mid PGY3", "6" = "Graduating")
+.ilp_goal_history <- function(ilp, cur_period) {
+  if (is.null(ilp) || nrow(ilp) == 0 || !"year_resident" %in% names(ilp)) return(NULL)
+  cur <- .ILP_CHRON[as.character(cur_period)]
+  if (is.na(cur)) return(NULL)
+  yr <- as.character(ilp$year_resident)
+  keep <- !is.na(.ILP_CHRON[yr]) & .ILP_CHRON[yr] < cur
+  ilp <- ilp[keep, , drop = FALSE]; yr <- yr[keep]
+  if (nrow(ilp) == 0) return(NULL)
+  out <- do.call(rbind, lapply(names(.ILP_DOMAINS), function(d) {
+    cfg <- .ILP_DOMAINS[[d]]
+    code <- if (cfg$goal %in% names(ilp)) as.character(ilp[[cfg$goal]]) else rep(NA, nrow(ilp))
+    lvl  <- if (cfg$level %in% names(ilp)) suppressWarnings(as.numeric(as.character(ilp[[cfg$level]]))) else rep(NA_real_, nrow(ilp))
+    sc <- .SUBCOMP_CHOICES[[d]]
+    short <- vapply(code, function(cd) {
+      if (is.na(cd) || !nzchar(cd)) return(NA_character_)
+      nm <- names(sc)[sc == cd]
+      if (length(nm)) sub(" \u2014.*$", "", nm[1]) else paste0("#", cd)
+    }, character(1))
+    data.frame(period = yr, label = unname(.ILP_PNAME[yr]), chron = unname(.ILP_CHRON[yr]),
+               domain = d, subcomp = unname(short), level = lvl, stringsAsFactors = FALSE)
+  }))
+  out <- out[!is.na(out$subcomp), , drop = FALSE]
+  if (nrow(out) == 0) return(NULL)
+  out[order(out$chron), , drop = FALSE]
+}
+
+# Small chart of earlier ILP goals: x = period, y = target milestone level,
+# one line per domain group, each point labeled with its subcompetency.
+.ilp_history_chart <- function(h) {
+  if (is.null(h) || nrow(h) == 0) return(NULL)
+  per <- unique(h$label[order(h$chron)])
+  # Small horizontal offsets so the three domains don't sit on top of each other.
+  off <- c(pcmk = -0.12, sbppbl = 0, profics = 0.12)
+  p <- plotly::plot_ly()
+  for (d in names(.ILP_DOMAINS)) {
+    x <- h[h$domain == d & !is.na(h$level), , drop = FALSE]
+    if (nrow(x) == 0) next
+    cfg <- .ILP_DOMAINS[[d]]
+    xi <- match(x$label, per) - 1 + off[[d]]
+    p <- plotly::add_trace(p, x = xi, y = x$level, type = "scatter", mode = "lines+markers+text",
+      name = cfg$label, text = x$subcomp, textposition = "top center",
+      textfont = list(size = 10, color = cfg$color),
+      line = list(color = cfg$color, width = 2), marker = list(color = cfg$color, size = 8),
+      hovertext = paste0(x$label, ": ", x$subcomp, ", target level ", x$level),
+      hoverinfo = "text")
+  }
+  plotly::config(plotly::layout(p,
+      xaxis = list(title = "", tickvals = seq_along(per) - 1, ticktext = per, range = c(-0.5, length(per) - 0.5),
+                   fixedrange = TRUE, showgrid = FALSE),
+      yaxis = list(title = "Target level", range = c(0.5, 5.8), dtick = 1, fixedrange = TRUE),
+      legend = list(orientation = "h", y = -0.25, font = list(size = 11)),
+      margin = list(l = 50, r = 10, t = 10, b = 10),
+      paper_bgcolor = "rgba(0,0,0,0)", plot_bgcolor = "rgba(0,0,0,0)",
+      font = list(color = "#8a93a6")),
+    displayModeBar = FALSE)
+}
+
+# QI / patient-safety already reported in an EARLIER period's self-eval:
+# list(done, desc, period) for the most recent such report, or done = FALSE.
+# Once done, the resident isn't asked again; it's shown as completed.
+.prior_done <- function(seva, cur_period, did_fld, desc_fld) {
+  no <- list(done = FALSE, desc = "", period = NA_character_)
+  if (is.null(seva) || nrow(seva) == 0 || !did_fld %in% names(seva)) return(no)
+  per <- as.character(seva$s_e_period)
+  ch  <- c("7" = 0L, "1" = 1L, "2" = 2L, "3" = 3L, "4" = 4L, "5" = 5L, "6" = 6L)
+  cur <- ch[as.character(cur_period)]
+  hit <- !is.na(ch[per]) & ch[per] < cur & trimws(as.character(seva[[did_fld]])) %in% "1"
+  if (!any(hit)) return(no)
+  r <- seva[hit, , drop = FALSE]; r <- r[order(-ch[as.character(r$s_e_period)]), , drop = FALSE]
+  d <- if (desc_fld %in% names(r)) as.character(r[[desc_fld]]) else character(0)
+  d <- d[!is.na(d) & nzchar(trimws(d))]
+  list(done = TRUE, desc = if (length(d)) trimws(d[1]) else "",
+       period = as.character(r$s_e_period[1]))
+}
+
+# Section order for periods 1-5 (Mid Intern .. Mid PGY3). Shared by the
+# progression logic and .form_std()'s step numbers, so they can't drift apart
+# (period 1 used to omit ilp_review here, which left Scholarship locked).
+# ilp_review is skipped automatically when there are no prior ILP goals.
+.SEQ_STD <- c("reflection", "career", "feedback", "boards", "topics",
+              "ilp_review", "scholarship", "milestones", "ilp")
+
+# Latest MKSAP progress import row for one resident, or NULL.
+.mksap_latest <- function(df, rid) {
+  if (is.null(df) || nrow(df) == 0 || is.null(rid)) return(NULL)
+  if ("redcap_repeat_instrument" %in% names(df))
+    df <- df[!is.na(df$redcap_repeat_instrument) & df$redcap_repeat_instrument == "mksap_progress", , drop = FALSE]
+  df <- df[as.character(df$record_id) == as.character(rid), , drop = FALSE]
+  if (nrow(df) == 0 || !"mk_export_date" %in% names(df)) return(NULL)
+  num <- function(f) if (f %in% names(df)) suppressWarnings(as.numeric(as.character(df[[f]]))) else rep(NA_real_, nrow(df))
+  out <- data.frame(date = suppressWarnings(as.Date(as.character(df$mk_export_date))),
+                    total = num("mk_total_questions"), n_complete = num("mk_n_complete"),
+                    pct_complete = num("mk_pct_complete"), pct_correct = num("mk_pct_correct"))
+  out <- out[!is.na(out$date), , drop = FALSE]
+  if (nrow(out) == 0) return(NULL)
+  out[which.max(out$date), , drop = FALSE]
+}
+
+# Compact MKSAP progress card for Boards & ITE.
+.mksap_card <- function(m) {
+  box <- function(...) div(class = "mb-3 py-2 px-3",
+    style = "font-size:0.85rem; border-left:4px solid var(--roundsui-accent, #3355D8); background:var(--roundsui-surface-2, #f8fafc); border-radius:4px;", ...)
+  if (is.null(m))
+    return(box(tags$i(class = "bi bi-journal-x me-1"),
+               tags$strong("MKSAP: "), "no progress imported for you yet."))
+  fmt <- function(x, suf = "") if (is.na(x)) "\u2014" else paste0(format(round(x, 1), big.mark = ","), suf)
+  pct <- if (is.na(m$pct_complete)) 0 else max(0, min(100, m$pct_complete))
+  box(
+    div(class = "d-flex justify-content-between align-items-baseline mb-1",
+      tags$span(tags$i(class = "bi bi-journal-check me-1"), tags$strong("MKSAP progress")),
+      tags$span(class = "text-muted", style = "font-size:0.78rem;",
+                paste0("As of ", trimws(format(m$date, "%B %e, %Y"))))),
+    div(paste0(fmt(m$n_complete), if (!is.na(m$total)) paste0(" of ", fmt(m$total)), " questions"),
+        " \u00b7 ", tags$strong(fmt(m$pct_complete, "%")), " complete",
+        if (!is.na(m$pct_correct)) paste0(" \u00b7 ", fmt(m$pct_correct, "%"), " correct")),
+    div(class = "progress mt-1", style = "height:6px;",
+      div(class = "progress-bar", role = "progressbar",
+          style = paste0("width:", pct, "%; background:var(--roundsui-accent, #3355D8);"))))
+}
+
 # Sections per period (for checklist)
 .PERIOD_SECTIONS <- list(
   # Period 7: concerns shown but NOT tracked (optional); milestones + background added
@@ -164,20 +294,20 @@
           milestones="Milestone Self-Assessment"),
   # Periods 1-5: boards section added
   "1" = c(reflection="Self-Reflection", career="Career Planning",
-          topics="Topics & Learning Styles", feedback="Program Feedback",
-          boards="Boards & ITE", milestones="Milestone Self-Assessment", ilp="ILP Goals"),
+          feedback="Program Feedback", boards="Boards & ITE",
+          topics="Topics & Learning Styles", milestones="Milestone Self-Assessment", ilp="ILP Goals"),
   "2" = c(reflection="Self-Reflection", career="Career Planning",
-          topics="Topics & Learning Styles", feedback="Program Feedback",
-          boards="Boards & ITE", milestones="Milestone Self-Assessment", ilp="ILP Goals"),
+          feedback="Program Feedback", boards="Boards & ITE",
+          topics="Topics & Learning Styles", milestones="Milestone Self-Assessment", ilp="ILP Goals"),
   "3" = c(reflection="Self-Reflection", career="Career Planning",
-          topics="Topics & Learning Styles", feedback="Program Feedback",
-          boards="Boards & ITE", milestones="Milestone Self-Assessment", ilp="ILP Goals"),
+          feedback="Program Feedback", boards="Boards & ITE",
+          topics="Topics & Learning Styles", milestones="Milestone Self-Assessment", ilp="ILP Goals"),
   "4" = c(reflection="Self-Reflection", career="Career Planning",
-          topics="Topics & Learning Styles", feedback="Program Feedback",
-          boards="Boards & ITE", milestones="Milestone Self-Assessment", ilp="ILP Goals"),
+          feedback="Program Feedback", boards="Boards & ITE",
+          topics="Topics & Learning Styles", milestones="Milestone Self-Assessment", ilp="ILP Goals"),
   "5" = c(reflection="Self-Reflection", career="Career Planning",
-          topics="Topics & Learning Styles", feedback="Program Feedback",
-          boards="Boards & ITE", milestones="Milestone Self-Assessment", ilp="ILP Goals"),
+          feedback="Program Feedback", boards="Boards & ITE",
+          topics="Topics & Learning Styles", milestones="Milestone Self-Assessment", ilp="ILP Goals"),
   # Period 6: graduation info + reflection + feedback
   "6" = c(reflection="Self-Reflection", alumni="Graduation Info",
           feedback="Program Feedback", milestones="Milestone Self-Assessment")
@@ -760,7 +890,7 @@ mod_self_eval_ui <- function(id) {
 # Process-level store for the program milestone spread (shared by sessions).
 .MS_SPREAD_STORE <- new.env(parent = emptyenv())
 
-mod_self_eval_server <- function(id, rdm_data, resident_id) {
+mod_self_eval_server <- function(id, rdm_data, resident_id, schol_store = NULL) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -948,8 +1078,8 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
     # the period changes; each successful save bumps it). Pre-existing data
     # from prior sessions does NOT advance it automatically — the resident
     # always starts at Self-Reflection when opening a period.
-    #   1=reflection 2=career 3=topics 4=feedback 5=boards
-    #   6=ilp_review 7=scholarship_ack 8=milestones 9=ilp
+    #   periods 1-5 follow .SEQ_STD (reflection, career, feedback, boards,
+    #   topics, ilp_review, scholarship, milestones, ilp)
     progress <- reactiveValues(step = 1L)
 
     # Scholarship section completeness is now handled by .section_complete()
@@ -974,11 +1104,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       }, error = function(e) NULL)
 
       seq_for <- switch(as.character(p),
-        "1" = c("reflection","career","topics","feedback",
-                "boards","scholarship","milestones","ilp"),
-        "2"=, "3"=, "4"=, "5" = c("reflection","career","topics","feedback",
-                                  "boards","ilp_review","scholarship",
-                                  "milestones","ilp"),
+        "1"=, "2"=, "3"=, "4"=, "5" = .SEQ_STD,
         "6" = c("reflection","alumni","feedback","ilp_review","scholarship","milestones"),
         "7" = c("goals","background","career","prep","topics","milestones"),
         character(0))
@@ -1021,11 +1147,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
     # make up the form for the given period.
     .seq_for <- function(p) {
       switch(as.character(p),
-        "1" = c("reflection","career","topics","feedback",
-                "boards","scholarship","milestones","ilp"),
-        "2"=, "3"=, "4"=, "5" = c("reflection","career","topics","feedback",
-                                  "boards","ilp_review","scholarship",
-                                  "milestones","ilp"),
+        "1"=, "2"=, "3"=, "4"=, "5" = .SEQ_STD,
         "6" = c("reflection","alumni","feedback","ilp_review","scholarship","milestones"),
         "7" = c("goals","background","career","prep","topics","milestones"),
         character(0))
@@ -1547,6 +1669,13 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
     })
 
     # ── Boards & ITE — whole-section renderUI (Fix 1) ─────────────────────────
+    # Latest MKSAP progress import for this resident (mksap_progress form),
+    # shown in Boards & ITE in place of the old self-reported completion picker.
+    mksap_latest_r <- reactive({
+      df <- tryCatch(rdm_data()$all_forms$mksap_progress, error = function(e) NULL)
+      .mksap_latest(df, resident_id())
+    })
+
     output$boards_full_ui <- renderUI({
       req(local$sel_period %in% as.character(1:5))
       sr  <- sel_seva()
@@ -1669,8 +1798,6 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
         }
       }
 
-      mksap_ch <- .dd_select(dd, "s_e_mksap_comp")   # flipped: label=code
-
       # Collapse only when the boards section has been saved (step3 answered).
       # Avoid deriving collapse from feedback completion: the renderUI fires on
       # every input$s_e_step3 change, which would fight any manual user expansion.
@@ -1683,17 +1810,11 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
         ite_panel,
         step3_row,
         step3_cond,
-        div(class="mt-3 pt-2", style="border-top:1px solid #f0f0f0;",
-          .ta(ns("s_e_board_discu"), "Board study plan / discussion notes",
-              .fv(sr,"s_e_board_discu"), rows=2)),
-        if (!is.null(mksap_ch))
-          div(class="mb-2",
-            tags$label("MKSAP completion",
-                       style="font-size:0.83rem; color:var(--roundsui-ink, #13161F); font-weight:600;"),
-            selectInput(ns("s_e_mksap_comp"), label=NULL,
-              choices=c("-- select --"="", mksap_ch),
-              selected=.fv(sr,"s_e_mksap_comp"),
-              selectize=FALSE, width="340px")),
+        .mksap_card(mksap_latest_r()),
+        div(class="mt-3 pt-2", style="border-top:1px solid var(--roundsui-border, #f0f0f0);",
+          .ta(ns("s_e_board_discu"), "Your plan for completing MKSAP and preparing for boards",
+              .fv(sr,"s_e_board_discu"), rows=3,
+              placeholder="e.g., question-bank pace, target completion date, review course, study schedule...")),
         .save_btn(ns, "save_boards", "Save Board Info"))
     })
 
@@ -1728,6 +1849,10 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       "5" = "SLUH Ethics Committee",
       "6" = "Other"
     )
+
+    # Embedded scholarship list (shares the Scholarship page's store).
+    mod_scholarship_server("schol_embed", rdm_data = rdm_data, resident_id = resident_id,
+                           store = schol_store, embedded = TRUE)
 
     output$scholarship_check_ui <- renderUI({
       req(local$sel_period %in% as.character(1:6))
@@ -1765,20 +1890,35 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
 
       committee_choices_ui <- setNames(names(.COMMITTEE_CHOICES), unname(.COMMITTEE_CHOICES))
 
-      body <- tagList(
-        yn_radio("s_e_did_qi", "Have you participated in a Quality Improvement (QI) project?",
-                 yn_default("s_e_did_qi")),
-        conditionalPanel("input.s_e_did_qi == '1'", ns = ns,
-          div(class = "mb-3",
-            ta("s_e_qi_description", .fv(sr, "s_e_qi_description"),
-               "Briefly describe the QI project"))),
+      # QI / PS reported in an earlier self-eval: show as completed, don't re-ask.
+      qi_prev <- .prior_done(seva_all, p, "s_e_did_qi", "s_e_qi_description")
+      ps_prev <- .prior_done(seva_all, p, "s_e_did_ps", "s_e_ps_description")
+      done_box <- function(what, prev)
+        div(class = "mb-3 py-2 px-3",
+            style = "font-size:0.84rem; background:#e8f5e9; border-left:3px solid #2e7d32; border-radius:4px; color:#1b4d1f;",
+          tags$i(class = "bi bi-check-circle-fill me-1", style = "color:#2e7d32;"),
+          tags$strong(paste0(what, " completed")),
+          if (!is.na(prev$period)) paste0(" (reported ", unname(.ILP_PNAME[prev$period]), ")"),
+          if (nzchar(prev$desc)) tagList(": ", prev$desc) else ". No project description was entered.",
+          div(style = "font-size:0.78rem; color:#4b6b4e; margin-top:2px;",
+              "Already on record, so there's nothing to update here."))
 
-        yn_radio("s_e_did_ps", "Have you participated in a Patient Safety review?",
-                 yn_default("s_e_did_ps")),
-        conditionalPanel("input.s_e_did_ps == '1'", ns = ns,
-          div(class = "mb-3",
-            ta("s_e_ps_description", .fv(sr, "s_e_ps_description"),
-               "Briefly describe the patient safety review"))),
+      body <- tagList(
+        if (qi_prev$done) done_box("QI project", qi_prev) else tagList(
+          yn_radio("s_e_did_qi", "Have you participated in a Quality Improvement (QI) project?",
+                   yn_default("s_e_did_qi")),
+          conditionalPanel("input.s_e_did_qi == '1'", ns = ns,
+            div(class = "mb-3",
+              ta("s_e_qi_description", .fv(sr, "s_e_qi_description"),
+                 "Briefly describe the QI project")))),
+
+        if (ps_prev$done) done_box("Patient safety review", ps_prev) else tagList(
+          yn_radio("s_e_did_ps", "Have you participated in a Patient Safety review?",
+                   yn_default("s_e_did_ps")),
+          conditionalPanel("input.s_e_did_ps == '1'", ns = ns,
+            div(class = "mb-3",
+              ta("s_e_ps_description", .fv(sr, "s_e_ps_description"),
+                 "Briefly describe the patient safety review")))),
 
         yn_radio("s_e_did_committee", "Are you currently serving on a committee?",
                  yn_default("s_e_did_committee")),
@@ -1803,11 +1943,16 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
                        placeholder = "e.g., Member, Chair, Resident Representative",
                        value = .fv(sr, "s_e_committee_role")))),
 
-        div(class = "mb-3",
-          tags$label("What scholarly work are you currently working on?",
-                     style = "font-size:0.83rem; color:var(--roundsui-ink, #13161F); font-weight:600; display:block; margin-bottom:4px;"),
-          ta("s_e_current_work", .fv(sr, "s_e_current_work"),
-             "A short status update on ongoing scholarly work (optional)")),
+        # Review the resident's scholarship list right here (same module and
+        # store as the Scholarship page): fix older entries, delete repeats,
+        # add anything new.
+        div(class = "mt-3 pt-2", style = "border-top:1px dashed #cfc4e5;",
+          tags$p(style = "font-weight:700; font-size:0.9rem; margin:0 0 2px;",
+                 tags$i(class = "bi bi-list-check me-1"), "Review your current scholarship"),
+          tags$p(style = "font-size:0.82rem; color:var(--roundsui-ink-muted, #6c757d); margin:0 0 8px;",
+                 "Check that everything below is accurate and up to date. Click any entry to update it ",
+                 "(older entries need converting to the new format), and delete repeats."),
+          mod_scholarship_ui(ns("schol_embed"), embedded = TRUE)),
 
         div(class = "mt-2 d-flex align-items-center gap-2",
           actionButton(ns("save_schol_ack"), "Save & Continue",
@@ -1823,19 +1968,9 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
             tags$p(style = "font-weight:700; color:#4a1d96; font-size:0.9rem; margin:0;",
                    tags$i(class = "bi bi-award-fill me-2"), "Scholarship & Teaching"),
             tags$p(style = "font-size:0.82rem; color:#6c757d; margin:4px 0 0;",
-                   "These questions are optional - answer what applies. Discrete outputs ",
-                   "(posters, presentations, publications) are logged in the Scholarship tab.")),
+                   "Answer the questions that apply, then review your scholarship list below.")),
           div(class = "mt-2 pt-2", style = "border-top:1px dashed #cfc4e5;", body),
-          div(class = "mt-3 pt-2 d-flex align-items-center gap-2",
-              style = "border-top:1px dashed #cfc4e5;",
-            tags$span(style = "font-size:0.82rem; color:#4a1d96;",
-                      tags$i(class = "bi bi-arrow-right-circle me-1"), "Outputs:"),
-            tags$button(class = "btn btn-sm",
-              style = "background:#6f42c1; color:#fff; border:none;
-                       padding:6px 18px; font-size:0.85rem; font-weight:600;",
-              onclick = "Shiny.setInputValue('nav_block','scholarship',{priority:'event'})",
-              tags$i(class = "bi bi-box-arrow-up-right me-1"),
-              "Go to the Scholarship section"))))
+          NULL))
     })
 
     # Save - writes the scholarship answers onto THIS period's s_eval instance
@@ -1848,20 +1983,37 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       qi   <- input$s_e_did_qi           %||% ""
       ps   <- input$s_e_did_ps           %||% ""
       comm <- input$s_e_did_committee    %||% ""
+      # Not re-asked when an earlier period already reported it: carry it forward.
+      qi_prev <- .prior_done(local$seva, p, "s_e_did_qi", "s_e_qi_description")
+      ps_prev <- .prior_done(local$seva, p, "s_e_did_ps", "s_e_ps_description")
+      if (qi_prev$done) qi <- "1"
+      if (ps_prev$done) ps <- "1"
+      # Each Yes/No shown needs an answer: the section counts as done from
+      # these, so a blank save would leave the next section locked.
+      if (!nzchar(qi) || !nzchar(ps) || !nzchar(comm)) {
+        output$save_schol_ack_status <- renderUI(
+          tags$span(class = "text-danger small",
+            tags$i(class = "bi bi-exclamation-triangle-fill me-1"),
+            "Please answer each Yes / No question above."))
+        return()
+      }
+      qi_desc <- if (qi_prev$done) qi_prev$desc else input$s_e_qi_description %||% ""
+      ps_desc <- if (ps_prev$done) ps_prev$desc else input$s_e_ps_description %||% ""
       sel  <- input$s_e_committee_select %||% character(0)
 
       f <- list(
         s_e_period          = p,
         s_e_did_qi          = qi,
-        s_e_qi_description  = if (identical(qi, "1")) input$s_e_qi_description %||% "" else "",
+        s_e_qi_description  = if (identical(qi, "1")) qi_desc else "",
         s_e_did_ps          = ps,
-        s_e_ps_description  = if (identical(ps, "1")) input$s_e_ps_description %||% "" else "",
+        s_e_ps_description  = if (identical(ps, "1")) ps_desc else "",
         s_e_did_committee   = comm,
         s_e_committee_role  = if (identical(comm, "1")) input$s_e_committee_role %||% "" else "",
         s_e_committee_other = if (identical(comm, "1") && "6" %in% sel)
                                 input$s_e_committee_other %||% "" else "",
-        s_e_current_work    = input$s_e_current_work %||% ""
+        NULL
       )
+      f <- f[!vapply(f, is.null, logical(1))]
       # Committee checkbox columns - selected -> "1", the rest -> "0" (all
       # cleared when "currently serving" is not Yes).
       f <- c(f, .checkbox_fields("s_e_committee_select", .COMMITTEE_CHOICES,
@@ -1886,6 +2038,27 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
     # ── ILP Goal Review (periods 1-5, shown above Milestones) ─────────────────
     # Uses radioButtons() so Shiny registers live input — conditional text areas
     # react immediately without a save round-trip.
+    # Goals set in earlier periods, charted above the ILP goal pickers.
+    output$ilp_history_ui <- renderUI({
+      req(local$sel_period %in% as.character(1:5))
+      h <- .ilp_goal_history(local$ilp, local$sel_period)
+      if (is.null(h)) return(NULL)
+      no_lvl <- unique(h$label[is.na(h$level)])
+      div(class = "mb-3 p-2", style = "border:1px solid var(--roundsui-border, #e5e7eb); border-radius:8px;",
+        tags$p(style = "font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; margin:2px 4px 0; color:var(--roundsui-ink-muted, #6c757d);",
+               tags$i(class = "bi bi-graph-up me-1"), "Your earlier ILP goals"),
+        plotly::plotlyOutput(ns("ilp_history_plot"), height = "230px"),
+        if (length(no_lvl))
+          tags$p(class = "mb-0 mx-1", style = "font-size:0.75rem; color:var(--roundsui-ink-muted, #6c757d);",
+                 tags$i(class = "bi bi-info-circle me-1"),
+                 paste0("No target level was saved for: ", paste(no_lvl, collapse = ", "),
+                        " (goals shown in the panels below).")))
+    })
+    output$ilp_history_plot <- plotly::renderPlotly({
+      req(local$sel_period %in% as.character(1:5))
+      .ilp_history_chart(.ilp_goal_history(local$ilp, local$sel_period))
+    })
+
     output$ilp_review_ui <- renderUI({
       req(local$sel_period %in% as.character(2:6))
       pir_data <- prev_ilp_r()
@@ -2409,7 +2582,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
               else
                 tags$p(style="font-size:0.72rem; color:var(--roundsui-danger, #D33A2C); margin:4px 0 0;",
                        tags$i(class="bi bi-exclamation-circle me-1"),
-                       "How / Plan still empty")))
+                       "Why / how still empty")))
         } else {
           div(class="col-md-4",
             div(style=paste0("border-left:3px dashed #adb5bd; padding:8px 10px;",
@@ -2506,8 +2679,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
                 s_e_step3         = step3_val,
                 s_e_step3_date_set= input$s_e_step3_date_set  %||% "",
                 s_e_step3_date    = input$s_e_step3_date       %||% "",
-                s_e_board_discu   = input$s_e_board_discu      %||% "",
-                s_e_mksap_comp    = input$s_e_mksap_comp       %||% "")
+                s_e_board_discu   = input$s_e_board_discu      %||% "")
       res <- .rc_save(resident_id(),"s_eval",as.integer(p),f); ss$boards <- res
       if (res$success) {
         .merge_seva(p,f)
@@ -2523,7 +2695,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
           .rc_save_resident(resident_id(), rd)
           .merge_res(rd)
         }
-        .advance_after("boards")   # boards done → ILP review unlocks next
+        .advance_after("boards")   # boards done → Topics & Learning Styles next
       }
     })
     observeEvent(input$save_reflection, {
@@ -3185,7 +3357,10 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
                      paste0(row_pfx, goal_text))
             else if (nzchar(prev_row) || nzchar(prev_level))
               tags$p(style = "font-size:0.72rem; color:#9ca3af; margin:0; font-style:italic;",
-                     "(milestone anchor text not recorded)"))))
+                     "(milestone anchor text not recorded)")
+            else
+              tags$p(style = "font-size:0.72rem; color:#9ca3af; margin:0; font-style:italic;",
+                     "(no target level was saved for this goal)"))))
       }
     }
   }
@@ -3468,15 +3643,12 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
   sel_tr <- .checked_codes(sr,"s_e_track_type")
 
   # Strict sequential flow driven by session state (progress$step).
-  # Step numbers:
-  #   1 reflection   2 career      3 topics      4 feedback
-  #   5 boards       6 ilp_review  7 scholarship 8 milestones   9 ilp
+  # Step numbers come from .SEQ_STD (reflection, career, feedback, boards,
+  # topics, ilp_review, scholarship, milestones, ilp).
   # Pre-existing data does NOT skip ahead; the resident works through every
   # section in order. Prior steps render collapsed, active expanded, later
   # steps as locked placeholders.
-  STEP <- list(reflection=1L, career=2L, topics=3L, feedback=4L,
-               boards=5L, ilp_review=6L, scholarship=7L,
-               milestones=8L, ilp=9L)
+  STEP <- as.list(setNames(seq_along(.SEQ_STD), .SEQ_STD))
   as_step <- as.integer(active_step %||% 1L)
   is_past   <- function(n) as_step >  STEP[[n]]
   is_active <- function(n) as_step == STEP[[n]]
@@ -3555,11 +3727,6 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
         .save_btn(ns,"save_career"))
     },
 
-    # 3. Topics & Learning Styles
-    if (is_locked("topics")) .locked_section("Topics & Learning Styles")
-    else .form_topics_section(ns, sr, dd, tc, sc, sel_t, sel_s, psr,
-                              collapsed=col_for("topics")),
-
     # 4. Program Feedback
     if (is_locked("feedback")) .locked_section("Program Feedback")
     else .form_feedback_section(ns, sr, collapsed=col_for("feedback")),
@@ -3567,6 +3734,11 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
     # 5. Boards & ITE — fully server-rendered to handle reactive Step 3 conditional
     if (is_locked("boards")) .locked_section("Boards & ITE")
     else uiOutput(ns("boards_full_ui")),
+
+    # Topics & Learning Styles — after Boards so ITE / MKSAP results inform it
+    if (is_locked("topics")) .locked_section("Topics & Learning Styles")
+    else .form_topics_section(ns, sr, dd, tc, sc, sel_t, sel_s, psr,
+                              collapsed=col_for("topics")),
 
     # 6. ILP Goal Review — only shows if previous ILP goals exist; otherwise
     #    the server renderUI returns NULL and progression skips this step.
@@ -3605,6 +3777,7 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
       ),
       .prev_ref_text(.fv(pir, "coach_ilp_final"),
                      label = "Coach comment \u2014 last period"),
+      uiOutput(ns("ilp_history_ui")),
       tags$p(class="text-muted mb-3", style="font-size:0.82rem;",
              "Set one focused goal per competency domain. Select the milestone row and target level."),
       div(class="alert alert-light border mb-3 py-1 px-2",
@@ -3626,7 +3799,11 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
               .ilp_goal_select(ns,"goal_pcmk","Subcompetency goal",
                                pcmk_ch, .fv(ir,"goal_pcmk")),
               uiOutput(ns("ilp_level_pcmk")),
-              .ta(ns("how_pcmk"),"How / Plan",.fv(ir,"how_pcmk"),rows=2))),
+              .ta(ns("how_pcmk"),"Why did you choose this goal, and how might you accomplish it?",
+                  .fv(ir,"how_pcmk"),rows=3,
+                  placeholder="Why this goal matters to you, and the concrete steps you'll take..."),
+              tags$p(class="text-muted", style="font-size:0.78rem; margin:-10px 0 8px;",
+                     tags$i(class="bi bi-chat-dots me-1"), "You'll discuss this with your coach."))),
           div(class="col-md-4",
             div(style="border-left:4px solid #198754; padding-left:10px;",
               tags$p(style="font-weight:700; font-size:0.8rem; color:#198754; margin-bottom:8px;",
@@ -3636,7 +3813,11 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
               .ilp_goal_select(ns,"goal_sbppbl","Subcompetency goal",
                                sbppbl_ch, .fv(ir,"goal_sbppbl")),
               uiOutput(ns("ilp_level_sbppbl")),
-              .ta(ns("how_sbppbl"),"How / Plan",.fv(ir,"how_sbppbl"),rows=2))),
+              .ta(ns("how_sbppbl"),"Why did you choose this goal, and how might you accomplish it?",
+                  .fv(ir,"how_sbppbl"),rows=3,
+                  placeholder="Why this goal matters to you, and the concrete steps you'll take..."),
+              tags$p(class="text-muted", style="font-size:0.78rem; margin:-10px 0 8px;",
+                     tags$i(class="bi bi-chat-dots me-1"), "You'll discuss this with your coach."))),
           div(class="col-md-4",
             div(style="border-left:4px solid #6f42c1; padding-left:10px;",
               tags$p(style="font-weight:700; font-size:0.8rem; color:#6f42c1; margin-bottom:8px;",
@@ -3646,7 +3827,11 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
               .ilp_goal_select(ns,"goal_subcomp_profics","Subcompetency goal",
                                profics_ch, .fv(ir,"goal_subcomp_profics")),
               uiOutput(ns("ilp_level_profics")),
-              .ta(ns("how_profics"),"How / Plan",.fv(ir,"how_profics"),rows=2))))
+              .ta(ns("how_profics"),"Why did you choose this goal, and how might you accomplish it?",
+                  .fv(ir,"how_profics"),rows=3,
+                  placeholder="Why this goal matters to you, and the concrete steps you'll take..."),
+              tags$p(class="text-muted", style="font-size:0.78rem; margin:-10px 0 8px;",
+                     tags$i(class="bi bi-chat-dots me-1"), "You'll discuss this with your coach."))))
       },
       uiOutput(ns("ilp_pending_preview")),
       .save_btn(ns,"save_ilp","Save ILP Goals"))
@@ -3752,11 +3937,14 @@ mod_self_eval_server <- function(id, rdm_data, resident_id) {
 .form_feedback_section <- function(ns, sr, is_grad = FALSE, collapsed = FALSE) {
   .sec_card(title="Program Feedback", icon="chat-dots-fill", collapsed=collapsed,
     tags$p(class="text-muted mb-3", style="font-size:0.82rem;",
-           "Share candid feedback — this goes to program leadership, not your evaluating faculty."),
-    div(class="alert alert-light border mb-3 py-1 px-2",
-        style="font-size:0.78rem; border-left:3px solid #0d6efd !important;",
-        tags$i(class="bi bi-shield-check me-1"),
-        "Shared with program leadership — not your evaluating faculty."),
+           "Share candid feedback on the program."),
+    div(class="alert alert-light border mb-3 py-2 px-3",
+        style="font-size:0.82rem; border-left:3px solid var(--roundsui-accent, #0d6efd) !important;",
+        tags$i(class="bi bi-shield-lock-fill me-1"),
+        tags$strong("This feedback is used anonymously. "),
+        "It's grouped with other residents' answers and given to the ",
+        "Program Evaluation Committee (PEC), without names, for review and action. ",
+        "Your coach and evaluating faculty don't see it."),
     # Core feedback quartet
     .ta(ns("s_e_prog_plus"),  "What is the program doing well?",
         .fv(sr,"s_e_prog_plus"), rows=2),

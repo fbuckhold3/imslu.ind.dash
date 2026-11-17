@@ -209,7 +209,12 @@ server <- function(input, output, session) {
   mod_evaluations_server( "evaluations",  rdm_data = rdm_data, resident_id = resident_id)
   mod_learning_server(    "learning",     rdm_data = rdm_data, resident_id = resident_id)
   mod_milestones_server(  "milestones",   rdm_data = rdm_data, resident_id = resident_id)
-  mod_scholarship_server( "scholarship",  rdm_data = rdm_data, resident_id = resident_id)
+  # One scholarship store for the Scholarship page and the self-eval's
+  # embedded copy, so edits in either show in both.
+  schol_store <- reactiveVal(NULL)
+  observeEvent(resident_id(), schol_store(NULL), ignoreInit = TRUE)
+  mod_scholarship_server( "scholarship",  rdm_data = rdm_data, resident_id = resident_id,
+                          store = schol_store)
   gmed::mod_faculty_eval_server("faculty_eval", rdm_data = rdm_data, resident_id = resident_id,
                           faculty_roster_r = faculty_roster,
                           rdm_token = app_config$rdm_token, redcap_url = app_config$redcap_url,
@@ -217,7 +222,8 @@ server <- function(input, output, session) {
   amiontools::mod_peer_review_entry_server("peer_review", resident_id = resident_id,
                           all_residents_r = all_residents,
                           rdm_token = app_config$rdm_token, redcap_url = app_config$redcap_url)
-  mod_self_eval_server(   "self_eval",    rdm_data = rdm_data, resident_id = resident_id)
+  mod_self_eval_server(   "self_eval",    rdm_data = rdm_data, resident_id = resident_id,
+                          schol_store = schol_store)
   amiontools::mod_attendance_server(  "attendance",   rdm_data = rdm_data, resident_id = resident_id,
                           rdm_token = app_config$rdm_token, redcap_url = app_config$redcap_url)
   mod_schedule_server(    "schedule",     resident_id = resident_id)
