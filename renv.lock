@@ -1299,7 +1299,7 @@
     },
     "gmed": {
       "Package": "gmed",
-      "Version": "0.0.4",
+      "Version": "0.0.5",
       "Source": "GitHub",
       "Title": "What the Package Does (One Line, Title Case)",
       "Authors@R": "person(\"First\", \"Last\", , \"first.last@example.com\", role = c(\"aut\", \"cre\"))",
@@ -1342,8 +1342,8 @@
       "RemoteHost": "api.github.com",
       "RemoteUsername": "fbuckhold3",
       "RemoteRepo": "gmed",
-      "RemoteRef": "d31098277750277fbe7383b73709a02e0c7561e4",
-      "RemoteSha": "d31098277750277fbe7383b73709a02e0c7561e4"
+      "RemoteRef": "9b5163348d58bc76ab23438d296b805562d66901",
+      "RemoteSha": "9b5163348d58bc76ab23438d296b805562d66901"
     },
     "gtable": {
       "Package": "gtable",
@@ -2806,7 +2806,7 @@
     },
     "reviewkit": {
       "Package": "reviewkit",
-      "Version": "0.2.0",
+      "Version": "0.3.3",
       "Source": "GitHub",
       "Title": "Shared Data Snapshot and Readiness Gate for Semi-Annual Resident Review",
       "Authors@R": "person(\"Fred\", \"Buckhold\", , \"fbuckhold3@icloud.com\", role = c(\"aut\", \"cre\"))",
@@ -2820,8 +2820,9 @@
       "Imports": [
         "amiontools (>= 0.2.0)",
         "dplyr",
-        "gmed",
+        "gmed (>= 0.0.5)",
         "jsonlite",
+        "shiny",
         "tibble"
       ],
       "Remotes": "fbuckhold3/amiontools, fbuckhold3/gmed",
@@ -2834,8 +2835,8 @@
       "RemoteHost": "api.github.com",
       "RemoteUsername": "fbuckhold3",
       "RemoteRepo": "reviewkit",
-      "RemoteRef": "23e5d849c38377b6c3c7085dc9eef4a7829124ab",
-      "RemoteSha": "23e5d849c38377b6c3c7085dc9eef4a7829124ab"
+      "RemoteRef": "34eabfe63e487bf596102021b41ab08ac553ebf3",
+      "RemoteSha": "34eabfe63e487bf596102021b41ab08ac553ebf3"
     },
     "rlang": {
       "Package": "rlang",

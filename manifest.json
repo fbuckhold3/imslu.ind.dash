@@ -1107,7 +1107,7 @@
       "description": {
         "Package": "gmed",
         "Title": "What the Package Does (One Line, Title Case)",
-        "Version": "0.0.4",
+        "Version": "0.0.5",
         "Authors@R": "\n    person(\"First\", \"Last\", , \"first.last@example.com\", role = c(\"aut\", \"cre\"))",
         "Description": "What the package does (one paragraph).",
         "License": "MIT + file LICENSE",
@@ -1122,17 +1122,17 @@
         "RemoteHost": "api.github.com",
         "RemoteRepo": "gmed",
         "RemoteUsername": "fbuckhold3",
-        "RemoteRef": "d31098277750277fbe7383b73709a02e0c7561e4",
-        "RemoteSha": "d31098277750277fbe7383b73709a02e0c7561e4",
+        "RemoteRef": "9b5163348d58bc76ab23438d296b805562d66901",
+        "RemoteSha": "9b5163348d58bc76ab23438d296b805562d66901",
         "GithubRepo": "gmed",
         "GithubUsername": "fbuckhold3",
-        "GithubRef": "d31098277750277fbe7383b73709a02e0c7561e4",
-        "GithubSHA1": "d31098277750277fbe7383b73709a02e0c7561e4",
+        "GithubRef": "9b5163348d58bc76ab23438d296b805562d66901",
+        "GithubSHA1": "9b5163348d58bc76ab23438d296b805562d66901",
         "NeedsCompilation": "no",
-        "Packaged": "2026-11-17 23:30:23 UTC; home_base",
+        "Packaged": "2026-11-19 03:01:19 UTC; home_base",
         "Author": "First Last [aut, cre]",
         "Maintainer": "First Last <first.last@example.com>",
-        "Built": "R 4.6.0; ; 2026-11-17 23:30:24 UTC; unix"
+        "Built": "R 4.6.0; ; 2026-11-19 03:01:19 UTC; unix"
       }
     },
     "gtable": {
@@ -2269,14 +2269,14 @@
       "description": {
         "Package": "reviewkit",
         "Title": "Shared Data Snapshot and Readiness Gate for Semi-Annual Resident\nReview",
-        "Version": "0.2.0",
+        "Version": "0.3.3",
         "Authors@R": "\n    person(\"Fred\", \"Buckhold\", , \"fbuckhold3@icloud.com\", role = c(\"aut\", \"cre\"))",
         "Description": "One snapshot of a resident's review-window data (duty hours,\n    conference attendance, MKSAP, peer reviews, faculty assessments, ITE),\n    built once when the self-evaluation is submitted and read by every later\n    step of the review (coach, second reviewer, CCC), so each step sees the\n    same numbers. Also the data-readiness gate the self-evaluation enforces\n    before submission, and JSON storage for the frozen snapshot. Built on\n    amiontools (schedule, duty hours, attendance) and gmed (RDM loading).",
         "License": "MIT + file LICENSE",
         "Encoding": "UTF-8",
         "Roxygen": "list(markdown = TRUE)",
         "Depends": "R (>= 4.1)",
-        "Imports": "amiontools (>= 0.2.0), dplyr, gmed, jsonlite, tibble",
+        "Imports": "amiontools (>= 0.2.0), dplyr, gmed (>= 0.0.5), jsonlite,\nshiny, tibble",
         "Remotes": "fbuckhold3/amiontools, fbuckhold3/gmed",
         "Suggests": "testthat (>= 3.0.0)",
         "Config/testthat/edition": "3",
@@ -2285,17 +2285,17 @@
         "RemoteHost": "api.github.com",
         "RemoteRepo": "reviewkit",
         "RemoteUsername": "fbuckhold3",
-        "RemoteRef": "23e5d849c38377b6c3c7085dc9eef4a7829124ab",
-        "RemoteSha": "23e5d849c38377b6c3c7085dc9eef4a7829124ab",
+        "RemoteRef": "34eabfe63e487bf596102021b41ab08ac553ebf3",
+        "RemoteSha": "34eabfe63e487bf596102021b41ab08ac553ebf3",
         "GithubRepo": "reviewkit",
         "GithubUsername": "fbuckhold3",
-        "GithubRef": "23e5d849c38377b6c3c7085dc9eef4a7829124ab",
-        "GithubSHA1": "23e5d849c38377b6c3c7085dc9eef4a7829124ab",
+        "GithubRef": "34eabfe63e487bf596102021b41ab08ac553ebf3",
+        "GithubSHA1": "34eabfe63e487bf596102021b41ab08ac553ebf3",
         "NeedsCompilation": "no",
-        "Packaged": "2026-11-17 23:31:22 UTC; home_base",
+        "Packaged": "2026-11-19 03:01:24 UTC; home_base",
         "Author": "Fred Buckhold [aut, cre]",
         "Maintainer": "Fred Buckhold <fbuckhold3@icloud.com>",
-        "Built": "R 4.6.0; ; 2026-11-17 23:31:22 UTC; unix"
+        "Built": "R 4.6.0; ; 2026-11-19 03:01:24 UTC; unix"
       }
     },
     "rlang": {
@@ -3304,7 +3304,7 @@
       "checksum": "dedfc2115c5e1ffa551163775008f787"
     },
     "R/modules/mod_milestones.R": {
-      "checksum": "31bea5e6b2dbb389b3ac7d95d2339a50"
+      "checksum": "a9258b6b96af82fb8d4fab0d67aab862"
     },
     "R/modules/mod_resources.R": {
       "checksum": "df0dfdbe3788383bb88a92b75ff4d608"
@@ -3331,7 +3331,7 @@
       "checksum": "9ee43b5b51934125010b8316006261f2"
     },
     "renv.lock": {
-      "checksum": "49ec973ede1a248b2a66361a8abe2f0e"
+      "checksum": "2c809f06d863d370f90c9d2e10a5b532"
     },
     "scripts/make_fake_2042.R": {
       "checksum": "286c3a399c6981dbe5f9694b8eda534b"
